@@ -11,3 +11,6 @@ dist/
 # Cabal stuff
 .cabal-sandbox/
 cabal.sandbox.config
+
+# Stack
+.stack-work/

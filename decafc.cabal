@@ -37,6 +37,7 @@ executable decafc
                      , split ==0.2.*
                      , transformers ==0.4.*
                      , pretty-show
+                     , mtl
   build-tools:         alex >=3.0.2
                      , happy
 

@@ -16,6 +16,8 @@ module Scanner ( ScannedToken(..)
                , scan
                , formatTokenOrError
                ) where
+
+import Control.Monad.State
 }
 
 %wrapper "6.035"
@@ -23,16 +25,75 @@ module Scanner ( ScannedToken(..)
 
 ----------------------------------- Tokens ------------------------------------
 
+-- binary operators
+$arithOp = [\+ \- \* \/ \%]
+@relOp = \<\= | \>\= | [\< \>]
+@eqOp = \=\= | \!\=
+@condOp = \&\& | \|\|
+@binOp = $arithOp | @relOp | @eqOp | @condOp
+
+-- alphabet and digits
 $alpha = [a-zA-Z]
+$digit = [0-9]
+$alphaNum = [$alpha $digit]
+$hexDigit = [$digit a-fA-F]
+@specialChar = \\\" | \\\' | \\\\ | \\t | \\n
+@char = $printable # [\" \' \\] | @specialChar
+
+-- literals
+@decimalLiteral = $digit+
+@hexLiteral = 0x $hexDigit+
+@boolLiteral = true | false
+@charLiteral = \'@char\'
+@stringLiteral = \"@char*\"
+@intLiteral = @decimalLiteral | @hexLiteral
+@literal = @intLiteral | @charLiteral | @boolLiteral
+
+-- assign and increment
+$assignOp = \=
+@compoundAssignOp = \+\= | \-\=
+@incrementOp = \+\+ | \-\-
+
+-- identifiers and keywords
+@id = [$alpha _] [$alphaNum _]*
+@keyword = bool | break | import | continue | else | for | while | if
+           | int | return | len | void
+
+-- whitespaces
 $white2 = $white # \f -- we want the scanner to error on '\f' (form feed) characters
 
+-- keyword and identifier separators
+$syntaxChars = [\; \, \: \? \! \{\} \[\] \(\) \= \+ \- \* \/ \$ \| \% $white2]
+
+
+-- rules
 tokens :-
-  $white2+ ;
-  "//".*   ;                     -- comment
-  class    { \posn s -> scannedToken posn $ Keyword s }
-  \{       { \posn _ -> scannedToken posn LCurly }
-  \}       { \posn _ -> scannedToken posn RCurly }
-  $alpha+  { \posn s -> scannedToken posn $ Identifier s }
+  <0>             $white2+                   ;
+  <0>             "//".*                     ;
+  <0>             "/*"[.\n]*"*/"             ;
+  <0>             $syntaxChars ^ @keyword    { \posn s -> scannedToken posn $ Keyword s }
+  <0>             @charLiteral               { \posn s -> scannedToken posn $ CharLiteral s }
+  <0>             @intLiteral                { \posn s -> scannedToken posn $ IntLiteral s }
+  <0>             @boolLiteral               { \posn s -> scannedToken posn $ BooleanLiteral s }
+  <0>             @stringLiteral             { \posn s -> scannedToken posn $ StringLiteral s }
+  <0>             $syntaxChars ^ @id         { \posn s -> scannedToken posn $ Identifier s }
+  <0>             $assignOp                  { \posn s -> scannedToken posn AssignOp }
+  <0>             @compoundAssignOp          { \posn s -> scannedToken posn $ CompoundAssignOp s }
+  <0>             $arithOp                   { \posn s -> scannedToken posn $ ArithmeticOp s }
+  <0>             @relOp                     { \posn s -> scannedToken posn $ RelationOp s }
+  <0>             @eqOp                      { \posn s -> scannedToken posn $ EquationOp s }
+  <0>             @condOp                    { \posn s -> scannedToken posn $ ConditionOp s }
+  <0>             \{                         { \posn _ -> scannedToken posn LCurly }
+  <0>             \}                         { \posn _ -> scannedToken posn RCurly }
+  <0>             \(                         { \posn _ -> scannedToken posn LParen }
+  <0>             \)                         { \posn _ -> scannedToken posn RParen }
+  <0>             \[                         { \posn _ -> scannedToken posn LBrack }
+  <0>             \]                         { \posn _ -> scannedToken posn RBrack }
+  <0>             \?                         { \posn _ -> scannedToken posn Choice }
+  <0>             \:                         { \posn _ -> scannedToken posn Colon }
+  <0>             \;                         { \posn _ -> scannedToken posn Semicolon }
+  <0>             \,                         { \posn _ -> scannedToken posn Comma }
+  <0>             \!                         { \posn _ -> scannedToken posn Negate }
 
 
 ----------------------------- Representing tokens -----------------------------
@@ -47,20 +108,58 @@ data ScannedToken = ScannedToken { line :: Int
 -- | A token.
 data Token = Keyword String
            | Identifier String
+           | CharLiteral String
+           | IntLiteral String
+           | BooleanLiteral String
+           | StringLiteral String
+           | AssignOp
+           | CompoundAssignOp String
+           | ArithmeticOp String
+           | RelationOp String
+           | EquationOp String
+           | ConditionOp String
            | LCurly
            | RCurly
+           | LParen
+           | RParen
+           | LBrack
+           | RBrack
+           | Choice
+           | Colon
+           | Semicolon
+           | Comma
+           | Negate
            deriving (Eq)
+
 instance Show Token where
   show (Keyword k) = k
   show (Identifier s) = "IDENTIFIER " ++ s
+  show (CharLiteral s) = "CHARLITERAL " ++ s
+  show (IntLiteral s) = "INTLITERAL " ++ s
+  show (BooleanLiteral s) = "BOOLEANLITERAL " ++ s
+  show (StringLiteral s) = "STRINGLITERAL " ++ s
+  show AssignOp = "="
+  show (CompoundAssignOp s) = s
+  show (ArithmeticOp s) = s
+  show (RelationOp s) = s
+  show (EquationOp s) = s
+  show (ConditionOp s) = s
   show LCurly = "{"
   show RCurly = "}"
+  show LParen = "("
+  show RParen = ")"
+  show LBrack = "["
+  show RBrack = "]"
+  show Choice = "?"
+  show Colon = ":"
+  show Semicolon = ";"
+  show Comma = ","
+  show Negate = "!"
 
 {-| Smart constructor to create a 'ScannedToken' by extracting the line and
 column numbers from an 'AlexPosn'. -}
 scannedToken :: AlexPosn -> Token -> ScannedToken
 scannedToken (AlexPn _ lineNo columnNo) tok = ScannedToken lineNo columnNo tok
-
 
 ---------------------------- Scanning entry point -----------------------------
 

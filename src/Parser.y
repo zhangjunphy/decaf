@@ -29,21 +29,82 @@ import Scanner (ScannedToken(..), Token(..))
 %tokentype { ScannedToken }
 
 %token
-  class      { ScannedToken _ _ (Keyword "class") }
-  identifier { ScannedToken _ _ (Identifier $$) }
-  '{'        { ScannedToken _ _ LCurly }
-  '}'        { ScannedToken _ _ RCurly }
-
+  id                { ScannedToken _ _ (Identifier $$) }
+  intLiteral        { ScannedToken _ _ (IntLiteral $$) }
+  '{'               { ScannedToken _ _ LCurly }
+  '}'               { ScannedToken _ _ RCurly }
+  '['               { ScannedToken _ _ LBrack }
+  ']'               { ScannedToken _ _ RBrack }
+  '('               { ScannedToken _ _ LParen }
+  ')'               { ScannedToken _ _ RParen }
+  ';'               { ScannedToken _ _ Semicolon }
+  ','               { ScannedToken _ _ Comma }
+  import            { ScannedToken _ _ (Keyword "import") }
+  int               { ScannedToken _ _ (Keyword "int") }
+  bool              { ScannedToken _ _ (Keyword "bool") }
+  void              { ScannedToken _ _ (Keyword "void") }
 
 %% -------------------------------- Grammar -----------------------------------
 
-Program : class identifier '{' '}' { Program $2 }
+Program : ImportDecls FieldDecls MethodDecls                { Program $1 $2 $3 }
 
+ImportDecls : {- empty -}                                   { [] }
+            | ImportDecls ImportDecl                        { $2 : $1 }
+ImportDecl : import id ';'                                  { ImportDecl $2 }
+
+FieldDecls : {- empty -}                                    { [] }
+           | FieldDecls FieldDecl                           { $2 : $1 }
+FieldDecl : Type FieldItemList ';'                          { FieldDecl $1 $2 }
+Type : int                                                  { IntType }
+     | bool                                                 { BoolType }
+FieldItemList : FieldItem                                   { [$1] }
+              | FieldItemList ',' FieldItem                 { $3 : $1 }
+FieldItem : id                                              { FieldElem $1 }
+          | id '[' intLiteral ']'                           { FieldArray $1 $3 }
+
+MethodDecls : {- empty -}                                   { [] }
+            | MethodDecls MethodDecl                        { $2 : $1 }
+MethodDecl : MethodType id '(' ArgumentList ')' Block       { MethodDecl $2 $1 $4 $6 }
+MethodType : Type                                           { $1 }
+           | void                                           { VoidType }
+ArgumentList : Argument                                     { [$1] }
+             | ArgumentList ',' Argument                    { $3 : $1 }
+Argument : Type id                                          { Argument $2 $1 }
+Block : '{' FieldDecls '}'                                  { Block $2 }
 
 ----------------------------------- Haskell -----------------------------------
 {
-data Program = Program { className :: String
-                       } deriving (Eq)
+data Program = Program { importDecls :: [ImportDecl]
+                       , fieldDecls :: [FieldDecl]
+                       , methodDecls :: [MethodDecl]
+                       } deriving (Show)
+
+data ImportDecl = ImportDecl { importId :: String }
+                  deriving (Show)
+
+data FieldDecl = FieldDecl { fieldType :: Type
+                           , items :: [FieldItem]
+                           } deriving (Show)
+
+data FieldItem = FieldElem { fieldId :: String }
+               | FieldArray { fieldId :: String, size :: String }
+                 deriving (Show)
+
+data Type = IntType | BoolType | VoidType
+            deriving (Show)
+
+data MethodDecl = MethodDecl { methodId :: String
+                             , returnType :: Type
+                             , arguments :: [Argument]
+                             , block :: Block
+                             } deriving (Show)
+
+data Argument = Argument { argumentId :: String
+                         , argumentType :: Type
+                         } deriving (Show)
+
+data Block = Block { blockFieldDecls :: [FieldDecl]
+                   } deriving (Show)
 
 parseError :: [ScannedToken] -> Either String a
 parseError [] = Left "unexpected EOF"

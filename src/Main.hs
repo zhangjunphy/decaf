@@ -115,8 +115,8 @@ parse configuration input = do
   -- If errors occurred, bail out.
   mapM_ (mungeErrorMessage configuration . Left) errors
   -- Otherwise, attempt a parse.
-  void $ mungeErrorMessage configuration $ Parser.parse tokens
+  -- void $ mungeErrorMessage configuration $ Parser.parse tokens
   -- comment the above line and uncomment the following two lines to print out your parse tree
-  --let x = Parser.parse tokens
-  --void $ mungeErrorMessage configuration $ trace (ppShow x) x
+  let x = Parser.parse tokens
+  void $ mungeErrorMessage configuration $ trace (ppShow x) x
   Right []

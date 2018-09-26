@@ -62,13 +62,32 @@ import Scanner (ScannedToken(..), Token(..))
   len               { ScannedToken _ _ (Keyword "len") }
 
   '='               { ScannedToken _ _ AssignOp }
+  '+'               { ScannedToken _ _ (ArithmeticOp "+") }
   '-'               { ScannedToken _ _ (ArithmeticOp "-") }
-  compoundAssignOp  { ScannedToken _ _ (CompoundAssignOp $$) }
+  '*'               { ScannedToken _ _ (ArithmeticOp "*") }
+  '/'               { ScannedToken _ _ (ArithmeticOp "/") }
+  '%'               { ScannedToken _ _ (ArithmeticOp "%") }
+  '<'               { ScannedToken _ _ (RelationOp "<") }
+  '<='              { ScannedToken _ _ (RelationOp "<=") }
+  '>'               { ScannedToken _ _ (RelationOp ">") }
+  '>='              { ScannedToken _ _ (RelationOp ">=") }
+  '=='              { ScannedToken _ _ (EquationOp "==") }
+  '!='              { ScannedToken _ _ (EquationOp "!=") }
+  '&&'              { ScannedToken _ _ (ConditionOp "&&") }
+  '||'              { ScannedToken _ _ (ConditionOp "||") }
   incrementOp       { ScannedToken _ _ (IncrementOp $$) }
-  arithOp           { ScannedToken _ _ (ArithmeticOp $$) }
-  relOp             { ScannedToken _ _ (RelationOp $$) }
-  eqOp              { ScannedToken _ _ (EquationOp $$) }
-  condOp            { ScannedToken _ _ (ConditionOp $$) }
+  compoundAssignOp  { ScannedToken _ _ (CompoundAssignOp $$) }
+
+
+-- precedence --
+%left '||'
+%left '&&'
+%nonassoc '==' '!='
+%nonassoc '<' '<=' '>' '>='
+%left '+' '-'
+%left '*' '/' '%'
+%left '!'
+%left NEG
 
 %% -------------------------------- Grammar -----------------------------------
 
@@ -134,23 +153,31 @@ ImportArgs : {- empty -}                                    { [] }
 ImportArg : Expr                                            { ExprImportArg $1 }
           | stringLiteral                                   { StringImportArg $1 }
 
-Exprs : Expr                                                { [$1] }
-      | Exprs Expr                                          { $2 : $1 }
+Expr : Expr1                                                { $1 }
+     | Expr1 '?' Expr1 '\:' Expr                            { ChoiceExpr $1 $3 $5 }
 
-Expr : Location                                             { LocationExpr $1 }
-     | MethodCall                                           { MethodCallExpr $1 }
-     | intLiteral                                           { IntLiteralExpr $1 }
-     | charLiteral                                          { CharLiteralExpr $1 }
-     | boolLiteral                                          { BoolLiteralExpr $1 }
-     | len '(' id ')'                                       { LenExpr $3 }
-     | Expr arithOp Expr                                    { ArithOpExpr $2 $1 $3 }
-     | Expr relOp Expr                                      { RelOpExpr $2 $1 $3 }
-     | Expr eqOp Expr                                       { EqOpExpr $2 $1 $3 }
-     | Expr condOp Expr                                     { CondOpExpr $2 $1 $3 }
-     | '-' Expr                                             { NegativeExpr $2 }
-     | '!' Expr                                             { NegateExpr $2 }
-     | '(' Expr ')'                                         { ParenExpr $2 }
-     | Expr '?' Expr '\:' Expr                              { ChoiceExpr $1 $3 $5 }
+Expr1 : Location                                            { LocationExpr $1 }
+      | MethodCall                                          { MethodCallExpr $1 }
+      | intLiteral                                          { IntLiteralExpr $1 }
+      | charLiteral                                         { CharLiteralExpr $1 }
+      | boolLiteral                                         { BoolLiteralExpr $1 }
+      | len '(' id ')'                                      { LenExpr $3 }
+      | Expr1 '+' Expr1                                     { ArithOpExpr "+" $1 $3 }
+      | Expr1 '-' Expr1                                     { ArithOpExpr "-" $1 $3 }
+      | Expr1 '*' Expr1                                     { ArithOpExpr "*" $1 $3 }
+      | Expr1 '/' Expr1                                     { ArithOpExpr "/" $1 $3 }
+      | Expr1 '%' Expr1                                     { ArithOpExpr "%" $1 $3 }
+      | Expr1 '<' Expr1                                     { RelOpExpr "<" $1 $3 }
+      | Expr1 '<=' Expr1                                    { RelOpExpr "<=" $1 $3 }
+      | Expr1 '>' Expr1                                     { RelOpExpr ">" $1 $3 }
+      | Expr1 '>=' Expr1                                    { RelOpExpr ">=" $1 $3 }
+      | Expr1 '==' Expr1                                    { EqOpExpr "==" $1 $3 }
+      | Expr1 '!=' Expr1                                    { EqOpExpr "!=" $1 $3 }
+      | Expr1 '&&' Expr1                                    { CondOpExpr "&&" $1 $3 }
+      | Expr1 '||' Expr1                                    { CondOpExpr "||" $1 $3 }
+      | '-' Expr1 %prec NEG                                 { NegativeExpr $2 }
+      | '!' Expr1                                           { NegateExpr $2 }
+      | '(' Expr1 ')'                                       { ParenExpr $2 }
 
 ----------------------------------- Haskell -----------------------------------
 {

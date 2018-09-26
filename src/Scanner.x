@@ -79,6 +79,7 @@ tokens :-
   <0>             $syntaxChars ^ @id         { \posn s -> scannedToken posn $ Identifier s }
   <0>             $assignOp                  { \posn s -> scannedToken posn AssignOp }
   <0>             @compoundAssignOp          { \posn s -> scannedToken posn $ CompoundAssignOp s }
+  <0>             @incrementOp               { \posn s -> scannedToken posn $ IncrementOp s }
   <0>             $arithOp                   { \posn s -> scannedToken posn $ ArithmeticOp s }
   <0>             @relOp                     { \posn s -> scannedToken posn $ RelationOp s }
   <0>             @eqOp                      { \posn s -> scannedToken posn $ EquationOp s }
@@ -114,6 +115,7 @@ data Token = Keyword String
            | StringLiteral String
            | AssignOp
            | CompoundAssignOp String
+           | IncrementOp String
            | ArithmeticOp String
            | RelationOp String
            | EquationOp String
@@ -139,6 +141,7 @@ instance Show Token where
   show (BooleanLiteral s) = "BOOLEANLITERAL " ++ s
   show (StringLiteral s) = "STRINGLITERAL " ++ s
   show AssignOp = "="
+  show (IncrementOp s) = s
   show (CompoundAssignOp s) = s
   show (ArithmeticOp s) = s
   show (RelationOp s) = s

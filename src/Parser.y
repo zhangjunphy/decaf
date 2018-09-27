@@ -109,12 +109,15 @@ FieldItemList : FieldItem                                   { [$1] }
 FieldItem : id                                              { ElemField $1 }
           | id '[' intLiteral ']'                           { ArrayField $1 $3 }
 
+ReturnType : Type                                           { $1 }
+           | void                                           { VoidType }
+
 MethodDecls : {- empty -}                                   { [] }
             | MethodDecls MethodDecl                        { $2 : $1 }
-MethodDecl : Type id '(' ArgumentList ')' Block             { MethodDecl $2 $1 $4 $6 }
-           | void id '(' ArgumentList ')' Block             { MethodDecl $2 VoidType $4 $6 }
+MethodDecl : ReturnType id '(' ArgumentList ')' Block       { MethodDecl $2 $1 $4 $6 }
+           | ReturnType id '(' ')' Block                    { MethodDecl $2 $1 [] $5 }
 
-ArgumentList : {- empty -}                                  { [] }
+ArgumentList : Argument                                     { [$1] }
              | ArgumentList ',' Argument                    { $3 : $1 }
 Argument : Type id                                          { Argument $2 $1 }
 
@@ -146,9 +149,10 @@ AssignOp : '='                                              { "=" }
          | compoundAssignOp                                 { $1 }
 
 MethodCall : id '(' ImportArgs ')'                          { MethodCall $1 $3 }
+           | id '(' ')'                                     { MethodCall $1 [] }
 
-ImportArgs : {- empty -}                                    { [] }
-           | ImportArgs ImportArg                           { $2 : $1 }
+ImportArgs : ImportArg                                      { [$1] }
+           | ImportArgs ',' ImportArg                       { $3 : $1 }
 
 ImportArg : Expr                                            { ExprImportArg $1 }
           | stringLiteral                                   { StringImportArg $1 }

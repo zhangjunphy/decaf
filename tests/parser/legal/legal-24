@@ -1,5 +1,5 @@
-callout woot;
-callout printf;
+import woot;
+import printf;
 int a;
 int b[24];
 int c[200];
@@ -15,9 +15,9 @@ int foo ( ) {
   int a, b, c;
   return 5;
 }
-boolean baz ( int a, int b, boolean c ) {
+bool baz ( int a, int b, bool c ) {
   if ( true ) {
-    for ( i = 5, 3+4 ) {
+    for ( i = 5; i < 3+4; i = 3 ) {
       printf ( "woot" );
     }
   }

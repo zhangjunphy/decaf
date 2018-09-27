@@ -91,7 +91,7 @@ import Scanner (ScannedToken(..), Token(..))
 
 %% -------------------------------- Grammar -----------------------------------
 
-Program : ImportDecls FieldDecls MethodDecls                { Program $1 $2 $3 }
+Program : ImportDecls FieldDecls MethodDecls                { Program (reverse $1) (reverse $2) $3 }
 
 ImportDecls : {- empty -}                                   { [] }
             | ImportDecls ImportDecl                        { $2 : $1 }
@@ -99,8 +99,8 @@ ImportDecl : import id ';'                                  { ImportDecl $2 }
 
 FieldDecls : {- empty -}                                    { [] }
            | FieldDecls FieldDecl                           { $2 : $1 }
-FieldDecl : int FieldItemList ';'                           { FieldDecl IntType $2 }
-          | bool FieldItemList ';'                          { FieldDecl BoolType $2 }
+FieldDecl : int FieldItemList ';'                           { FieldDecl IntType (reverse $2) }
+          | bool FieldItemList ';'                          { FieldDecl BoolType (reverse $2) }
 
 FieldItemList : FieldItem                                   { [$1] }
               | FieldItemList ',' FieldItem                 { $3 : $1 }
@@ -109,9 +109,9 @@ FieldItem : id                                              { ElemField $1 }
 
 MethodDecls : {- empty -}                                   { [] }
             | MethodDecl MethodDecls                        { $1 : $2 }
-MethodDecl : int id '(' ArgumentList ')' Block              { MethodDecl $2 IntType $4 $6 }
-           | bool id '(' ArgumentList ')' Block             { MethodDecl $2 BoolType $4 $6 }
-           | void id '(' ArgumentList ')' Block             { MethodDecl $2 VoidType $4 $6 }
+MethodDecl : int id '(' ArgumentList ')' Block              { MethodDecl $2 IntType (reverse $4) $6 }
+           | bool id '(' ArgumentList ')' Block             { MethodDecl $2 BoolType (reverse $4) $6 }
+           | void id '(' ArgumentList ')' Block             { MethodDecl $2 VoidType (reverse $4) $6 }
            | int id '(' ')' Block                           { MethodDecl $2 IntType [] $5 }
            | bool id '(' ')' Block                          { MethodDecl $2 BoolType [] $5 }
            | void id '(' ')' Block                          { MethodDecl $2 VoidType [] $5 }
@@ -121,7 +121,7 @@ ArgumentList : Argument                                     { [$1] }
 Argument : int id                                           { Argument $2 IntType }
          | bool id                                          { Argument $2 BoolType }
 
-Block : '{' FieldDecls Statements '}'                       { Block $2 $3 }
+Block : '{' FieldDecls Statements '}'                       { Block $2 (reverse $3) }
 
 Statements : {- empty -}                                    { [] }
            | Statements Statement                           { $2 : $1 }
@@ -148,7 +148,7 @@ AssignExpr : AssignOp Expr                                  { AssignExpr $1 $2 }
 AssignOp : '='                                              { "=" }
          | compoundAssignOp                                 { $1 }
 
-MethodCall : id '(' ImportArgs ')'                          { MethodCall $1 $3 }
+MethodCall : id '(' ImportArgs ')'                          { MethodCall $1 (reverse $3) }
            | id '(' ')'                                     { MethodCall $1 [] }
 
 ImportArgs : ImportArg                                      { [$1] }

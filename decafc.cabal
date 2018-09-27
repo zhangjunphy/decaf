@@ -21,7 +21,7 @@ license:             MIT
 license-file:        LICENSE
 extra-source-files:  alex/AlexWrapper-6.035
 build-type:          Simple
-tested-with:         GHC==7.10.3
+tested-with:         GHC==8.2.2
 
 executable decafc
   hs-source-dirs:      src
@@ -32,10 +32,10 @@ executable decafc
                      , Parser
                      , Scanner
   ghc-options:         -Wall -O3
-  build-depends:       base >=4.5 && <=4.9
+  build-depends:       base >=4.10 && <=4.11
                      , array ==0.5.*
                      , split ==0.2.*
-                     , transformers ==0.4.*
+                     , transformers ==0.5.*
                      , pretty-show
                      , mtl
   build-tools:         alex >=3.0.2

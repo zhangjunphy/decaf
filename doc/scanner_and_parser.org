@@ -1,0 +1,26 @@
+* Scanner and Parser
+** Design
+The design follows the project skeleton. Most of the changes are in
+src/Scanner.x and src/Parser.y.  src/Scanner.x gives regex or
+character-set definition of all the tokens, followed by rules to
+translate gathered tokens into the ~Token~ type.  src/Parser.y defines
+the language with a context-free grammer. Also various Haskell data
+types are defined so Happy can process the token stream into an AST
+managable in later stages.
+
+** Extras
+The scanner is based on the given Alex wrapper. This will be relpaced
+by one of the default wrappers after I have a better grasp of the
+mechanics of Alex. Nested comments will also be supported.
+
+These is some redundency in the parser source code so some cleanup is
+desirable. Nevertheless, the parser works for all valid input with out
+conflict.
+
+** Difficulties
+Shift/reduce conflict in the grammer takes the longest time to get
+solved. The conflict comes from two places: precedence of the
+operators, and the ambiguity of the prefix of field decleration and
+method decleration. The former is solved by specifing precedence in
+the preamble. The later requires modifying the rule of MethodDecls
+into right-reduction.

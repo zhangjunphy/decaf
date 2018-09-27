@@ -99,27 +99,27 @@ ImportDecl : import id ';'                                  { ImportDecl $2 }
 
 FieldDecls : {- empty -}                                    { [] }
            | FieldDecls FieldDecl                           { $2 : $1 }
-FieldDecl : Type FieldItemList ';'                          { FieldDecl $1 $2 }
-
-Type : int                                                  { IntType }
-     | bool                                                 { BoolType }
+FieldDecl : int FieldItemList ';'                           { FieldDecl IntType $2 }
+          | bool FieldItemList ';'                          { FieldDecl BoolType $2 }
 
 FieldItemList : FieldItem                                   { [$1] }
               | FieldItemList ',' FieldItem                 { $3 : $1 }
 FieldItem : id                                              { ElemField $1 }
           | id '[' intLiteral ']'                           { ArrayField $1 $3 }
 
-ReturnType : Type                                           { $1 }
-           | void                                           { VoidType }
-
 MethodDecls : {- empty -}                                   { [] }
-            | MethodDecls MethodDecl                        { $2 : $1 }
-MethodDecl : ReturnType id '(' ArgumentList ')' Block       { MethodDecl $2 $1 $4 $6 }
-           | ReturnType id '(' ')' Block                    { MethodDecl $2 $1 [] $5 }
+            | MethodDecl MethodDecls                        { $1 : $2 }
+MethodDecl : int id '(' ArgumentList ')' Block              { MethodDecl $2 IntType $4 $6 }
+           | bool id '(' ArgumentList ')' Block             { MethodDecl $2 BoolType $4 $6 }
+           | void id '(' ArgumentList ')' Block             { MethodDecl $2 VoidType $4 $6 }
+           | int id '(' ')' Block                           { MethodDecl $2 IntType [] $5 }
+           | bool id '(' ')' Block                          { MethodDecl $2 BoolType [] $5 }
+           | void id '(' ')' Block                          { MethodDecl $2 VoidType [] $5 }
 
 ArgumentList : Argument                                     { [$1] }
              | ArgumentList ',' Argument                    { $3 : $1 }
-Argument : Type id                                          { Argument $2 $1 }
+Argument : int id                                           { Argument $2 IntType }
+         | bool id                                          { Argument $2 BoolType }
 
 Block : '{' FieldDecls Statements '}'                       { Block $2 $3 }
 

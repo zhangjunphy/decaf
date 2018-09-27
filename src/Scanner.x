@@ -20,7 +20,7 @@ module Scanner ( ScannedToken(..)
 import Control.Monad.State
 }
 
-%wrapper "6.035"
+%wrapper "posn"
 
 
 ----------------------------------- Tokens ------------------------------------
@@ -168,8 +168,8 @@ scannedToken (AlexPn _ lineNo columnNo) tok = ScannedToken lineNo columnNo tok
 
 -- fill out this function with extra cases if you use error tokens
 -- and want them to be treated as errors instead of valid tokens
-catchErrors :: Either String ScannedToken -> Either String ScannedToken
-catchErrors e = e -- default case
+catchErrors :: ScannedToken -> Either String ScannedToken
+catchErrors e = Right e -- default case
 
 scan :: String -> [Either String ScannedToken]
 scan = map catchErrors . alexScanTokens

@@ -72,8 +72,8 @@ tokens :-
   <0>             $white2+                   ;
   <0>             "//".*                     ;
   <0, inComment>  "/*"                       { enterComment `andBegin` inComment }
-  <inComment>     [.\n]                      ;
   <inComment>     "*/"                       { exitComment }
+  <inComment>     [.\n]                      ;
   <0>             $syntaxChars ^ @keyword    { \input len -> scannedToken input $ Keyword (extractTokenString input len) }
   <0>             @charLiteral               { \input len -> scannedToken input $ CharLiteral (extractTokenString input len) }
   <0>             @intLiteral                { \input len -> scannedToken input $ IntLiteral (extractTokenString input len) }
@@ -174,13 +174,11 @@ extractTokenString ((AlexPn _ lineNo columnNo), _, _, str) len = take len str
 
 ---------------------------- Scanning entry point -----------------------------
 
--- UserState to track comment depth
-data AlexUserState = AlexUserState { lexerCommentDepth :: Int
-                                   , lexerStringValue :: String
-                                   }
+-- UserState to track comment depth and value of string literal
+data AlexUserState = AlexUserState { lexerCommentDepth :: Int }
 
 alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState { lexerCommentDepth = 0, lexerStringValue = "" }
+alexInitUserState = AlexUserState { lexerCommentDepth = 0 }
 
 alexEOF :: Alex ScannedToken
 alexEOF = return $ ScannedToken 0 0 EOF
@@ -189,7 +187,7 @@ getLexerCommentDepth :: Alex Int
 getLexerCommentDepth = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCommentDepth ust)
 
 setLexerCommentDepth :: Int -> Alex ()
-setLexerCommentDepth depth = Alex $ \s -> Right (s{alex_ust=(alex_ust s){lexerCommentDepth=depth}}, ())
+setLexerCommentDepth depth = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCommentDepth=depth} }, ())
 
 -- Actions
 type Action = AlexInput -> Int -> Alex ScannedToken
@@ -205,8 +203,7 @@ exitComment input len = do cd <- getLexerCommentDepth
                            when (cd == 1) (alexSetStartCode 0)
                            skip input len
 
--- fill out this function with extra cases if you use error tokens
--- and want them to be treated as errors instead of valid tokens
+
 catchErrors :: Alex a -> Alex (a, Maybe String)
 catchErrors (Alex al) = Alex (\s -> case al s of
                                       Right (s', x) -> Right (s', (x, Nothing))
@@ -221,7 +218,7 @@ scan str = let loop =  do (t, m) <- catchErrors alexMonadScan
                                          then return [Left $ fromJust m]
                                          else if (depth == 0)
                                               then return []
-                                              else return []
+                                              else return [Left "comment not closed at EOF"]
                               else do toks <- loop
                                       if (isJust m)
                                          then return (Left (fromJust m) : toks)
@@ -229,7 +226,6 @@ scan str = let loop =  do (t, m) <- catchErrors alexMonadScan
                in case runAlex str loop of
                     Left m -> []
                     Right toks -> toks
-
 
 
 formatTokenOrError :: Either String ScannedToken -> Either String String

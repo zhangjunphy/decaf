@@ -17,10 +17,11 @@ module Scanner ( ScannedToken(..)
                , formatTokenOrError
                ) where
 
+import Data.Maybe
 import Control.Monad.State
 }
 
-%wrapper "posn"
+%wrapper "monadUserState"
 
 
 ----------------------------------- Tokens ------------------------------------
@@ -70,31 +71,33 @@ $syntaxChars = [\; \, \: \? \! \{\} \[\] \(\) \= \+ \- \* \/ \$ \| \% $white2]
 tokens :-
   <0>             $white2+                   ;
   <0>             "//".*                     ;
-  <0>             "/*"[.\n]*"*/"             ;
-  <0>             $syntaxChars ^ @keyword    { \posn s -> scannedToken posn $ Keyword s }
-  <0>             @charLiteral               { \posn s -> scannedToken posn $ CharLiteral s }
-  <0>             @intLiteral                { \posn s -> scannedToken posn $ IntLiteral s }
-  <0>             @boolLiteral               { \posn s -> scannedToken posn $ BooleanLiteral s }
-  <0>             @stringLiteral             { \posn s -> scannedToken posn $ StringLiteral s }
-  <0>             $syntaxChars ^ @id         { \posn s -> scannedToken posn $ Identifier s }
-  <0>             $assignOp                  { \posn s -> scannedToken posn AssignOp }
-  <0>             @compoundAssignOp          { \posn s -> scannedToken posn $ CompoundAssignOp s }
-  <0>             @incrementOp               { \posn s -> scannedToken posn $ IncrementOp s }
-  <0>             $arithOp                   { \posn s -> scannedToken posn $ ArithmeticOp s }
-  <0>             @relOp                     { \posn s -> scannedToken posn $ RelationOp s }
-  <0>             @eqOp                      { \posn s -> scannedToken posn $ EquationOp s }
-  <0>             @condOp                    { \posn s -> scannedToken posn $ ConditionOp s }
-  <0>             \{                         { \posn _ -> scannedToken posn LCurly }
-  <0>             \}                         { \posn _ -> scannedToken posn RCurly }
-  <0>             \(                         { \posn _ -> scannedToken posn LParen }
-  <0>             \)                         { \posn _ -> scannedToken posn RParen }
-  <0>             \[                         { \posn _ -> scannedToken posn LBrack }
-  <0>             \]                         { \posn _ -> scannedToken posn RBrack }
-  <0>             \?                         { \posn _ -> scannedToken posn Choice }
-  <0>             \:                         { \posn _ -> scannedToken posn Colon }
-  <0>             \;                         { \posn _ -> scannedToken posn Semicolon }
-  <0>             \,                         { \posn _ -> scannedToken posn Comma }
-  <0>             \!                         { \posn _ -> scannedToken posn Negate }
+  <0, inComment>  "/*"                       { enterComment }
+  <inComment>     [.\n]                      ;
+  <inComment>     "*/"                       { exitComment }
+  <0>             $syntaxChars ^ @keyword    { \input len -> scannedToken input $ Keyword (extractTokenString input len) }
+  <0>             @charLiteral               { \input len -> scannedToken input $ CharLiteral (extractTokenString input len) }
+  <0>             @intLiteral                { \input len -> scannedToken input $ IntLiteral (extractTokenString input len) }
+  <0>             @boolLiteral               { \input len -> scannedToken input $ BooleanLiteral (extractTokenString input len) }
+  <0>             @stringLiteral             { \input len -> scannedToken input $ StringLiteral (extractTokenString input len) }
+  <0>             $syntaxChars ^ @id         { \input len -> scannedToken input $ Identifier (extractTokenString input len) }
+  <0>             $assignOp                  { \input len -> scannedToken input AssignOp }
+  <0>             @compoundAssignOp          { \input len -> scannedToken input $ CompoundAssignOp (extractTokenString input len) }
+  <0>             @incrementOp               { \input len -> scannedToken input $ IncrementOp (extractTokenString input len) }
+  <0>             $arithOp                   { \input len -> scannedToken input $ ArithmeticOp (extractTokenString input len) }
+  <0>             @relOp                     { \input len -> scannedToken input $ RelationOp (extractTokenString input len) }
+  <0>             @eqOp                      { \input len -> scannedToken input $ EquationOp (extractTokenString input len) }
+  <0>             @condOp                    { \input len -> scannedToken input $ ConditionOp (extractTokenString input len) }
+  <0>             \{                         { \input len -> scannedToken input LCurly }
+  <0>             \}                         { \input len -> scannedToken input RCurly }
+  <0>             \(                         { \input len -> scannedToken input LParen }
+  <0>             \)                         { \input len -> scannedToken input RParen }
+  <0>             \[                         { \input len -> scannedToken input LBrack }
+  <0>             \]                         { \input len -> scannedToken input RBrack }
+  <0>             \?                         { \input len -> scannedToken input Choice }
+  <0>             \:                         { \input len -> scannedToken input Colon }
+  <0>             \;                         { \input len -> scannedToken input Semicolon }
+  <0>             \,                         { \input len -> scannedToken input Comma }
+  <0>             \!                         { \input len -> scannedToken input Negate }
 
 
 ----------------------------- Representing tokens -----------------------------
@@ -131,6 +134,7 @@ data Token = Keyword String
            | Semicolon
            | Comma
            | Negate
+           | EOF
            deriving (Eq)
 
 instance Show Token where
@@ -158,21 +162,75 @@ instance Show Token where
   show Semicolon = ";"
   show Comma = ","
   show Negate = "!"
+  show EOF = "EOF"
 
 {-| Smart constructor to create a 'ScannedToken' by extracting the line and
 column numbers from an 'AlexPosn'. -}
-scannedToken :: AlexPosn -> Token -> ScannedToken
-scannedToken (AlexPn _ lineNo columnNo) tok = ScannedToken lineNo columnNo tok
+scannedToken :: AlexInput -> Token -> Alex ScannedToken
+scannedToken ((AlexPn _ lineNo columnNo), _, _, _) tok = return (ScannedToken lineNo columnNo tok)
+
+extractTokenString :: AlexInput -> Int -> String
+extractTokenString ((AlexPn _ lineNo columnNo), _, _, str) len = take len str
 
 ---------------------------- Scanning entry point -----------------------------
 
+-- UserState to track comment depth
+data AlexUserState = AlexUserState { lexerCommentDepth :: Int
+                                   , lexerStringValue :: String
+                                   }
+
+alexInitUserState :: AlexUserState
+alexInitUserState = AlexUserState { lexerCommentDepth = 0, lexerStringValue = "" }
+
+alexEOF :: Alex ScannedToken
+alexEOF = return $ ScannedToken 0 0 EOF
+
+getLexerCommentDepth :: Alex Int
+getLexerCommentDepth = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCommentDepth ust)
+
+setLexerCommentDepth :: Int -> Alex ()
+setLexerCommentDepth depth = Alex $ \s -> Right (s{alex_ust=(alex_ust s){lexerCommentDepth=depth}}, ())
+
+-- Actions
+type Action = AlexInput -> Int -> Alex ScannedToken
+
+enterComment :: Action
+enterComment input len = do cd <- getLexerCommentDepth
+                            setLexerCommentDepth (cd + 1)
+                            skip input len
+
+exitComment :: Action
+exitComment input len = do cd <- getLexerCommentDepth
+                           setLexerCommentDepth (cd - 1)
+                           when (cd == 1) (alexSetStartCode 0)
+                           skip input len
+
 -- fill out this function with extra cases if you use error tokens
 -- and want them to be treated as errors instead of valid tokens
-catchErrors :: ScannedToken -> Either String ScannedToken
-catchErrors e = Right e -- default case
+catchErrors :: Alex a -> Alex (a, Maybe String)
+catchErrors (Alex al) = Alex (\s -> case al s of
+                                      Right (s', x) -> Right (s', (x, Nothing))
+                                      Left message -> Right (s, (undefined, Just message)))
 
 scan :: String -> [Either String ScannedToken]
-scan = map catchErrors . alexScanTokens
+scan str = let loop =  do (t, m) <- catchErrors alexMonadScan
+                          let tok@(ScannedToken line col raw) = t
+                          if (raw == EOF)
+                              then do depth <- getLexerCommentDepth
+                                      if (isJust m)
+                                         then return [Left $ fromJust m]
+                                         else if (depth == 0)
+                                              then return []
+                                              else return [Left "comment not closed at EOF"]
+                              else do toks <- loop
+                                      if (isJust m)
+                                         then return (Left (fromJust m) : toks)
+                                         else return (Right tok : toks)
+               in case runAlex str loop of
+                    Left m -> []
+                    Right toks -> toks
+
+
 
 formatTokenOrError :: Either String ScannedToken -> Either String String
 formatTokenOrError (Left err) = Left err

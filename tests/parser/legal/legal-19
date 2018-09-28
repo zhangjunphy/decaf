@@ -1,6 +1,6 @@
-callout main;
-callout printf;
-boolean b;
+import main;
+import printf;
+bool b;
 int abs ( int a ) {
   b = a < 0;
   if ( b ) {
@@ -13,7 +13,7 @@ int abs ( int a ) {
 void main ( ) {
   abs ( -5 );
 }
-boolean test ( int a ) {
+bool test ( int a ) {
   if ( a < 10 ) {
     return true;
   }
@@ -27,9 +27,9 @@ boolean test ( int a ) {
     d = 1 == c;
   }
 }
-void test ( int a, boolean b, int c, boolean d, boolean e, int f ) {
+void test ( int a, bool b, int c, bool d, bool e, int f ) {
   int i, j;
-  for ( i = 5, 0x15989 ) {
+  for ( i = 5; i< 0x15989; i-- ) {
     printf ( );
     printf ( 1 );
     printf ( 1+5 );

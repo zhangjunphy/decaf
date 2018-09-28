@@ -71,7 +71,7 @@ $syntaxChars = [\; \, \: \? \! \{\} \[\] \(\) \= \+ \- \* \/ \$ \| \% $white2]
 tokens :-
   <0>             $white2+                   ;
   <0>             "//".*                     ;
-  <0, inComment>  "/*"                       { enterComment }
+  <0, inComment>  "/*"                       { enterComment `andBegin` inComment }
   <inComment>     [.\n]                      ;
   <inComment>     "*/"                       { exitComment }
   <0>             $syntaxChars ^ @keyword    { \input len -> scannedToken input $ Keyword (extractTokenString input len) }
@@ -221,7 +221,7 @@ scan str = let loop =  do (t, m) <- catchErrors alexMonadScan
                                          then return [Left $ fromJust m]
                                          else if (depth == 0)
                                               then return []
-                                              else return [Left "comment not closed at EOF"]
+                                              else return []
                               else do toks <- loop
                                       if (isJust m)
                                          then return (Left (fromJust m) : toks)

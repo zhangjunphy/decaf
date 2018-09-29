@@ -41,6 +41,13 @@ executable decafc
   build-tools:         alex >=3.0.2
                      , happy
 
+test-suite test-decafc
+  hs-source-dirs:      test
+  main-is:             Test.hs
+  ghc-options:         -Wall
+  build-depends:       base
+                     , doctest
+                     , tasty
 
 -- Local Variables:
 -- mode: Haskell-Cabal

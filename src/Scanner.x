@@ -64,10 +64,10 @@ $assignOp = \=
 $white2 = $white # \f -- we want the scanner to error on '\f' (form feed) characters
 
 -- keyword and identifier separators
-$syntaxChars = [\; \, \: \? \! \{\} \[\] \(\) \= \+ \- \* \/ \& \| \% $white2]
+$syntaxChars = [\; \, \: \? \! \{\} \[\] \(\) \= \+ \- \* \/ \& \| \% $white2 \> \<]
 
 -- invalid characters for better error handling
-$invalid = $printable # [a-z A-Z 0-9 _ $syntaxChars]
+$invalid = $printable # [a-z A-Z 0-9 _ $syntaxChars \' \"]
 
 -- rules
 tokens :-
@@ -315,7 +315,7 @@ scan :: String -> [Either String ScannedToken]
 scan str =
     let loop =
             do (t, m) <- catchErrors alexMonadScan
-               when (isJust m) return [Left (fromJust m)]
+               when (isJust m) (alexError (fromJust m))
                let tok@(ScannedToken line col raw) = t
                if (raw == EOF)
                    then do depth <- getLexerCommentDepth

@@ -13,13 +13,12 @@
 
 cabal-version:       >=1.8
 name:                decafc
-version:             0.0.0
+version:             0.1.0
 copyright:           © 2013, 2014 Benjamin Barenblat
 author:              Benjamin Barenblat
 maintainer:          bbaren@mit.edu
 license:             MIT
 license-file:        LICENSE
-extra-source-files:  alex/AlexWrapper-6.035
 build-type:          Simple
 tested-with:         GHC==8.2.2
 
@@ -44,10 +43,10 @@ executable decafc
 test-suite test-decafc
   hs-source-dirs:      test
   main-is:             Test.hs
-  ghc-options:         -Wall
+  type:                exitcode-stdio-1.0
   build-depends:       base
                      , doctest
-                     , tasty
+                     , tasty >= 0.7
 
 -- Local Variables:
 -- mode: Haskell-Cabal

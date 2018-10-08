@@ -10,7 +10,10 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Parser ( parse
+              , Program
               ) where
 
 import Text.Printf (printf)

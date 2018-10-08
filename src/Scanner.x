@@ -11,6 +11,8 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
 {-# OPTIONS_GHC -w #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Scanner ( ScannedToken(..)
                , Token(..)
                , scan
@@ -195,7 +197,11 @@ data AlexUserState = AlexUserState { lexerCommentDepth :: Int
                                    }
 
 alexInitUserState :: AlexUserState
-alexInitUserState = AlexUserState { lexerCommentDepth = 0, lexerStringValue = "" }
+alexInitUserState = AlexUserState { lexerCommentDepth = 0
+                                  , lexerStringState = False
+                                  , lexerCharState = False
+                                  , lexerStringValue = ""
+                                  }
 
 alexEOF :: Alex ScannedToken
 alexEOF = Alex $ \s@AlexState{alex_pos=(AlexPn _ lineNo columnNo)} -> Right(s, ScannedToken lineNo columnNo EOF)
@@ -304,34 +310,35 @@ scannerError fn ((AlexPn _ lineNo columnNo), _, _, str) len =
 
 ---------------------------- Scanner entry point -----------------------------
 
-catchErrors :: Alex ScannedToken -> Alex (ScannedToken, Maybe String)
-catchErrors (Alex al) = Alex (\s -> case al s of
-                                      Right (s', tok@(ScannedToken _ _ (Error e))) -> Right (s', (undefined, Just e))
-                                      Right (s', x) -> Right (s', (x, Nothing))
-                                      Left message -> Right (s, (undefined, Just message)))
-
+-- Produce error tokens for later use
+catchErrors :: Alex ScannedToken -> Alex ScannedToken
+catchErrors (Alex al) =
+    Alex (\s -> case al s of
+                  Right (s'@AlexState{alex_ust=ust}, tok@(ScannedToken _ _ EOF)) -> eofCheck s' tok
+                  Right (s', x) -> Right (s', x)
+                  Left message -> Left message)
+    where eofCheck s@AlexState{alex_ust=ust} tok@(ScannedToken lineNo colNo _) =
+              let error message = (ScannedToken lineNo colNo (Error $ message))
+              in case ust of
+                   val | (lexerStringState ust) -> Right (s, error "string not closed at EOF")
+                       | (lexerCharState ust) -> Right (s, error "char not closed at EOF")
+                       | (lexerCommentDepth ust > 0) -> Right (s, error "comment not closed at EOF")
+                       | otherwise -> Right(s, tok)
 
 scan :: String -> [Either String ScannedToken]
 scan str =
     let loop =
-            do (t, m) <- catchErrors alexMonadScan
-               when (isJust m) (alexError (fromJust m))
-               let tok@(ScannedToken line col raw) = t
-               if (raw == EOF)
-                   then do depth <- getLexerCommentDepth
-                           if (isJust m)
-                              then return [Left $ fromJust m]
-                              else if (depth == 0)
-                                   then return []
-                                   else return [Left "comment not closed at EOF"]
-                   else do toks <- loop
-                           if (isJust m)
-                              then return (Left (fromJust m) : toks)
-                              else return (Right tok : toks)
+            do tokOrError <- catchErrors alexMonadScan
+               case tokOrError of
+                 (ScannedToken _ _ (Error m)) -> alexError m
+                 tok@(ScannedToken lineNo colNo raw) ->
+                     if (raw == EOF)
+                     then return []
+                     else do toks <- loop
+                             return (Right tok : toks)
     in case runAlex str loop of
          Left m -> [Left m]
          Right toks -> toks
-
 
 formatTokenOrError :: Either String ScannedToken -> Either String String
 formatTokenOrError (Left err) = Left err

@@ -120,3 +120,10 @@ parse configuration input = do
   let x = Parser.parse tokens
   void $ mungeErrorMessage configuration $ trace (ppShow x) x
   Right []
+
+inter :: Configuration -> String -> Either String [IO ()]
+inter configuration input = do
+  let (errors, tokens) = partitionEithers $ Scanner.scan input
+  mapM_ (mungeErrorMessage configuration . Left) errors
+  let x = Parser.parse tokens
+  Right []

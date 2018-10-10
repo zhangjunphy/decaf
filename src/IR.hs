@@ -1,4 +1,4 @@
--- Inter -- Decaf IR generator                                       -*- haskell -*-
+-- IR -- Decaf IR generator
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -19,5 +19,8 @@ import Text.Printf (printf)
 
 import qualified Parser
 
-generate :: Parser.Program
-generate = pass
+data AbstractSyntaxTree = AbstractSyntaxTree
+data AstNode = ProgramNode {}
+
+generate :: Parser.Program -> AbstractSyntaxTree
+generate = _

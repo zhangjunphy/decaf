@@ -13,7 +13,21 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 
 module Parser ( parse
-              , Program
+              , Program(..)
+              , ImportDecl(..)
+              , FieldDecl(..)
+              , MethodDecl(..)
+              , FieldItem(..)
+              , Type(..)
+              , Argument(..)
+              , Block(..)
+              , Statement(..)
+              , Location(..)
+              , AssignExpr(..)
+              , MethodCall(..)
+              , ImportArg(..)
+              , CounterUpdate(..)
+              , Expr(..)
               ) where
 
 import Text.Printf (printf)
@@ -112,12 +126,12 @@ FieldItem : id                                              { ElemField $1 }
 
 MethodDecls : {- empty -}                                   { [] }
             | MethodDecl MethodDecls                        { $1 : $2 }
-MethodDecl : int id '(' ArgumentList ')' Block              { MethodDecl $2 IntType (reverse $4) $6 }
-           | bool id '(' ArgumentList ')' Block             { MethodDecl $2 BoolType (reverse $4) $6 }
-           | void id '(' ArgumentList ')' Block             { MethodDecl $2 VoidType (reverse $4) $6 }
-           | int id '(' ')' Block                           { MethodDecl $2 IntType [] $5 }
-           | bool id '(' ')' Block                          { MethodDecl $2 BoolType [] $5 }
-           | void id '(' ')' Block                          { MethodDecl $2 VoidType [] $5 }
+MethodDecl : int id '(' ArgumentList ')' Block              { MethodDecl $2 (Just IntType) (reverse $4) $6 }
+           | bool id '(' ArgumentList ')' Block             { MethodDecl $2 (Just BoolType) (reverse $4) $6 }
+           | void id '(' ArgumentList ')' Block             { MethodDecl $2 Nothing (reverse $4) $6 }
+           | int id '(' ')' Block                           { MethodDecl $2 (Just IntType) [] $5 }
+           | bool id '(' ')' Block                          { MethodDecl $2 (Just BoolType) [] $5 }
+           | void id '(' ')' Block                          { MethodDecl $2 Nothing [] $5 }
 
 ArgumentList : Argument                                     { [$1] }
              | ArgumentList ',' Argument                    { $3 : $1 }
@@ -188,6 +202,7 @@ Expr1 : Location                                            { LocationExpr $1 }
 
 ----------------------------------- Haskell -----------------------------------
 {
+
 data Program = Program { importDecls :: [ImportDecl]
                        , fieldDecls :: [FieldDecl]
                        , methodDecls :: [MethodDecl]
@@ -204,11 +219,11 @@ data FieldItem = ElemField { fieldId :: String }
                | ArrayField { fieldId :: String, size :: String }
                  deriving (Show)
 
-data Type = IntType | BoolType | VoidType
+data Type = IntType | BoolType
             deriving (Show)
 
 data MethodDecl = MethodDecl { methodId :: String
-                             , returnType :: Type
+                             , returnType :: Maybe Type
                              , arguments :: [Argument]
                              , block :: Block
                              } deriving (Show)

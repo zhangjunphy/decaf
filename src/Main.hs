@@ -32,6 +32,7 @@ import Configuration (Configuration, CompilerStage(..))
 import qualified Configuration
 import qualified Parser
 import qualified Scanner
+import qualified IR
 
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
@@ -88,6 +89,7 @@ process configuration input =
   case Configuration.target configuration of
     Scan -> scan configuration input
     Parse -> parse configuration input
+    Inter -> irgen configuration input
     phase -> Left $ show phase ++ " not implemented\n"
 
 scan :: Configuration -> String -> Either String [IO ()]
@@ -121,9 +123,12 @@ parse configuration input = do
   void $ mungeErrorMessage configuration $ trace (ppShow x) x
   Right []
 
-inter :: Configuration -> String -> Either String [IO ()]
-inter configuration input = do
+-- | IR generator
+irgen :: Configuration -> String -> Either String [IO ()]
+irgen configuration input = do
   let (errors, tokens) = partitionEithers $ Scanner.scan input
   mapM_ (mungeErrorMessage configuration . Left) errors
   let x = Parser.parse tokens
-  Right []
+  case x of
+    Left msg -> Left msg
+    Right ast -> Right $ [ print $ IR.generate $ ast]

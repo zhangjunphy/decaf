@@ -11,16 +11,43 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
-module Inter ( generate
-             ) where
+module IR ( generate
+          ) where
 
 import Text.Printf (printf)
 
 import qualified Parser
+import Control.Monad.State
+
+type Name = String
+
+data Descriptor = FieldDescriptor
+                | ParameterDescriptor
+
+data SymbolTable = TypeSymbolTable
+                 | FieldSymbolTable
+                 | MethodSymbolTable
+
+data CodegenState
+    = CodegenState {
+        currentBlock :: Name
+      , blocks       :: [(Name, BlockState)]
+      , symbolTable  :: SymbolTable
+      }
+
+data BlockState
+    = BlockState {
+      }
+
+newtype Codegen a = Codegen { runCodegen :: State CodegenState a }
+    deriving (Functor, Applicative, Monad, MonadState CodegenState)
 
 data AbstractSyntaxTree = AbstractSyntaxTree
+                        deriving (Show)
+
 data AstNode = ProgramNode {}
 
 generate :: Parser.Program -> AbstractSyntaxTree
-generate = _
+generate = \_ -> AbstractSyntaxTree

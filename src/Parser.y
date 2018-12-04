@@ -10,14 +10,13 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
-{-# LANGUAGE DuplicateRecordFields #-}
 
 module Parser ( parse
               , Program(..)
               , ImportDecl(..)
               , FieldDecl(..)
               , MethodDecl(..)
-              , FieldItem(..)
+              , FieldElem(..)
               , Type(..)
               , Argument(..)
               , Block(..)
@@ -116,13 +115,13 @@ ImportDecl : import id ';'                                  { ImportDecl $2 }
 
 FieldDecls : {- empty -}                                    { [] }
            | FieldDecls FieldDecl                           { $2 : $1 }
-FieldDecl : int FieldItemList ';'                           { FieldDecl IntType (reverse $2) }
-          | bool FieldItemList ';'                          { FieldDecl BoolType (reverse $2) }
+FieldDecl : int FieldList ';'                               { FieldDecl IntType (reverse $2) }
+          | bool FieldList ';'                              { FieldDecl BoolType (reverse $2) }
 
-FieldItemList : FieldItem                                   { [$1] }
-              | FieldItemList ',' FieldItem                 { $3 : $1 }
-FieldItem : id                                              { ElemField $1 }
-          | id '[' intLiteral ']'                           { ArrayField $1 $3 }
+FieldList : FieldElem                                       { [$1] }
+          | FieldList ',' FieldElem                         { $3 : $1 }
+FieldElem : id                                              { ScalarField $1 }
+          | id '[' intLiteral ']'                           { VectorField $1 $3 }
 
 MethodDecls : {- empty -}                                   { [] }
             | MethodDecl MethodDecls                        { $1 : $2 }
@@ -156,8 +155,8 @@ Statement : Location AssignExpr ';'                         { AssignStatement $1
 
 CounterUpdate : Location AssignExpr                         { CounterUpdate $1 $2 }
 
-Location : id                                               { ElemLocation $1 }
-         | id '[' Expr ']'                                  { ArrayLocation $1 $3 }
+Location : id                                               { ScalarLocation $1 }
+         | id '[' Expr ']'                                  { VectorLocation $1 $3 }
 
 AssignExpr : AssignOp Expr                                  { AssignExpr $1 $2 }
            | incrementOp                                    { IncrementExpr $1 }
@@ -212,11 +211,11 @@ data ImportDecl = ImportDecl { importId :: String }
                   deriving (Show)
 
 data FieldDecl = FieldDecl { fieldType :: Type
-                           , items :: [FieldItem]
+                           , elems:: [FieldElem]
                            } deriving (Show)
 
-data FieldItem = ElemField { fieldId :: String }
-               | ArrayField { fieldId :: String, size :: String }
+data FieldElem = ScalarField { fieldId :: String }
+               | VectorField { fieldId :: String, size :: String }
                  deriving (Show)
 
 data Type = IntType | BoolType
@@ -248,8 +247,8 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | ContinueStatement
                  deriving (Show)
 
-data Location = ElemLocation { locationId :: String }
-              | ArrayLocation { locationId :: String, arrayIndexExpr :: Expr }
+data Location = ScalarLocation { locationId :: String }
+              | VectorLocation { locationId :: String, arrayIndexExpr :: Expr }
                 deriving (Show)
 
 data AssignExpr = AssignExpr { assignOp :: String, assignSourceExpr:: Expr }

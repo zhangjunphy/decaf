@@ -10,42 +10,56 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 module IR ( generate
           ) where
 
 import Text.Printf (printf)
 
-import qualified Parser
+import Parser
 import Control.Monad.State
 
 type Name = String
 
-data Descriptor = FieldDescriptor
-                | ParameterDescriptor
+data FieldDescriptor
+    = FieldDescriptor {
+        fieldId   :: String
+      , fieldIdx  :: Int
+      , fieldTpe  :: Type
+      , isVector  :: Bool
+      , size      :: Int
+      } deriving Show
+data FieldSymTable = FieldSymTable {
+      fieldTable :: [(String, FieldDescriptor)]
+    , parentFieldTable :: FieldSymTable
+    } deriving Show
 
-data SymbolTable = TypeSymbolTable
-                 | FieldSymbolTable
-                 | MethodSymbolTable
+data MethodDescriptor
+    = MethodDescriptor {
+        methodId   :: String
+      , methodIdx  :: Int
+      , returnType :: Maybe Type
+      , statements :: [Statement]
+      } deriving Show
+data MethodSymTable = MethodSymTable {
+      methodTable :: [(String, MethodDescriptor)]
+    , parentMethodTable :: MethodSymTable
+    } deriving Show
 
 data CodegenState
     = CodegenState {
         currentBlock :: Name
-      , blocks       :: [(Name, BlockState)]
-      , symbolTable  :: SymbolTable
-      }
-
-data BlockState
-    = BlockState {
-      }
+      , fieldSymTable :: FieldSymTable
+      , methodSymTable  :: MethodSymTable
+      } deriving Show
 
 newtype Codegen a = Codegen { runCodegen :: State CodegenState a }
     deriving (Functor, Applicative, Monad, MonadState CodegenState)
 
+newtype IR a = IR (State Parser.Program a)
+    deriving (Functor, Applicative, Monad, MonadState Parser.Program)
+
 data AbstractSyntaxTree = AbstractSyntaxTree
-                        deriving (Show)
+                          deriving (Show)
 
 data AstNode = ProgramNode {}
 

@@ -11,6 +11,8 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
 
+{-# LANGUAGE DuplicateRecordFields #-}
+
 module Parser ( parse
               , Program(..)
               , ImportDecl(..)
@@ -31,68 +33,68 @@ module Parser ( parse
 
 import Text.Printf (printf)
 
-import Scanner (ScannedToken(..), Token(..))
+import Scanner (Token(..), Alex(..), AlexPosn(..), runAlex, alexMonadScan, getLexerPosn)
 
 }
 
 
 --------------------------------- Directives ----------------------------------
 
-%name parse
+%name parseInternal
 %error { parseError }
-%monad { Either String }
-
-%tokentype { ScannedToken }
+%monad { Alex }
+%lexer { lexerwrap } { EOF }
+%tokentype { Token }
 
 %token
-  id                { ScannedToken _ _ (Identifier $$) }
+  id                { (Identifier $$) }
 
-  intLiteral        { ScannedToken _ _ (IntLiteral $$) }
-  stringLiteral     { ScannedToken _ _ (StringLiteral $$) }
-  boolLiteral       { ScannedToken _ _ (BooleanLiteral $$) }
-  charLiteral       { ScannedToken _ _ (CharLiteral $$) }
+  intLiteral        { (IntLiteral $$) }
+  stringLiteral     { (StringLiteral $$) }
+  boolLiteral       { (BooleanLiteral $$) }
+  charLiteral       { (CharLiteral $$) }
 
-  '{'               { ScannedToken _ _ LCurly }
-  '}'               { ScannedToken _ _ RCurly }
-  '['               { ScannedToken _ _ LBrack }
-  ']'               { ScannedToken _ _ RBrack }
-  '('               { ScannedToken _ _ LParen }
-  ')'               { ScannedToken _ _ RParen }
-  ';'               { ScannedToken _ _ Semicolon }
-  '\:'              { ScannedToken _ _ Colon }
-  ','               { ScannedToken _ _ Comma }
-  '!'               { ScannedToken _ _ Negate }
-  '?'               { ScannedToken _ _ Choice }
+  '{'               { LCurly }
+  '}'               { RCurly }
+  '['               { LBrack }
+  ']'               { RBrack }
+  '('               { LParen }
+  ')'               { RParen }
+  ';'               { Semicolon }
+  '\:'              { Colon }
+  ','               { Comma }
+  '!'               { Negate }
+  '?'               { Choice }
 
-  import            { ScannedToken _ _ (Keyword "import") }
-  int               { ScannedToken _ _ (Keyword "int") }
-  bool              { ScannedToken _ _ (Keyword "bool") }
-  void              { ScannedToken _ _ (Keyword "void") }
-  if                { ScannedToken _ _ (Keyword "if") }
-  else              { ScannedToken _ _ (Keyword "else") }
-  for               { ScannedToken _ _ (Keyword "for") }
-  while             { ScannedToken _ _ (Keyword "while") }
-  return            { ScannedToken _ _ (Keyword "return") }
-  break             { ScannedToken _ _ (Keyword "break") }
-  continue          { ScannedToken _ _ (Keyword "continue") }
-  len               { ScannedToken _ _ (Keyword "len") }
+  import            { (Keyword "import") }
+  int               { (Keyword "int") }
+  bool              { (Keyword "bool") }
+  void              { (Keyword "void") }
+  if                { (Keyword "if") }
+  else              { (Keyword "else") }
+  for               { (Keyword "for") }
+  while             { (Keyword "while") }
+  return            { (Keyword "return") }
+  break             { (Keyword "break") }
+  continue          { (Keyword "continue") }
+  len               { (Keyword "len") }
 
-  '='               { ScannedToken _ _ AssignOp }
-  '+'               { ScannedToken _ _ (ArithmeticOp "+") }
-  '-'               { ScannedToken _ _ (ArithmeticOp "-") }
-  '*'               { ScannedToken _ _ (ArithmeticOp "*") }
-  '/'               { ScannedToken _ _ (ArithmeticOp "/") }
-  '%'               { ScannedToken _ _ (ArithmeticOp "%") }
-  '<'               { ScannedToken _ _ (RelationOp "<") }
-  '<='              { ScannedToken _ _ (RelationOp "<=") }
-  '>'               { ScannedToken _ _ (RelationOp ">") }
-  '>='              { ScannedToken _ _ (RelationOp ">=") }
-  '=='              { ScannedToken _ _ (EquationOp "==") }
-  '!='              { ScannedToken _ _ (EquationOp "!=") }
-  '&&'              { ScannedToken _ _ (ConditionOp "&&") }
-  '||'              { ScannedToken _ _ (ConditionOp "||") }
-  incrementOp       { ScannedToken _ _ (IncrementOp $$) }
-  compoundAssignOp  { ScannedToken _ _ (CompoundAssignOp $$) }
+  '='               { AssignOp }
+  '+'               { (ArithmeticOp "+") }
+  '-'               { (ArithmeticOp "-") }
+  '*'               { (ArithmeticOp "*") }
+  '/'               { (ArithmeticOp "/") }
+  '%'               { (ArithmeticOp "%") }
+  '<'               { (RelationOp "<") }
+  '<='              { (RelationOp "<=") }
+  '>'               { (RelationOp ">") }
+  '>='              { (RelationOp ">=") }
+  '=='              { (EquationOp "==") }
+  '!='              { (EquationOp "!=") }
+  '&&'              { (ConditionOp "&&") }
+  '||'              { (ConditionOp "||") }
+  incrementOp       { (IncrementOp $$) }
+  compoundAssignOp  { (CompoundAssignOp $$) }
 
 
 -- precedence --
@@ -202,6 +204,11 @@ Expr1 : Location                                            { LocationExpr $1 }
 ----------------------------------- Haskell -----------------------------------
 {
 
+lexerwrap :: (Token -> Alex a) -> Alex a
+lexerwrap s = do
+  token <- alexMonadScan
+  s token
+
 data Program = Program { importDecls :: [ImportDecl]
                        , fieldDecls :: [FieldDecl]
                        , methodDecls :: [MethodDecl]
@@ -281,16 +288,11 @@ data Expr = LocationExpr { location :: Location }
           | ChoiceExpr { choicePredExpr :: Expr, lExpr :: Expr, rExpr :: Expr }
             deriving (Show)
 
-parseError :: [ScannedToken] -> Either String a
-parseError [] = Left "unexpected EOF"
-parseError toks =
-  Left $ printf "line %d:%d: unexpected token%s '%s'"
-                lineNo
-                columnNo
-                (if (not $ null $ tail toks) then "s" else "")
-                badTokenText
-  where firstBadToken = head toks
-        lineNo = Scanner.line firstBadToken
-        columnNo = Scanner.column firstBadToken
-        badTokenText = concatMap (show . extractRawToken) toks
+parse :: String -> Either String Program
+parse input = runAlex input parseInternal
+
+parseError :: Token -> Alex a
+parseError tok = do
+  (AlexPn _ line col) <- getLexerPosn
+  error $ printf "Error handling token %s at line %d" (show tok) line
 }

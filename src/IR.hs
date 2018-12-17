@@ -10,58 +10,25 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module IR ( generate
           ) where
 
-import Text.Printf (printf)
-
 import Parser
 import Control.Monad.State
+import Data.Foldable
+import Data.Maybe
+import qualified Data.Map as Map
 
-type Name = String
+----------------------------------------------------------------------
+-- Walk through AST, generate an ir
+----------------------------------------------------------------------
 
-data FieldDescriptor
-    = FieldDescriptor {
-        fieldId   :: String
-      , fieldIdx  :: Int
-      , fieldTpe  :: Type
-      , isVector  :: Bool
-      , size      :: Int
-      } deriving Show
-data FieldSymTable = FieldSymTable {
-      fieldTable :: [(String, FieldDescriptor)]
-    , parentFieldTable :: FieldSymTable
-    } deriving Show
+generate :: Parser.Program -> IRRoot
+generate = \_ -> IRRoot
 
-data MethodDescriptor
-    = MethodDescriptor {
-        methodId   :: String
-      , methodIdx  :: Int
-      , returnType :: Maybe Type
-      , statements :: [Statement]
-      } deriving Show
-data MethodSymTable = MethodSymTable {
-      methodTable :: [(String, MethodDescriptor)]
-    , parentMethodTable :: MethodSymTable
-    } deriving Show
-
-data CodegenState
-    = CodegenState {
-        currentBlock :: Name
-      , fieldSymTable :: FieldSymTable
-      , methodSymTable  :: MethodSymTable
-      } deriving Show
-
-newtype Codegen a = Codegen { runCodegen :: State CodegenState a }
-    deriving (Functor, Applicative, Monad, MonadState CodegenState)
-
-newtype IR a = IR (State Parser.Program a)
-    deriving (Functor, Applicative, Monad, MonadState Parser.Program)
-
-data AbstractSyntaxTree = AbstractSyntaxTree
-                          deriving (Show)
+data IRRoot = IRRoot
+              deriving (Show)
 
 data AstNode = ProgramNode {}
-
-generate :: Parser.Program -> AbstractSyntaxTree
-generate = \_ -> AbstractSyntaxTree

@@ -13,10 +13,14 @@
 {-# OPTIONS_GHC -w #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 
-module Scanner ( ScannedToken(..)
-               , Token(..)
+module Scanner ( Token(..)
+               , Alex(..)
+               , AlexPosn(..)
                , scan
                , formatTokenOrError
+               , alexMonadScan
+               , runAlex
+               , getLexerPosn
                ) where
 
 import Data.Maybe
@@ -124,12 +128,6 @@ tokens :-
 ----------------------------- Representing tokens -----------------------------
 
 {
--- | A token with position information.
-data ScannedToken = ScannedToken { line :: Int
-                                 , column :: Int
-                                 , extractRawToken :: Token
-                                 } deriving (Eq)
-
 -- | A token.
 data Token = Keyword String
            | Identifier String
@@ -203,8 +201,8 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   , lexerStringValue = ""
                                   }
 
-alexEOF :: Alex ScannedToken
-alexEOF = Alex $ \s@AlexState{alex_pos=(AlexPn _ lineNo columnNo)} -> Right(s, ScannedToken lineNo columnNo EOF)
+alexEOF :: Alex Token
+alexEOF = Alex $ \s@AlexState{alex_pos=(AlexPn _ lineNo columnNo)} -> Right(s, EOF)
 
 getLexerCommentDepth :: Alex Int
 getLexerCommentDepth = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCommentDepth ust)
@@ -230,18 +228,21 @@ getLexerCharState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCharStat
 setLexerCharState :: Bool -> Alex ()
 setLexerCharState state = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCharState=state} }, ())
 
+getLexerPosn :: Alex AlexPosn
+getLexerPosn = Alex $ \s@AlexState{ alex_pos = pos } -> Right (s, pos)
+
 ----- Scanning functions ------
 
-type Action = AlexInput -> Int -> Alex ScannedToken
+type Action = AlexInput -> Int -> Alex Token
 
 plainToken :: Token -> Action
-plainToken tok ((AlexPn _ lineNo columnNo), _, _, _) _ =
-    return (ScannedToken lineNo columnNo tok)
+plainToken tok _ _ =
+    return tok
 
 stringToken :: (String -> Token) -> Action
-stringToken tok ((AlexPn _ lineNo columnNo), _, _, str) len =
+stringToken tok (_, _, _, str) len =
     let tokenContent = take len str in
-    return (ScannedToken lineNo columnNo (tok tokenContent))
+    return (tok tokenContent)
 
 enterComment :: Action
 enterComment inp len =
@@ -267,7 +268,7 @@ exitString ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerStringState False
        alexSetStartCode 0
-       return (ScannedToken lineNo columnNo (StringLiteral $ reverse value))
+       return (StringLiteral $ reverse value)
 
 addToString :: Char -> Action
 addToString c inp len =
@@ -289,7 +290,7 @@ exitChar ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerCharState False
        alexSetStartCode 0
-       return (ScannedToken lineNo columnNo (CharLiteral value))
+       return (CharLiteral value)
 
 addToChar :: Char -> Action
 addToChar c inp len =
@@ -305,44 +306,46 @@ addCurrentToChar inp@(_, _, _, str) len = addToChar (head str) inp len
 scannerError :: (String -> String) -> Action
 scannerError fn ((AlexPn _ lineNo columnNo), _, _, str) len =
     let content = take len str
-    in return (ScannedToken lineNo columnNo (Error$ fn content))
+    in return (Error $ fn content)
 
 
 ---------------------------- Scanner entry point -----------------------------
 
 -- Produce error tokens for later use
-catchErrors :: Alex ScannedToken -> Alex ScannedToken
+catchErrors :: Alex Token -> Alex Token
 catchErrors (Alex al) =
     Alex (\s -> case al s of
-                  Right (s'@AlexState{alex_ust=ust}, tok@(ScannedToken _ _ EOF)) -> eofCheck s' tok
+                  Right (s'@AlexState{alex_ust=ust}, EOF) -> eofCheck s' EOF
                   Right (s', x) -> Right (s', x)
                   Left message -> Left message)
-    where eofCheck s@AlexState{alex_ust=ust} tok@(ScannedToken lineNo colNo _) =
-              let error message = (ScannedToken lineNo colNo (Error $ message))
+    where eofCheck s@AlexState{alex_pos=(AlexPn _ lineNo colNo), alex_ust=ust} tok =
+              let error message = Error message
               in case ust of
                    val | (lexerStringState ust) -> Right (s, error "string not closed at EOF")
                        | (lexerCharState ust) -> Right (s, error "char not closed at EOF")
                        | (lexerCommentDepth ust > 0) -> Right (s, error "comment not closed at EOF")
                        | otherwise -> Right(s, tok)
 
-scan :: String -> [Either String ScannedToken]
+scan :: String -> [(Either String (AlexPosn, Token))]
 scan str =
-    let loop =
-            do tokOrError <- catchErrors alexMonadScan
-               case tokOrError of
-                 (ScannedToken _ _ (Error m)) -> alexError m
-                 tok@(ScannedToken lineNo colNo raw) ->
-                     if (raw == EOF)
-                     then return []
-                     else do toks <- loop
-                             return (Right tok : toks)
+    let loop = do
+          pos <- getLexerPosn
+          tokOrError <- catchErrors alexMonadScan
+          case tokOrError of
+              Error m -> alexError m
+              tok ->
+                  if (tok == EOF)
+                  then return []
+                  else do toks <- loop
+                          return ((Right (pos, tok)) : toks)
     in case runAlex str loop of
          Left m -> [Left m]
          Right toks -> toks
 
-formatTokenOrError :: Either String ScannedToken -> Either String String
+formatTokenOrError :: Either String (AlexPosn, Token) -> Either String String
 formatTokenOrError (Left err) = Left err
-formatTokenOrError (Right tok) = Right $ unwords [ show $ line tok
-                                                 , show $ extractRawToken tok
-                                                 ]
+formatTokenOrError (Right ((AlexPn _ line col), tok))
+    = Right $ unwords [ show $ line
+                      , show $ tok
+                      ]
 }

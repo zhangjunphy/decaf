@@ -31,11 +31,13 @@ executable decafc
                      , Parser
                      , Scanner
                      , IR
+                     , Semantic
   ghc-options:         -Wall -O3
   build-depends:       base >=4.10 && <=4.11
                      , array ==0.5.*
                      , split ==0.2.*
                      , transformers ==0.5.*
+                     , containers >=0.4
                      , pretty-show
                      , mtl
   build-tools:         alex >=3.0.2

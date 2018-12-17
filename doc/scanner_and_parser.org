@@ -14,7 +14,7 @@ by one of the default wrappers after I have a better grasp of the
 mechanics of Alex. Nested comments will also be supported.
 
 These is some redundency in the parser source code so some cleanup is
-desirable. Nevertheless, the parser works for all valid input with out
+desirable. Nevertheless, the parser works for all valid input without
 conflict.
 
 ** Difficulties

@@ -89,7 +89,7 @@ process configuration input =
   case Configuration.target configuration of
     Scan -> scan configuration input
     Parse -> parse configuration input
-    Inter -> irgen configuration input
+    -- Inter -> irgen configuration input
     phase -> Left $ show phase ++ " not implemented\n"
 
 scan :: Configuration -> String -> Either String [IO ()]
@@ -113,22 +113,26 @@ scan configuration input =
 
 parse :: Configuration -> String -> Either String [IO ()]
 parse configuration input = do
-  let (errors, tokens) = partitionEithers $ Scanner.scan input
-  -- If errors occurred, bail out.
-  mapM_ (mungeErrorMessage configuration . Left) errors
-  -- Otherwise, attempt a parse.
-  -- void $ mungeErrorMessage configuration $ Parser.parse tokens
-  -- comment the above line and uncomment the following two lines to print out your parse tree
-  let x = Parser.parse tokens
+  let x = Parser.parse input
   void $ mungeErrorMessage configuration $ trace (ppShow x) x
   Right []
 
+  -- let (errors, tokens) = partitionEithers $ Scanner.alexMonadScan input
+  -- -- If errors occurred, bail out.
+  -- mapM_ (mungeErrorMessage configuration . Left) errors
+  -- -- Otherwise, attempt a parse.
+  -- -- void $ mungeErrorMessage configuration $ Parser.parse tokens
+  -- -- comment the above line and uncomment the following two lines to print out your parse tree
+  -- let x = Parser.parse tokens
+  -- void $ mungeErrorMessage configuration $ trace (ppShow x) x
+  -- Right []
+
 -- | IR generator
-irgen :: Configuration -> String -> Either String [IO ()]
-irgen configuration input = do
-  let (errors, tokens) = partitionEithers $ Scanner.scan input
-  mapM_ (mungeErrorMessage configuration . Left) errors
-  let x = Parser.parse tokens
-  case x of
-    Left msg -> Left msg
-    Right ast -> Right $ [ print $ IR.generate $ ast]
+-- irgen :: Configuration -> String -> Either String [IO ()]
+-- irgen configuration input = do
+--   let (errors, tokens) = partitionEithers $ Scanner.scan input
+--   mapM_ (mungeErrorMessage configuration . Left) errors
+--   let x = Parser.parse tokens
+--   case x of
+--     Left msg -> Left msg
+--     Right ast -> Right $ [ print $ IR.generate $ ast]

@@ -24,6 +24,7 @@ module Scanner ( Token(..)
                ) where
 
 import Data.Maybe
+import Data.List.Split
 import Control.Monad.State
 }
 
@@ -192,6 +193,7 @@ data AlexUserState = AlexUserState { lexerCommentDepth :: Int
                                    , lexerStringState :: Bool
                                    , lexerCharState :: Bool
                                    , lexerStringValue :: String
+                                   , inputLines :: [String]
                                    }
 
 alexInitUserState :: AlexUserState
@@ -199,6 +201,7 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   , lexerStringState = False
                                   , lexerCharState = False
                                   , lexerStringValue = ""
+                                  , inputLines = []
                                   }
 
 alexEOF :: Alex Token
@@ -229,7 +232,7 @@ setLexerCharState :: Bool -> Alex ()
 setLexerCharState state = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCharState=state} }, ())
 
 getLexerPosn :: Alex AlexPosn
-getLexerPosn = Alex $ \s@AlexState{ alex_pos = pos } -> Right (s, pos)
+getLexerPosn = Alex $ \s@AlexState{alex_pos = pos} -> Right (s, pos)
 
 ----- Scanning functions ------
 

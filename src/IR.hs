@@ -15,17 +15,18 @@
 module IR ( generate
           ) where
 
-import Parser
 import Control.Monad.State
 import Data.Foldable
 import Data.Maybe
 import qualified Data.Map as Map
 
+import qualified Parser as P
+
 ----------------------------------------------------------------------
--- Walk through AST, generate an ir
+-- Tranverse AST, generate an ir
 ----------------------------------------------------------------------
 
-generate :: Parser.Program -> IRRoot
+generate :: P.Program -> IRRoot
 generate = \_ -> IRRoot
 
 data IRRoot = IRRoot

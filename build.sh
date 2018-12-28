@@ -5,7 +5,7 @@ declare -r GREP="grep --quiet --no-messages"
 
 cd "$TOP"
 
-rm -f $TOP/src/Scanner.hs $TOP/src/Parser.hs
+#rm -f $TOP/src/Scanner.hs $TOP/src/Parser.hs
 
 stack solver
 stack exec alex -- --ghc $TOP/src/Scanner.x

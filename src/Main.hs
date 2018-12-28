@@ -77,7 +77,7 @@ parser won't contain the file name--the file name has to get added in this
 function. -}
 mungeErrorMessage :: Configuration -> Either String a -> Either String a
 mungeErrorMessage configuration =
-  ifLeft ((Configuration.input configuration ++ " ")++)
+  ifLeft ((Configuration.input configuration ++ ":")++)
   where ifLeft f (Left v) = Left $ f v
         ifLeft _ (Right a) = Right a
 
@@ -92,30 +92,34 @@ process configuration input =
     -- Inter -> irgen configuration input
     phase -> Left $ show phase ++ " not implemented\n"
 
+{- We have to interleave output to standard error (for errors) and standard
+output or a file (for output), so we need to actually build an appropriate
+set of IO actions. -}
+outputStageResult :: Configuration -> [Either String String] -> Either String [IO ()]
+outputStageResult configuration resultAndErrors =
+    Right $ [ bracket openOutputHandle hClose $ \hOutput ->
+                  forM_ resultAndErrors $ \resultOrError ->
+                      case resultOrError of
+                        Left err -> hPutStrLn hOutput err
+                        Right r -> hPutStrLn hOutput r
+            ]
+    where openOutputHandle = maybe (hDuplicate stdout) (flip openFile WriteMode) $
+                             Configuration.outputFileName configuration
+
 scan :: Configuration -> String -> Either String [IO ()]
 scan configuration input =
   let tokensAndErrors =
         Scanner.scan input |>
         map (mungeErrorMessage configuration) |>
         map Scanner.formatTokenOrError
-  in
-  {- We have to interleave output to standard error (for errors) and standard
-  output or a file (for output), so we need to actually build an appropriate
-  set of IO actions. -}
-  Right $ [ bracket openOutputHandle hClose $ \hOutput ->
-             forM_ tokensAndErrors $ \tokOrError ->
-               case tokOrError of
-                 Left err -> hPutStrLn hOutput err
-                 Right tok -> hPutStrLn hOutput tok
-          ]
+  in outputStageResult configuration tokensAndErrors
   where v |> f = f v            -- like a Unix pipeline, but pure
-        openOutputHandle = maybe (hDuplicate stdout) (flip openFile WriteMode) $ Configuration.outputFileName configuration
 
 parse :: Configuration -> String -> Either String [IO ()]
 parse configuration input = do
   let x = Parser.parse input
-  void $ mungeErrorMessage configuration $ trace (ppShow x) x
-  Right []
+  let tree = mungeErrorMessage configuration x
+  outputStageResult configuration [fmap ppShow tree]
 
   -- let (errors, tokens) = partitionEithers $ Scanner.alexMonadScan input
   -- -- If errors occurred, bail out.

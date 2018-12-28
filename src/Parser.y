@@ -33,7 +33,13 @@ module Parser ( parse
 
 import Text.Printf (printf)
 
-import Scanner (Token(..), Alex(..), AlexPosn(..), runAlex, alexMonadScan, getLexerPosn)
+import Scanner ( Token(..)
+               , Alex(..)
+               , AlexPosn(..)
+               , runAlex
+               , alexMonadScan
+               , getLexerPosn
+               )
 
 }
 
@@ -286,6 +292,7 @@ data Expr = LocationExpr { location :: Location }
           | NegateExpr { negateExpr :: Expr }
           | ParenExpr { parenExpr :: Expr }
           | ChoiceExpr { choicePredExpr :: Expr, lExpr :: Expr, rExpr :: Expr }
+          | ErrorExpr
             deriving (Show)
 
 parse :: String -> Either String Program
@@ -294,5 +301,5 @@ parse input = runAlex input parseInternal
 parseError :: Token -> Alex a
 parseError tok = do
   (AlexPn _ line col) <- getLexerPosn
-  error $ printf "Error handling token %s at line %d" (show tok) line
+  Alex $ \s -> Left $ printf "%d:%d: Error handling token '%s'" line col (show tok)
 }

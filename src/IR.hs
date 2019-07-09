@@ -15,21 +15,21 @@
 module IR ( generate
           ) where
 
-import Control.Monad.State
-import Data.Foldable
-import Data.Maybe
-import qualified Data.Map as Map
+import           Control.Monad.State
+import           Data.Foldable
+import qualified Data.Map            as Map
+import           Data.Maybe
 
-import qualified Parser as P
+import qualified Parser              as P
 
 ----------------------------------------------------------------------
--- Tranverse AST, generate an ir
+-- Reformat the parser tree into an IR tree
 ----------------------------------------------------------------------
 
-generate :: P.Program -> IRRoot
+generate :: P.Program -> IRNode
 generate = \_ -> IRRoot
 
-data IRRoot = IRRoot
-              deriving (Show)
+data IRNode = IRRoot
+            deriving (Show)
 
 data AstNode = ProgramNode {}

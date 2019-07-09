@@ -40,9 +40,7 @@ import Scanner ( Token(..)
                , alexMonadScan
                , getLexerPosn
                )
-
 }
-
 
 --------------------------------- Directives ----------------------------------
 
@@ -301,5 +299,5 @@ parse input = runAlex input parseInternal
 parseError :: Token -> Alex a
 parseError tok = do
   (AlexPn _ line col) <- getLexerPosn
-  Alex $ \s -> Left $ printf "%d:%d: Error handling token '%s'" line col (show tok)
+  Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" line col (show tok)
 }

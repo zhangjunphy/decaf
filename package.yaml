@@ -1,0 +1,60 @@
+name:                decaf
+version:             0.1.0.0
+github:              "zhangjunphy/decaf"
+license:             MIT
+license-file:        LICENSE
+author:              "zj"
+maintainer:          "zhangjunphy[at]gmail[dot]com"
+copyright:           "GPLv3"
+
+extra-source-files:
+- README.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/zhangjunphy/decaf#README.md>
+
+dependencies:
+- base >=4.7 && <5
+- array ==0.5.*
+- split ==0.2.*
+- transformers ==0.5.*
+- containers >=0.4
+- pretty-show
+- mtl
+
+library:
+  source-dirs:
+    - src
+
+  build-tools:
+    - alex >=3.0.2
+    - happy
+
+executables:
+  decafc:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - decaf
+
+tests:
+  decaf-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - decaf
+    - hspec

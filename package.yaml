@@ -27,6 +27,8 @@ dependencies:
 - containers >=0.4
 - pretty-show
 - mtl
+- bytestring ==0.10.*
+- utf8-string ==1.0.*
 
 library:
   source-dirs:

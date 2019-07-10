@@ -20,6 +20,8 @@ import           Data.Foldable
 import qualified Data.Map            as Map
 import           Data.Maybe
 
+import qualified Data.ByteString     as B
+
 import qualified Parser              as P
 
 ----------------------------------------------------------------------
@@ -29,7 +31,25 @@ import qualified Parser              as P
 generate :: P.Program -> IRNode
 generate = \_ -> IRRoot
 
+type Name = String
+
 data IRNode = IRRoot
+            -- experssion nodes
+            | IRIntLiteral Int
+            | IRBoolLiteral Bool
+            | IRMethodCallExpr String
+            | IRExternCallExpr
+            | IRBinopExpr
+            -- statement nodes
+            | IRStatement
+            | IRAssignStmt
+            | IRPlusAssignStmt
+            | IRBreakStmt
+            | IRContinueStmt
+            | IRIfStmt
+            -- language components
+            | IRVarDecl
+            | IRType
             deriving (Show)
 
 data AstNode = ProgramNode {}

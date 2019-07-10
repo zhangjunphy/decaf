@@ -10,8 +10,8 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
-
 {-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Parser ( parse
               , Program(..)
@@ -40,6 +40,11 @@ import Scanner ( Token(..)
                , alexMonadScan
                , getLexerPosn
                )
+
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy.UTF8 as B (fromString, toString)
+import qualified Data.ByteString.Lazy.Char8 as C8
 }
 
 --------------------------------- Directives ----------------------------------
@@ -218,27 +223,27 @@ data Program = Program { importDecls :: [ImportDecl]
                        , methodDecls :: [MethodDecl]
                        } deriving (Show)
 
-data ImportDecl = ImportDecl { importId :: String }
+data ImportDecl = ImportDecl { importId :: ByteString }
                   deriving (Show)
 
 data FieldDecl = FieldDecl { fieldType :: Type
                            , elems:: [FieldElem]
                            } deriving (Show)
 
-data FieldElem = ScalarField { fieldId :: String }
-               | VectorField { fieldId :: String, size :: String }
+data FieldElem = ScalarField { fieldId :: ByteString }
+               | VectorField { fieldId :: ByteString, size :: ByteString }
                  deriving (Show)
 
 data Type = IntType | BoolType
             deriving (Show)
 
-data MethodDecl = MethodDecl { methodId :: String
+data MethodDecl = MethodDecl { methodId :: ByteString
                              , returnType :: Maybe Type
                              , arguments :: [Argument]
                              , block :: Block
                              } deriving (Show)
 
-data Argument = Argument { argumentId :: String
+data Argument = Argument { argumentId :: ByteString
                          , argumentType :: Type
                          } deriving (Show)
 
@@ -250,7 +255,7 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | MethodCallStatement { methodCallStatement :: MethodCall }
                | IfStatement { ifExpr :: Expr, ifBlock :: Block }
                | IfElseStatement { ifExpr :: Expr, ifBlock :: Block, elseBlock :: Block}
-               | ForStatement { counterId :: String, counterExpr :: Expr, forPredExpr :: Expr, counterUpdate :: CounterUpdate, forBlock :: Block }
+               | ForStatement { counterId :: ByteString, counterExpr :: Expr, forPredExpr :: Expr, counterUpdate :: CounterUpdate, forBlock :: Block }
                | WhileStatement { whileExpr :: Expr, whileBlock :: Block }
                | ReturnVoidStatement
                | ReturnExprStatement { returnExpr :: Expr }
@@ -258,19 +263,19 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | ContinueStatement
                  deriving (Show)
 
-data Location = ScalarLocation { locationId :: String }
-              | VectorLocation { locationId :: String, arrayIndexExpr :: Expr }
+data Location = ScalarLocation { locationId :: ByteString }
+              | VectorLocation { locationId :: ByteString, arrayIndexExpr :: Expr }
                 deriving (Show)
 
-data AssignExpr = AssignExpr { assignOp :: String, assignSourceExpr:: Expr }
-                | IncrementExpr { incrementOp :: String }
+data AssignExpr = AssignExpr { assignOp :: ByteString, assignSourceExpr:: Expr }
+                | IncrementExpr { incrementOp :: ByteString }
                   deriving (Show)
 
-data MethodCall = MethodCall { methodName :: String, importArguments :: [ImportArg] }
+data MethodCall = MethodCall { methodName :: ByteString, importArguments :: [ImportArg] }
                   deriving (Show)
 
 data ImportArg = ExprImportArg { argumentExpr :: Expr }
-               | StringImportArg { argumentString :: String }
+               | StringImportArg { argumentString :: ByteString }
                  deriving (Show)
 
 data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: AssignExpr }
@@ -278,14 +283,14 @@ data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: 
 
 data Expr = LocationExpr { location :: Location }
           | MethodCallExpr { methodCallExpr :: MethodCall }
-          | IntLiteralExpr { intLiteral :: String }
-          | CharLiteralExpr { charLiteral :: String }
-          | BoolLiteralExpr { boolLiteral :: String }
-          | LenExpr { lenId :: String }
-          | ArithOpExpr { arithOp :: String, lExpr :: Expr, rExpr :: Expr }
-          | RelOpExpr { relOp :: String, lExpr :: Expr, rExpr :: Expr }
-          | EqOpExpr { eqOp :: String, lExpr :: Expr, rExpr :: Expr }
-          | CondOpExpr { condOp :: String, lExpr :: Expr, rExpr :: Expr }
+          | IntLiteralExpr { intLiteral :: ByteString }
+          | CharLiteralExpr { charLiteral :: ByteString }
+          | BoolLiteralExpr { boolLiteral :: ByteString }
+          | LenExpr { lenId :: ByteString }
+          | ArithOpExpr { arithOp :: ByteString, lExpr :: Expr, rExpr :: Expr }
+          | RelOpExpr { relOp :: ByteString, lExpr :: Expr, rExpr :: Expr }
+          | EqOpExpr { eqOp :: ByteString, lExpr :: Expr, rExpr :: Expr }
+          | CondOpExpr { condOp :: ByteString, lExpr :: Expr, rExpr :: Expr }
           | NegativeExpr { negativeExpr :: Expr }
           | NegateExpr { negateExpr :: Expr }
           | ParenExpr { parenExpr :: Expr }
@@ -293,7 +298,7 @@ data Expr = LocationExpr { location :: Location }
           | ErrorExpr
             deriving (Show)
 
-parse :: String -> Either String Program
+parse :: ByteString -> Either String Program
 parse input = runAlex input parseInternal
 
 parseError :: Token -> Alex a

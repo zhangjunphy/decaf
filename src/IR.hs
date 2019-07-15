@@ -10,46 +10,108 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module IR ( generate
           ) where
 
 import           Control.Monad.State
 import           Data.Foldable
-import qualified Data.Map            as Map
+import qualified Data.Map                  as Map
 import           Data.Maybe
+import           Text.Read
 
-import qualified Data.ByteString     as B
+import           Data.ByteString.Lazy      (ByteString)
+import qualified Data.ByteString.Lazy      as B
+import qualified Data.ByteString.Lazy.UTF8 as B
 
-import qualified Parser              as P
+import qualified Parser                    as P
+
+----------------------------------------------------------------------
+-- IR tree
+----------------------------------------------------------------------
+
+type Name = ByteString
+
+data BinaryOp =
+  Plus
+  | Minus
+  deriving (Show)
+
+data UnaryOp =
+  Negate
+  | Negative
+  deriving (Show)
+
+data TernaryOp =
+  Choice
+  deriving (Show)
+
+data AssignOp =
+  EqlAssign
+  | IncAssign
+  | DecAssign
+  deriving (Show)
+
+data IncrementOp =
+  PlusPlus
+  | MinusMinus
+  deriving (Show)
+
+data Type =
+  IntType
+  | BoolType
+  deriving (Show)
+
+data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
+            -- Declarations
+            | ImportDecl Name
+            | FieldDecl Type Name (Maybe Integer)
+            | MethodDecl (Maybe Type) Name [(Name, Type)] [IRNode]
+            -- statement nodes
+            | AssignStmt AssignOp IRNode IRNode
+            | IncrementAssignStmt IncrementOp IRNode
+            | IfStmt IRNode [IRNode] [IRNode]
+            | ForStmt IRNode IRNode IRNode [IRNode]
+            | WhileStmt IRNode [IRNode]
+            | ReturnStmt IRNode
+            | BreakStmt
+            | ContinueStmt
+            -- experssion nodes
+            | LocationExpr Name (Maybe IRNode)
+            | MethodCallExpr Name [IRNode]
+            | ExternCallExpr Name [IRNode]
+            | IntLiteralExpr Integer
+            | BoolLiteralExpr Bool
+            | BinaryOpExpr BinaryOp IRNode IRNode
+            | UnaryOpExpr UnaryOp IRNode
+            | LengthExpr Name
+            | TernaryOpExpr TernaryOp IRNode IRNode IRNode
+            deriving (Show)
 
 ----------------------------------------------------------------------
 -- Reformat the parser tree into an IR tree
 ----------------------------------------------------------------------
 
+newtype SemanticError = SemanticError ByteString
+  deriving (Show)
+
 generate :: P.Program -> IRNode
-generate = \_ -> IRRoot
+generate (P.Program imports fields methods) = IRRoot [] [] []
 
-type Name = String
+irgenType :: P.Type -> Type
+irgenType P.IntType  = IntType
+irgenType P.BoolType = BoolType
 
-data IRNode = IRRoot
-            -- experssion nodes
-            | IRIntLiteral Int
-            | IRBoolLiteral Bool
-            | IRMethodCallExpr String
-            | IRExternCallExpr
-            | IRBinopExpr
-            -- statement nodes
-            | IRStatement
-            | IRAssignStmt
-            | IRPlusAssignStmt
-            | IRBreakStmt
-            | IRContinueStmt
-            | IRIfStmt
-            -- language components
-            | IRVarDecl
-            | IRType
-            deriving (Show)
+irgenImportDecl :: P.ImportDecl -> IRNode
+irgenImportDecl (P.ImportDecl id) = ImportDecl id
 
-data AstNode = ProgramNode {}
+irgenFieldDecl :: P.FieldDecl -> [IRNode]
+irgenFieldDecl (P.FieldDecl tpe elems) =
+  (flip fmap) elems $ \e ->
+    case e of
+      (P.ScalarField id)
+        -> FieldDecl (irgenType tpe) id Nothing
+      (P.VectorField id size)
+        -> FieldDecl (irgenType tpe) id (Just sz)
+           where sz = read $ B.toString size

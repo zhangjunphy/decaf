@@ -104,13 +104,13 @@ output or a file (for output), so we need to actually build an appropriate
 set of IO actions. -}
 outputStageResult :: Configuration -> [Either String String] -> Either String [IO ()]
 outputStageResult configuration resultAndErrors =
-    Right $ [ bracket openOutputHandle hClose $ \hOutput ->
-                  forM_ resultAndErrors $ \resultOrError ->
-                      case resultOrError of
+    Right [ bracket openOutputHandle hClose $ \hOutput ->
+                forM_ resultAndErrors $ \resultOrError ->
+                    case resultOrError of
                         Left err -> hPutStrLn hOutput err
                         Right r  -> hPutStrLn hOutput r
-            ]
-    where openOutputHandle = maybe (hDuplicate stdout) (flip openFile WriteMode) $
+          ]
+    where openOutputHandle = maybe (hDuplicate stdout) (`openFile` WriteMode) $
                              Configuration.outputFileName configuration
 
 scan :: Configuration -> ByteString -> Either String [IO ()]

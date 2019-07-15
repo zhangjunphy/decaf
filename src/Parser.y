@@ -296,7 +296,7 @@ data Expr = LocationExpr { location :: Location }
           | ParenExpr { parenExpr :: Expr }
           | ChoiceExpr { choicePredExpr :: Expr, lExpr :: Expr, rExpr :: Expr }
           | ErrorExpr
-            deriving (Show)
+          deriving (Show)
 
 parse :: ByteString -> Either String Program
 parse input = runAlex input parseInternal

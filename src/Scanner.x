@@ -374,7 +374,9 @@ scan str =
           pos <- getLexerPosn
           tokOrError <- catchErrors alexMonadScan
           case tokOrError of
-              Error m -> alexError $ B.toString m
+              Error m -> --alexError $ B.toString m
+                  do toks <- loop
+                     return ((Right (pos, Error m)) : toks)
               tok ->
                   if (tok == EOF)
                   then return []

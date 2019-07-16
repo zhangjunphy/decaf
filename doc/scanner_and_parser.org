@@ -24,3 +24,10 @@ operators, and the ambiguity of the prefix of field decleration and
 method decleration. The former is solved by specifing precedence in
 the preamble. The later requires modifying the rule of MethodDecls
 into right-reduction.
+
+Also recovering from parsing error seems to be non-trivial. It can be
+achieved with error tokens provided by Happy. But requires a moderate
+change in the parser code. Before this is implemented, the parser can
+only report one error at a time. This should not no more than a minor
+inconvenient in the short term. I will come back to this after dealing
+with the IR part.

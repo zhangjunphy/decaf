@@ -10,7 +10,8 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 module IR ( generate
           ) where
@@ -66,7 +67,7 @@ data Type =
 data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
             -- Declarations
             | ImportDecl Name
-            | FieldDecl Type Name (Maybe Integer)
+            | FieldDecl Type Name (Maybe Int)
             | MethodDecl (Maybe Type) Name [(Name, Type)] [IRNode]
             -- statement nodes
             | AssignStmt AssignOp IRNode IRNode
@@ -81,7 +82,7 @@ data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
             | LocationExpr Name (Maybe IRNode)
             | MethodCallExpr Name [IRNode]
             | ExternCallExpr Name [IRNode]
-            | IntLiteralExpr Integer
+            | IntLiteralExpr Int
             | BoolLiteralExpr Bool
             | BinaryOpExpr BinaryOp IRNode IRNode
             | UnaryOpExpr UnaryOp IRNode
@@ -96,7 +97,22 @@ data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
 newtype SemanticError = SemanticError ByteString
   deriving (Show)
 
-generate :: P.Program -> IRNode
+data IRGenError = IRGenError { pos :: (Int, Int), message :: ByteString }
+                deriving (Show)
+
+newtype IRGenState = IRGenState
+  { errors :: [IRGenError]
+  } deriving (Show)
+
+newtype IRGen a = IRGen { runIRGen :: State IRGenState a }
+  deriving (Functor, Applicative, Monad, MonadState IRGenState)
+
+addError :: IRGenError -> IRGen ()
+addError e = do
+  errs <- gets errors
+  modify $ \s -> s {errors = errs ++ [e]}
+
+generate :: P.Program ->  IRNode
 generate (P.Program imports fields methods) = IRRoot [] [] []
 
 irgenType :: P.Type -> Type

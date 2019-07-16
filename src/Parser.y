@@ -261,6 +261,7 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | ReturnExprStatement { returnExpr :: Expr }
                | BreakStatement
                | ContinueStatement
+               | ErrorStatement
                  deriving (Show)
 
 data Location = ScalarLocation { locationId :: ByteString }
@@ -295,7 +296,6 @@ data Expr = LocationExpr { location :: Location }
           | NegateExpr { negateExpr :: Expr }
           | ParenExpr { parenExpr :: Expr }
           | ChoiceExpr { choicePredExpr :: Expr, lExpr :: Expr, rExpr :: Expr }
-          | ErrorExpr
           deriving (Show)
 
 parse :: ByteString -> Either String Program

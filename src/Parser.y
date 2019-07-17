@@ -36,6 +36,8 @@ import Text.Printf (printf)
 import Scanner ( Token(..)
                , Alex(..)
                , AlexPosn(..)
+               , WithPos(..)
+               , TokenWithPos
                , runAlex
                , alexMonadScan
                , getLexerPosn
@@ -52,58 +54,58 @@ import qualified Data.ByteString.Lazy.Char8 as C8
 %name parseInternal
 %error { parseError }
 %monad { Alex }
-%lexer { lexerwrap } { EOF }
-%tokentype { Token }
+%lexer { lexerwrap } { WithPos{unPos=EOF} }
+%tokentype { TokenWithPos }
 
 %token
-  id                { (Identifier $$) }
+  id                { WithPos{unPos=(Identifier $$)} }
 
-  intLiteral        { (IntLiteral $$) }
-  stringLiteral     { (StringLiteral $$) }
-  boolLiteral       { (BooleanLiteral $$) }
-  charLiteral       { (CharLiteral $$) }
+  intLiteral        { WithPos{unPos=(IntLiteral $$)} }
+  stringLiteral     { WithPos{unPos=(StringLiteral $$)} }
+  boolLiteral       { WithPos{unPos=(BooleanLiteral $$)} }
+  charLiteral       { WithPos{unPos=(CharLiteral $$)} }
 
-  '{'               { LCurly }
-  '}'               { RCurly }
-  '['               { LBrack }
-  ']'               { RBrack }
-  '('               { LParen }
-  ')'               { RParen }
-  ';'               { Semicolon }
-  '\:'              { Colon }
-  ','               { Comma }
-  '!'               { Negate }
-  '?'               { Choice }
+  '{'               { WithPos{unPos=LCurly} }
+  '}'               { WithPos{unPos=RCurly} }
+  '['               { WithPos{unPos=LBrack} }
+  ']'               { WithPos{unPos=RBrack} }
+  '('               { WithPos{unPos=LParen} }
+  ')'               { WithPos{unPos=RParen} }
+  ';'               { WithPos{unPos=Semicolon} }
+  '\:'              { WithPos{unPos=Colon} }
+  ','               { WithPos{unPos=Comma} }
+  '!'               { WithPos{unPos=Negate} }
+  '?'               { WithPos{unPos=Choice} }
 
-  import            { (Keyword "import") }
-  int               { (Keyword "int") }
-  bool              { (Keyword "bool") }
-  void              { (Keyword "void") }
-  if                { (Keyword "if") }
-  else              { (Keyword "else") }
-  for               { (Keyword "for") }
-  while             { (Keyword "while") }
-  return            { (Keyword "return") }
-  break             { (Keyword "break") }
-  continue          { (Keyword "continue") }
-  len               { (Keyword "len") }
+  import            { WithPos{unPos=(Keyword "import")} }
+  int               { WithPos{unPos=(Keyword "int")} }
+  bool              { WithPos{unPos=(Keyword "bool")} }
+  void              { WithPos{unPos=(Keyword "void")} }
+  if                { WithPos{unPos=(Keyword "if")} }
+  else              { WithPos{unPos=(Keyword "else")} }
+  for               { WithPos{unPos=(Keyword "for")} }
+  while             { WithPos{unPos=(Keyword "while")} }
+  return            { WithPos{unPos=(Keyword "return")} }
+  break             { WithPos{unPos=(Keyword "break")} }
+  continue          { WithPos{unPos=(Keyword "continue")} }
+  len               { WithPos{unPos=(Keyword "len")} }
 
-  '='               { AssignOp }
-  '+'               { (ArithmeticOp "+") }
-  '-'               { (ArithmeticOp "-") }
-  '*'               { (ArithmeticOp "*") }
-  '/'               { (ArithmeticOp "/") }
-  '%'               { (ArithmeticOp "%") }
-  '<'               { (RelationOp "<") }
-  '<='              { (RelationOp "<=") }
-  '>'               { (RelationOp ">") }
-  '>='              { (RelationOp ">=") }
-  '=='              { (EquationOp "==") }
-  '!='              { (EquationOp "!=") }
-  '&&'              { (ConditionOp "&&") }
-  '||'              { (ConditionOp "||") }
-  incrementOp       { (IncrementOp $$) }
-  compoundAssignOp  { (CompoundAssignOp $$) }
+  '='               { WithPos{unPos=AssignOp} }
+  '+'               { WithPos{unPos=(ArithmeticOp "+")} }
+  '-'               { WithPos{unPos=(ArithmeticOp "-")} }
+  '*'               { WithPos{unPos=(ArithmeticOp "*")} }
+  '/'               { WithPos{unPos=(ArithmeticOp "/")} }
+  '%'               { WithPos{unPos=(ArithmeticOp "%")} }
+  '<'               { WithPos{unPos=(RelationOp "<")} }
+  '<='              { WithPos{unPos=(RelationOp "<=")} }
+  '>'               { WithPos{unPos=(RelationOp ">")} }
+  '>='              { WithPos{unPos=(RelationOp ">=")} }
+  '=='              { WithPos{unPos=(EquationOp "==")} }
+  '!='              { WithPos{unPos=(EquationOp "!=")} }
+  '&&'              { WithPos{unPos=(ConditionOp "&&")} }
+  '||'              { WithPos{unPos=(ConditionOp "||")} }
+  incrementOp       { WithPos{unPos=(IncrementOp $$)} }
+  compoundAssignOp  { WithPos{unPos=(CompoundAssignOp $$)} }
 
 
 -- precedence --
@@ -213,7 +215,7 @@ Expr1 : Location                                            { LocationExpr $1 }
 ----------------------------------- Haskell -----------------------------------
 {
 
-lexerwrap :: (Token -> Alex a) -> Alex a
+lexerwrap :: (TokenWithPos -> Alex a) -> Alex a
 lexerwrap s = do
   token <- alexMonadScan
   s token
@@ -301,7 +303,7 @@ data Expr = LocationExpr { location :: Location }
 parse :: ByteString -> Either String Program
 parse input = runAlex input parseInternal
 
-parseError :: Token -> Alex a
+parseError :: TokenWithPos -> Alex a
 parseError tok = do
   (AlexPn _ line col) <- getLexerPosn
   Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" line col (show tok)

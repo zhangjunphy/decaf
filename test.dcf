@@ -1,5 +1,5 @@
 import a;
-int a[3] b;
+int a[3], b;
 int main() {
 a = b ? 1 : 3;
 }

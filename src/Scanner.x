@@ -17,6 +17,8 @@
 module Scanner ( Token(..)
                , Alex(..)
                , AlexPosn(..)
+               , WithPos(..)
+               , TokenWithPos
                , scan
                , formatTokenOrError
                , alexMonadScan
@@ -166,6 +168,10 @@ data Token = Keyword ByteString
            | Error ByteString
            deriving (Eq)
 
+data WithPos a = WithPos { getPos :: AlexPosn, unPos :: a }
+               deriving (Show)
+type TokenWithPos = WithPos Token
+
 instance Show Token where
   show (Keyword k) = show k
   show (Identifier s) = "IDENTIFIER " ++ show s
@@ -243,8 +249,8 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   , inputLines = []
                                   }
 
-alexEOF :: Alex Token
-alexEOF = Alex $ \s@AlexState{alex_pos=(AlexPn _ lineNo columnNo)} -> Right(s, EOF)
+alexEOF :: Alex (WithPos Token)
+alexEOF = Alex $ \s@AlexState{alex_pos=pos} -> Right(s, WithPos pos EOF)
 
 getLexerCommentDepth :: Alex Int
 getLexerCommentDepth = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCommentDepth ust)
@@ -275,16 +281,21 @@ getLexerPosn = Alex $ \s@AlexState{alex_pos = pos} -> Right (s, pos)
 
 ----- Scanning functions ------
 
-type Action = AlexInput -> Int64 -> Alex Token
+type Action = AlexInput -> Int64 -> Alex (WithPos Token)
+
+returnWithPos :: Token -> Alex (WithPos Token)
+returnWithPos t = do
+    pos <- getLexerPosn
+    return $ WithPos pos t
 
 plainToken :: Token -> Action
 plainToken tok _ _ =
-    return tok
+    returnWithPos tok
 
 stringToken :: (ByteString -> Token) -> Action
 stringToken tok (_, _, str, _) len =
     let tokenContent = B.take len str in
-    return (tok tokenContent)
+    returnWithPos (tok tokenContent)
 
 enterComment :: Action
 enterComment inp len =
@@ -310,7 +321,7 @@ exitString ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerStringState False
        alexSetStartCode 0
-       return (StringLiteral $ B.reverse value)
+       returnWithPos (StringLiteral $ B.reverse value)
 
 addToString :: Char -> Action
 addToString c inp len =
@@ -332,7 +343,7 @@ exitChar ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerCharState False
        alexSetStartCode 0
-       return (CharLiteral value)
+       returnWithPos (CharLiteral value)
 
 addToChar :: Char -> Action
 addToChar c inp len =
@@ -348,36 +359,35 @@ addCurrentToChar inp@(_, _, str, _) len = addToChar (C8.head str) inp len
 scannerError :: (ByteString -> ByteString) -> Action
 scannerError fn ((AlexPn _ lineNo columnNo), _, str, _) len =
     let content = B.take len str
-    in return (Error $ fn content)
+    in returnWithPos (Error $ fn content)
 
 
 ---------------------------- Scanner entry point -----------------------------
 
 -- Produce error tokens for later use
-catchErrors :: Alex Token -> Alex Token
+catchErrors :: Alex (WithPos Token) -> Alex (WithPos Token)
 catchErrors (Alex al) =
     Alex (\s -> case al s of
-                  Right (s'@AlexState{alex_ust=ust}, EOF) -> eofCheck s' EOF
+                  Right (s'@AlexState{alex_ust=ust}, WithPos{unPos=EOF}) -> eofCheck s' EOF
                   Right (s', x) -> Right (s', x)
                   Left message -> Left message)
-    where eofCheck s@AlexState{alex_pos=(AlexPn _ lineNo colNo), alex_ust=ust} tok =
-              let error message = Error message
+    where eofCheck s@AlexState{alex_pos=pos, alex_ust=ust} tok =
+              let error message = WithPos pos $ Error message
               in case ust of
                    val | (lexerStringState ust) -> Right (s, error "string not closed at EOF")
                        | (lexerCharState ust) -> Right (s, error "char not closed at EOF")
                        | (lexerCommentDepth ust > 0) -> Right (s, error "comment not closed at EOF")
-                       | otherwise -> Right(s, tok)
+                       | otherwise -> Right(s, WithPos pos tok)
 
 scan :: ByteString -> [(Either String (AlexPosn, Token))]
 scan str =
     let loop = do
-          pos <- getLexerPosn
           tokOrError <- catchErrors alexMonadScan
           case tokOrError of
-              Error m -> --alexError $ B.toString m
+              WithPos{getPos=pos, unPos=Error m} -> --alexError $ B.toString m
                   do toks <- loop
                      return ((Right (pos, Error m)) : toks)
-              tok ->
+              WithPos{getPos=pos, unPos=tok} ->
                   if (tok == EOF)
                   then return []
                   else do toks <- loop

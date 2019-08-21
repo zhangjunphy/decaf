@@ -11,6 +11,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
 module IR ( generate
@@ -124,8 +125,7 @@ irgenImportDecl (P.ImportDecl id) = ImportDecl id
 
 irgenFieldDecl :: P.FieldDecl -> [IRNode]
 irgenFieldDecl (P.FieldDecl tpe elems) =
-  (flip fmap) elems $ \e ->
-    case e of
+  flip fmap elems $ \case
       (P.ScalarField id)
         -> FieldDecl (irgenType tpe) id Nothing
       (P.VectorField id size)

@@ -1,7 +1,8 @@
 # .gitignore                                                       -*- conf -*-
 
-# Editor backup files
+# Editor auxiliary files
 *~
+.dir-locals.el
 
 # Compiled Haskell
 *.hi
@@ -15,3 +16,4 @@ cabal.sandbox.config
 # Stack
 .stack-work/
 *.cabal
+stack.yaml.lock

@@ -11,15 +11,15 @@ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.  See the X11 license for more details. -}
 module CLI (generateUsage, getConfiguration) where
 
-import Control.Applicative ((<$>))
-import Control.Monad (foldM)
-import Data.List.Split (wordsBy)
-import System.Console.GetOpt
-import System.Environment (getArgs, getProgName)
-import Text.Printf (printf)
+import           Control.Applicative   ((<$>))
+import           Control.Monad         (foldM)
+import           Data.List.Split       (wordsBy)
+import           System.Console.GetOpt
+import           System.Environment    (getArgs, getProgName)
+import           Text.Printf           (printf)
 
-import Configuration
-import Configuration.Types
+import           Configuration
+import           Configuration.Types
 
 
 --------------------------------- FlagAction ----------------------------------
@@ -102,7 +102,7 @@ readStage :: String -> Either String CompilerStage
 readStage stageString =
   case reads stageString of
     [(stage, "")] -> Right stage
-    _ -> Left $ printf "unknown stage `%s'\n" stageString
+    _             -> Left $ printf "unknown stage `%s'\n" stageString
 
 readOptimizationSpec :: String -> Either String OptimizationSpecification
 readOptimizationSpec optString =
@@ -141,7 +141,7 @@ getConfiguration = do
       return $ Left $ init $ unlines [errorMessage, usage]
     Right selectedOptions -> return $ Right selectedOptions
 
-  where maybeToEither _ (Just a) = Right a
+  where maybeToEither _ (Just a)  = Right a
         maybeToEither msg Nothing = Left msg
-        headMay [] = Nothing
+        headMay []    = Nothing
         headMay (x:_) = Just x

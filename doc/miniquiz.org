@@ -6,7 +6,6 @@
 *** What does the compiler produce as output?
     Low-level assembly instructions.
 
-
 * L3
 ** 1
 *** Q:
@@ -46,3 +45,65 @@ recognize the language of decimal numbers? Why or why not?
 *** A:
 Not strictly. It can match all decimal numbers. But it also accepts =-.= or =000=,
 which are generally not considered decimal numbers.
+
+* L4
+** 1
+(a|b)(c|d)
+a(c|d)
+ac
+
+(a|b)(c|d)
+b(c|d)
+bc
+
+** 2
+Yes.
+There is a finite number of strings in this language. Define them as the terminal set.
+
+If this is the set of all matching pairs, then regular language has no way to guarantee number of parentheses
+are matched.
+
+** 3
+Yes.
+
+Expr = ()
+Expr = (Expr)
+
+* L5
+
+* L6
+** 1
+stack:
+ID
+(
+ID
+
+input:
+, ID )
+
+** 2
+The first "ID" in the parentheses could reduce to an 'expr' or an 'parameter',
+both would produce a valid parse tree.
+
+** 3
+Pros:
+The program could become more expressive, useful in some special situations.
+Cons:
+Program behavior would be difficult to control.
+* L7
+** 1
+I = Closure({T -> T * · F}) =
+    {
+        T -> T * · F,
+        F -> · ( E ),
+        F -> · x
+    }
+
+Goto(I, F) =
+    {
+        T -> T * F ·
+    }
+
+** 2
+Transition to another state with a terminal in the DFA is a shift in the parse table.
+For a non-terminal in the DFA, it is a goto.

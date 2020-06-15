@@ -107,3 +107,20 @@ Goto(I, F) =
 ** 2
 Transition to another state with a terminal in the DFA is a shift in the parse table.
 For a non-terminal in the DFA, it is a goto.
+
+* L8
+** 1
+S -> a
+S -> S ',' a
+
+Left-recursion eliminated:
+S -> a
+S -> a ',' S
+
+** 2
+E -> ID
+E -> E '+' E
+
+Left-recursion eliminated:
+E -> ID
+E -> ID '+' E

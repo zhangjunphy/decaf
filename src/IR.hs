@@ -66,16 +66,18 @@ data Type =
   deriving (Show)
 
 data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
-            -- Declarations
+            -- declarations
             | ImportDecl Name
             | FieldDecl Type Name (Maybe Int)
-            | MethodDecl (Maybe Type) Name [(Name, Type)] [IRNode]
+            | MethodDecl (Maybe Type) Name [(Name, Type)] IRNode {- block -}
             -- statement nodes
-            | AssignStmt AssignOp IRNode IRNode
+            | AssignStmt AssignOp IRNode {- location -} IRNode {- expr -}
             | IncrementAssignStmt IncrementOp IRNode
-            | IfStmt IRNode [IRNode] [IRNode]
-            | ForStmt IRNode IRNode IRNode [IRNode]
-            | WhileStmt IRNode [IRNode]
+            | IfStmt IRNode {- expr -} [IRNode] {- if stmts -} [IRNode] {- else stmts -}
+            | ForStmt Name {- counter -}
+              IRNode {- counter expr -} IRNode {- pred expr -}
+              (IRNode {- location -}, IRNode {- update expr -}) [IRNode]
+            | WhileStmt IRNode {- pred expr -} [IRNode]
             | ReturnStmt IRNode
             | BreakStmt
             | ContinueStmt
@@ -88,11 +90,14 @@ data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
             | BinaryOpExpr BinaryOp IRNode IRNode
             | UnaryOpExpr UnaryOp IRNode
             | LengthExpr Name
-            | TernaryOpExpr TernaryOp IRNode IRNode IRNode
+            | TernaryOpExpr TernaryOp IRNode {- pred expr -} IRNode IRNode
+            -- block scope
+            | Block [IRNode] [IRNode]
             deriving (Show)
 
 ----------------------------------------------------------------------
 -- Reformat the parser tree into an IR tree
+-- NOTE: Not sure if this conversion is necessary. But do it for now.
 ----------------------------------------------------------------------
 
 newtype SemanticError = SemanticError ByteString
@@ -131,3 +136,32 @@ irgenFieldDecl (P.FieldDecl tpe elems) =
       (P.VectorField id size)
         -> FieldDecl (irgenType tpe) id (Just sz)
            where sz = read $ B.toString size
+
+irgenMethodDecl :: P.MethodDecl -> IRNode
+irgenMethodDecl (P.MethodDecl id returnType arguments block) =
+  MethodDecl (irgenType <$> returnType) id args (irgenBlock block)
+  where
+    args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
+
+irgenBlock :: P.Block -> IRNode
+irgenBlock (P.Block fieldDecls statements) = Block fields stmts
+  where
+    fields = concat $ irgenFieldDecl <$> fieldDecls
+    stmts = irgenStmt <$> statements
+
+irgenLocation :: P.Location -> IRNode
+irgenLocation (P.ScalarLocation id) = LocationExpr id Nothing
+irgenLocation (P.VectorLocation id expr) = LocationExpr id (Just $ irgenExpr expr)
+
+irgenStmt :: P.Statement -> IRNode
+irgenStmt (P.AssignStatement loc (P.AssignExpr op expr)) =
+  AssignStmt EqlAssign (irgenLocation loc) (irgenExpr expr)
+irgenStmt (P.AssignStatement loc assignExpr) =
+  AssignStmt op (irgenLocation loc) expr
+  where
+    (op, expr) = case assignExpr of
+      (P.AssignExpr op expr) -> (EqlAssign, irgenExpr expr)
+      (P.IncrementExpr op)   -> _
+
+irgenExpr :: P.Expr -> IRNode
+irgenExpr = _

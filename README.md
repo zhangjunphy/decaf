@@ -1,4 +1,5 @@
 # Decaf
+An implementation of the Decaf language.
 
 ## TODOS
 * IR

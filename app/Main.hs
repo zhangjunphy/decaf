@@ -126,7 +126,9 @@ parse :: Configuration -> ByteString -> Either String [IO ()]
 parse configuration input = do
   let x = Parser.parse input
   let tree = mungeErrorMessage configuration x
-  outputStageResult configuration [fmap ppShow tree]
+  outputStageResult configuration [ppShow <$> tree]
+  let ir = IR.generate <$> tree
+  outputStageResult configuration [ppShow <$> ir]
 
   -- let (errors, tokens) = partitionEithers $ Scanner.alexMonadScan input
   -- -- If errors occurred, bail out.

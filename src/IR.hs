@@ -15,6 +15,13 @@
 {-# LANGUAGE OverloadedStrings          #-}
 
 module IR ( generate
+          , IRNode(..)
+          , Name
+          , BinaryOp
+          , UnaryOp
+          , TernaryOp
+          , AssignOp
+          , Type
           ) where
 
 import           Control.Monad.State
@@ -46,16 +53,16 @@ data BinaryOp =
   | NotEqual
   | OR
   | AND
-  deriving (Show)
+  deriving (Show, Eq)
 
 data UnaryOp =
   Negate
   | Negative
-  deriving (Show)
+  deriving (Show, Eq)
 
 data TernaryOp =
   Choice
-  deriving (Show)
+  deriving (Show, Eq)
 
 data AssignOp =
   EqlAssign
@@ -63,12 +70,12 @@ data AssignOp =
   | DecAssign
   | PlusPlus
   | MinusMinus
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Type =
   IntType
   | BoolType
-  deriving (Show)
+  deriving (Show, Eq)
 
 parseBinaryOp :: ByteString -> BinaryOp
 parseBinaryOp op = case op of
@@ -96,7 +103,7 @@ parseAssignOp s = case s of
   "++" -> PlusPlus
   "--" -> MinusMinus
 
-data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
+data IRNode = IRRoot [IRNode] {- import declarations -} IRNode {- global block -}
             -- declarations
             | ImportDecl Name
             | FieldDecl Type Name (Maybe Int)
@@ -124,16 +131,13 @@ data IRNode = IRRoot [IRNode] [IRNode] [IRNode]
             | LengthExpr Name
             | TernaryOpExpr TernaryOp IRNode {- pred expr -} IRNode IRNode
             -- block scope
-            | Block [IRNode] [IRNode]
+            | Block [IRNode] {- variable declarations -} [IRNode] {- statements -}
             deriving (Show)
 
 ----------------------------------------------------------------------
--- Reformat the parser tree into an IR tree
+-- Convert the parser tree into an IR tree
 -- NOTE: Not sure if this conversion is necessary. But do it for now.
 ----------------------------------------------------------------------
-
-newtype SemanticError = SemanticError ByteString
-  deriving (Show)
 
 data IRGenError = IRGenError { pos :: (Int, Int), message :: ByteString }
                 deriving (Show)
@@ -153,8 +157,7 @@ addError e = do
 generate :: P.Program ->  IRNode
 generate (P.Program imports fields methods) = IRRoot
   (irgenImportDecl <$> imports)
-  (concat $ irgenFieldDecl <$> fields)
-  (irgenMethodDecl <$> methods)
+  $ Block (concat $ irgenFieldDecl <$> fields) (irgenMethodDecl <$> methods)
 
 irgenType :: P.Type -> Type
 irgenType P.IntType  = IntType

@@ -10,12 +10,17 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
+{-# LANGUAGE DataKinds                  #-}
+{-# LANGUAGE DuplicateRecordFields      #-}
+{-# LANGUAGE GADTs                      #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 
 module IR ( generate
-          , IRNode(..)
+          , Location(..), Assignment(..), MethodCall(..)
+          , IRRoot(..), ImportDecl(..), FieldDecl(..), MethodDecl(..)
+          , Statement(..), Expr(..), Block(..)
           , Name
           , BinaryOp
           , UnaryOp
@@ -36,12 +41,9 @@ import qualified Data.ByteString.Lazy.UTF8 as B
 
 import qualified Parser                    as P
 
-----------------------------------------------------------------------
--- IR tree
-----------------------------------------------------------------------
-
 type Name = ByteString
 
+-- operators
 data BinaryOp =
   Plus
   | Minus
@@ -103,116 +105,137 @@ parseAssignOp s = case s of
   "++" -> PlusPlus
   "--" -> MinusMinus
 
-data IRNode = IRRoot [IRNode] {- import declarations -} IRNode {- global block -}
-            -- declarations
-            | ImportDecl Name
-            | FieldDecl Type Name (Maybe Int)
-            | MethodDecl (Maybe Type) Name [(Name, Type)] IRNode {- block -}
-            -- statement nodes
-            | AssignStmt AssignOp IRNode {- location -} (Maybe IRNode) {- expr -}
-            | IfStmt IRNode {- expr -} IRNode {- if stmts -} (Maybe IRNode) {- else stmts -}
-            | ForStmt Name {- counter -}
-              IRNode {- counter expr -} IRNode {- pred expr -}
-              IRNode {- update stmt -} IRNode {- block -}
-            | WhileStmt IRNode {- pred expr -} IRNode {- block -}
-            | ReturnStmt (Maybe IRNode)
-            | BreakStmt
-            | ContinueStmt
-            -- experssion nodes
-            | LocationExpr Name (Maybe IRNode)
-            | MethodCallExpr Name [IRNode]
-            | ExternCallExpr Name [IRNode]
-            | IntLiteralExpr Int
-            | BoolLiteralExpr Bool
-            | CharLiteralExpr Char
-            | StringLiteralExpr ByteString
-            | BinaryOpExpr BinaryOp IRNode IRNode
-            | UnaryOpExpr UnaryOp IRNode
-            | LengthExpr Name
-            | TernaryOpExpr TernaryOp IRNode {- pred expr -} IRNode IRNode
-            -- block scope
-            | Block [IRNode] {- variable declarations -} [IRNode] {- statements -}
-            deriving (Show)
+-- auxiliary data types
+data Location = Location { name :: Name
+                         , idx  :: Maybe Expr
+                         } deriving Show
+
+data Assignment = Assignment { location :: Location
+                             , op       :: AssignOp
+                             , expr     :: Maybe Expr
+                             } deriving Show
+
+data MethodCall = MethodCall { name :: Name
+                             , args :: [Expr]
+                             } deriving Show
+
+-- ir nodes
+data IRRoot = IRRoot { imports :: [ImportDecl]
+                     , vars    :: [FieldDecl]
+                     , methods :: [MethodDecl]
+                     } deriving Show
+
+data ImportDecl = ImportDecl { name :: Name }
+  deriving Show
+
+data FieldDecl = FieldDecl { name :: Name
+                           , tpe  :: Type
+                           , size :: Maybe Int
+                           } deriving Show
+
+data MethodDecl = MethodDecl { name  :: Name
+                             , tpe   :: (Maybe Type)
+                             , args  :: [(Name, Type)]
+                             , block :: Block
+                             } deriving Show
+
+data Statement = AssignStmt { assign :: Assignment }
+               | IfStmt { pred :: Expr, ifBlock :: Block, elseBlock :: Maybe Block}
+               | ForStmt { counter     :: Name
+                         , initCounter :: Expr
+                         , pred        :: Expr
+                         , update      :: Assignment
+                         , block       :: Block}
+               | WhileStmt { pred :: Expr, block :: Block}
+               | ReturnStmt { expr :: (Maybe Expr) }
+               | MethodCallStmt { methodCall :: MethodCall }
+               | BreakStmt
+               | ContinueStmt
+               deriving Show
+
+data Expr = LocationExpr { location :: Location }
+          | MethodCallExpr { methodCall :: MethodCall }
+          | ExternCallExpr { name :: Name, args :: [Expr] }
+          | IntLiteralExpr { intVal :: Int }
+          | BoolLiteralExpr { boolVal :: Bool }
+          | CharLiteralExpr { charVal :: Char }
+          | StringLiteralExpr { strVal :: ByteString }
+          | BinaryOpExpr { binaryOp :: BinaryOp, lhs :: Expr, rhs :: Expr }
+          | UnaryOpExpr { uanryOp :: UnaryOp, expr :: Expr }
+          | TernaryOpExpr { tenaryOp :: TernaryOp, expr1 :: Expr, expr2 :: Expr, expr3 :: Expr }
+          | LengthExpr { name :: Name }
+          deriving Show
+
+data Block = Block { vars  :: [FieldDecl]
+                   , stats :: [Statement]
+                   } deriving Show
 
 ----------------------------------------------------------------------
 -- Convert the parser tree into an IR tree
--- NOTE: Not sure if this conversion is necessary. But do it for now.
 ----------------------------------------------------------------------
 
-data IRGenError = IRGenError { pos :: (Int, Int), message :: ByteString }
-                deriving (Show)
-
-newtype IRGenState = IRGenState
-  { errors :: [IRGenError]
-  } deriving (Show)
-
-newtype IRGen a = IRGen { runIRGen :: State IRGenState a }
-  deriving (Functor, Applicative, Monad, MonadState IRGenState)
-
-addError :: IRGenError -> IRGen ()
-addError e = do
-  errs <- gets errors
-  modify $ \s -> s {errors = errs ++ [e]}
-
-generate :: P.Program ->  IRNode
+generate :: P.Program -> IRRoot
 generate (P.Program imports fields methods) = IRRoot
   (irgenImportDecl <$> imports)
-  $ Block (concat $ irgenFieldDecl <$> fields) (irgenMethodDecl <$> methods)
+  (concat $ irgenFieldDecl <$> fields)
+  (irgenMethodDecl <$> methods)
 
 irgenType :: P.Type -> Type
 irgenType P.IntType  = IntType
 irgenType P.BoolType = BoolType
 
-irgenImportDecl :: P.ImportDecl -> IRNode
+irgenImportDecl :: P.ImportDecl -> ImportDecl
 irgenImportDecl (P.ImportDecl id) = ImportDecl id
 
-irgenFieldDecl :: P.FieldDecl -> [IRNode]
+irgenFieldDecl :: P.FieldDecl -> [FieldDecl]
 irgenFieldDecl (P.FieldDecl tpe elems) =
   flip fmap elems $ \case
       (P.ScalarField id)
-        -> FieldDecl (irgenType tpe) id Nothing
+        -> FieldDecl id (irgenType tpe) Nothing
       (P.VectorField id size)
-        -> FieldDecl (irgenType tpe) id (Just sz)
+        -> FieldDecl id (irgenType tpe) (Just sz)
            where sz = read $ B.toString size
 
-irgenMethodDecl :: P.MethodDecl -> IRNode
+irgenMethodDecl :: P.MethodDecl -> MethodDecl
 irgenMethodDecl (P.MethodDecl id returnType arguments block) =
-  MethodDecl (irgenType <$> returnType) id args (irgenBlock block)
+  MethodDecl id (irgenType <$> returnType) args (irgenBlock block)
   where
     args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
 
-irgenBlock :: P.Block -> IRNode
+irgenBlock :: P.Block -> Block
 irgenBlock (P.Block fieldDecls statements) = Block fields stmts
   where
     fields = concat $ irgenFieldDecl <$> fieldDecls
     stmts = irgenStmt <$> statements
 
-irgenLocation :: P.Location -> IRNode
-irgenLocation (P.ScalarLocation id) = LocationExpr id Nothing
-irgenLocation (P.VectorLocation id expr) = LocationExpr id (Just $ irgenExpr expr)
+irgenLocation :: P.Location -> Location
+irgenLocation (P.ScalarLocation id)      = Location id Nothing
+irgenLocation (P.VectorLocation id expr) = Location id (Just $ irgenExpr expr)
 
-irgenAssignExpr :: P.Location -> P.AssignExpr -> IRNode
-irgenAssignExpr loc expr = AssignStmt op' (irgenLocation loc) expr'
+irgenAssign :: P.Location -> P.AssignExpr -> Assignment
+irgenAssign loc expr = Assignment (irgenLocation loc) op' expr'
   where (op', expr') = case expr of
           (P.AssignExpr op expr) -> (parseAssignOp op, Just $ irgenExpr expr)
           (P.IncrementExpr op)   -> (parseAssignOp op, Nothing)
 
-irgenStmt :: P.Statement -> IRNode
-irgenStmt (P.AssignStatement loc expr) = irgenAssignExpr loc expr
-irgenStmt (P.MethodCallStatement (P.MethodCall method args)) = MethodCallExpr method (irgenImportArg <$> args)
+irgenStmt :: P.Statement -> Statement
+irgenStmt (P.AssignStatement loc expr) = AssignStmt $ irgenAssign loc expr
+irgenStmt (P.MethodCallStatement (P.MethodCall method args)) = MethodCallStmt $
+  MethodCall method (irgenImportArg <$> args)
 irgenStmt (P.IfStatement expr block) = IfStmt (irgenExpr expr) (irgenBlock block) Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = IfStmt (irgenExpr expr) (irgenBlock ifBlock) (Just $ irgenBlock elseBlock)
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) =
-  ForStmt counter (irgenExpr counterExpr) (irgenExpr predExpr) (irgenAssignExpr loc expr) (irgenBlock block)
+  ForStmt counter (irgenExpr counterExpr) (irgenExpr predExpr) (irgenAssign loc expr) (irgenBlock block)
 irgenStmt (P.WhileStatement expr block) = WhileStmt (irgenExpr expr) (irgenBlock block)
 irgenStmt (P.ReturnExprStatement expr) = ReturnStmt $ Just $ irgenExpr expr
 irgenStmt P.ReturnVoidStatement = ReturnStmt Nothing
 irgenStmt P.BreakStatement = BreakStmt
 irgenStmt P.ContinueStatement = ContinueStmt
 
-irgenExpr :: P.Expr -> IRNode
-irgenExpr (P.LocationExpr loc)    = irgenLocation loc
-irgenExpr (P.MethodCallExpr (P.MethodCall method args)) = MethodCallExpr method (irgenImportArg <$> args)
+irgenExpr :: P.Expr -> Expr
+irgenExpr (P.LocationExpr loc)    = LocationExpr $ irgenLocation loc
+irgenExpr (P.MethodCallExpr (P.MethodCall method args)) = MethodCallExpr $
+  MethodCall method (irgenImportArg <$> args)
 irgenExpr (P.IntLiteralExpr i) = IntLiteralExpr $ read $ B.toString i
 irgenExpr (P.BoolLiteralExpr b) = BoolLiteralExpr $ read $ B.toString b
 irgenExpr (P.CharLiteralExpr c) = CharLiteralExpr $ read $ B.toString c
@@ -226,6 +249,6 @@ irgenExpr (P.NegateExpr expr) = UnaryOpExpr Negate (irgenExpr expr)
 irgenExpr (P.ParenExpr expr) = irgenExpr expr
 irgenExpr (P.ChoiceExpr pred l r) = TernaryOpExpr Choice (irgenExpr pred) (irgenExpr l) (irgenExpr r)
 
-irgenImportArg :: P.ImportArg -> IRNode
+irgenImportArg :: P.ImportArg -> Expr
 irgenImportArg (P.ExprImportArg expr)  = irgenExpr expr
 irgenImportArg (P.StringImportArg arg) = StringLiteralExpr arg

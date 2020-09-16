@@ -42,25 +42,17 @@ newtype SemanticException = SemanticException ByteString
 
 -- symbol table definitions
 type ScopeID = Int
-type SymbolSize = Int
-data SymbolDef = SymbolDef { name :: IR.Name
-                           , tpe  :: IR.Type
-                           , size :: Int
-                           } deriving (Show, Eq)
-data FunctionDef = FunctionDef { name :: IR.Name
-                               , tpe  :: IR.Type
-                               , size :: Int
-                               } deriving (Show)
-data SymbolTable = SymbolTable { scope     :: ScopeID
+data SymbolTable = SymbolTable { scopeID   :: ScopeID
                                , parent    :: Maybe SymbolTable
-                               , variables :: Map IR.Name SymbolDef
-                               , functions :: Map IR.Name FunctionDef
+                               , imports   :: Maybe (Map IR.Name IR.ImportDecl)
+                               , variables :: Map IR.Name IR.FieldDecl
+                               , methods   :: Maybe (Map IR.Name IR.MethodDecl)
                                } deriving Show
 data SemanticState = SemanticState
-  { nextScopeID  :: ScopeID
-  , currentScope :: ScopeID
-  , symbolTables :: Map ScopeID SymbolTable
-  , blockRef     :: Map IR.Block ScopeID
+  { nextScopeID    :: ScopeID
+  , currentScopeID :: ScopeID
+  , symbolTables   :: Map ScopeID SymbolTable
+  , blockRef       :: Map IR.Block ScopeID
   } deriving Show
 
 -- Monad used for semantic analysis
@@ -78,37 +70,63 @@ throwSemanticException msg = throwError $ SemanticException $ B.fromString msg
 getSymbolTable :: Semantic (Maybe SymbolTable)
 getSymbolTable = do
   state <- get
-  let id = currentScope state
+  let id = currentScopeID state
   return $ Map.lookup id $ symbolTables state
+
+getCurrentScopeID :: Semantic Int
+getCurrentScopeID = do
+  state <- get
+  return $ currentScopeID state
 
 -- find symbol table for current scope
 -- will throw SemanticException if nothing is found
 getSymbolTable' :: Semantic SymbolTable
 getSymbolTable' = do
+  scopeID <- getCurrentScopeID
   t <- getSymbolTable
   case t of
-    Nothing    -> throwSemanticException "No symble table found for current scope"
+    Nothing    -> throwSemanticException $
+      printf "No symble table found for current scope %d" $ scopeID
     Just table -> return table
+
+getLocalVariables' :: Semantic (Map IR.Name IR.FieldDecl)
+getLocalVariables' = do
+  localST <- getSymbolTable'
+  return $ variables localST
+
+getLocalImports' :: Semantic (Map IR.Name IR.ImportDecl)
+getLocalImports' = do
+  localST <- getSymbolTable'
+  case imports localST of
+    Nothing -> throwSemanticException $ printf "No import table for scope %d" $ scopeID localST
+    Just t -> return t
+
+getLocalMethods' :: Semantic (Map IR.Name IR.MethodDecl)
+getLocalMethods' = do
+  localST <- getSymbolTable'
+  case methods localST of
+    Nothing -> throwSemanticException $ printf "No method table for scope %d" $ scopeID localST
+    Just t  -> return t
 
 updateSymbolTable :: SymbolTable -> Semantic ()
 updateSymbolTable t = do
   state <- get
   -- ensure the symbol table is present, otherwise throw an exception
   getSymbolTable'
-  put $ state { symbolTables = Map.insert (currentScope state) t (symbolTables state) }
+  put $ state { symbolTables = Map.insert (currentScopeID state) t (symbolTables state) }
 
 -- lookup symbol in local scope.
 -- this is useful to find naming conflicts.
-lookupLocalSymbol :: IR.Name -> Semantic (Maybe SymbolDef)
-lookupLocalSymbol name = do
+lookupLocalVariable :: IR.Name -> Semantic (Maybe IR.FieldDecl)
+lookupLocalVariable name = do
   table <- getSymbolTable
-  return $ table >>= (Map.lookup name . symbols)
+  return $ table >>= (Map.lookup name . variables)
 
-lookupSymbol :: IR.Name -> Semantic (Maybe SymbolDef)
-lookupSymbol name = do
+lookupVariable :: IR.Name -> Semantic (Maybe IR.FieldDecl)
+lookupVariable name = do
   local <- getSymbolTable
   return $ local >>= lookup name
-  where lookup name table = case Map.lookup name (symbols table) of
+  where lookup name table = case Map.lookup name (variables table) of
           -- found in local symbol table
           Just s -> Just s
           -- otherwise search in parent table
@@ -120,14 +138,16 @@ enterScope :: Semantic ()
 enterScope = do
   state <- get
   parentST <- getSymbolTable
-  let currentID = currentScope state
+  let currentID = currentScopeID state
       nextID = nextScopeID state
-      localST = SymbolTable { scope = nextID
+      localST = SymbolTable { scopeID = nextID
                             , parent = parentST
-                            , symbols = Map.empty
+                            , variables = Map.empty
+                            , imports = Nothing
+                            , methods = Nothing
                             }
   put $ state { nextScopeID = nextID + 1
-              , currentScope = nextID
+              , currentScopeID = nextID
               , symbolTables = Map.insert nextID localST $ symbolTables state
               }
 
@@ -138,28 +158,34 @@ exitScope = do
   case localST of
     Nothing ->
       throwSemanticException
-        $ printf "No symbol table is associated with scope(%d)!" $ currentScope state
+        $ printf "No symbol table is associated with scope(%d)!" $ currentScopeID state
     Just table ->
       case parent table of
         Nothing ->
           throwSemanticException "Cannot exit root scope!"
         Just p ->
-          put $ state { currentScope = scope p }
+          put $ state { currentScopeID = scopeID p }
 
-addSymbolDef :: SymbolDef -> Semantic ()
-addSymbolDef def = do
-  state <- get
+addVariableDef :: IR.FieldDecl -> Semantic ()
+addVariableDef def = do
   localST <- getSymbolTable'
-  let symbols' = Map.insert (name def) def (symbols localST)
-      newST = localST { symbols = symbols' }
+  let variables' = Map.insert (IR.name (def :: IR.FieldDecl)) def (variables localST)
+      newST = localST { variables = variables' }
   updateSymbolTable newST
+
+addImportDef :: IR.ImportDecl -> Semantic ()
+addImportDef def = do
+  localST <- getSymbolTable'
+  importTable <- getLocalImports'
+  let imports' = Map.insert (IR.name (def :: IR.ImportDecl)) def importTable
+  _
 
 -- traverse ir tree to compose symbol tables
 semanticAnalysis :: IR.IRRoot -> Semantic ()
 semanticAnalysis (IR.IRRoot imports vars methods) = do
   -- initial state
   put SemanticState { nextScopeID = 1
-                    , currentScope = 0
+                    , currentScopeID = 0
                     , symbolTables = Map.empty
                     , blockRef = Map.empty
                     }

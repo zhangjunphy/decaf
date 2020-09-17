@@ -66,6 +66,9 @@ newtype Semantic a = Semantic { runSemantic :: ExceptT SemanticException (Writer
 throwSemanticException :: String -> Semantic a
 throwSemanticException msg = throwError $ SemanticException $ B.fromString msg
 
+addSemanticError :: String -> Semantic ()
+addSemanticError msg = tell $ [ SemanticError (B.fromString msg) ]
+
 -- find symbol table for current scope
 getSymbolTable :: Semantic (Maybe SymbolTable)
 getSymbolTable = do
@@ -134,8 +137,8 @@ lookupVariable name = do
                        Nothing -> Nothing
                        Just p  -> lookup name p
 
-enterScope :: Semantic ()
-enterScope = do
+enterScope :: IR.Block -> Semantic ()
+enterScope block = do
   state <- get
   parentST <- getSymbolTable
   let currentID = currentScopeID state
@@ -149,6 +152,7 @@ enterScope = do
   put $ state { nextScopeID = nextID + 1
               , currentScopeID = nextID
               , symbolTables = Map.insert nextID localST $ symbolTables state
+              , blockRef = Map.insert block nextID $ blockRef state
               }
 
 exitScope :: Semantic ()
@@ -169,24 +173,53 @@ exitScope = do
 addVariableDef :: IR.FieldDecl -> Semantic ()
 addVariableDef def = do
   localST <- getSymbolTable'
+  -- check for duplications
+  let nm = IR.name (def :: IR.FieldDecl)
+  case Map.lookup (IR.name (def :: IR.FieldDecl)) (variables localST) of
+    Just _ -> addSemanticError $ printf "duplicate definition for variable %d" $ B.toString nm
   let variables' = Map.insert (IR.name (def :: IR.FieldDecl)) def (variables localST)
       newST = localST { variables = variables' }
+  -- ensure declared array size > 0
+  case IR.size def of
+    Just s -> if s > 0 then addSemanticError "" else tell []
   updateSymbolTable newST
 
 addImportDef :: IR.ImportDecl -> Semantic ()
 addImportDef def = do
   localST <- getSymbolTable'
   importTable <- getLocalImports'
+  let nm = IR.name (def :: IR.ImportDecl)
+  case Map.lookup (IR.name (def :: IR.ImportDecl)) importTable of
+    Just _ -> addSemanticError $ printf "duplicate import %d" $ B.toString nm
   let imports' = Map.insert (IR.name (def :: IR.ImportDecl)) def importTable
-  _
+      newST = localST { imports = Just imports' }
+  updateSymbolTable newST
 
--- traverse ir tree to compose symbol tables
+addMethodDef :: IR.MethodDecl -> Semantic ()
+addMethodDef def = do
+  localST <- getSymbolTable'
+  methodTable <- getLocalMethods'
+  let nm = IR.name (def :: IR.MethodDecl)
+  case Map.lookup (IR.name (def :: IR.MethodDecl)) methodTable of
+    Just _ -> addSemanticError $ printf "duplicate definition for method %d" $ B.toString nm
+  let methods' = Map.insert (IR.name (def :: IR.MethodDecl)) def methodTable
+      newST = localST { methods = Just methods' }
+  updateSymbolTable newST
+
+-- traverse ir tree to compose symbol tables and check semantic errors
 semanticAnalysis :: IR.IRRoot -> Semantic ()
 semanticAnalysis (IR.IRRoot imports vars methods) = do
   -- initial state
+  let globalST = SymbolTable { scopeID = 0
+                             , parent = Nothing
+                             , imports = Just Map.empty
+                             , variables = Map.empty
+                             , methods = Just Map.empty
+                             }
   put SemanticState { nextScopeID = 1
                     , currentScopeID = 0
-                    , symbolTables = Map.empty
+                    , symbolTables = Map.fromList [(0, globalST)]
                     , blockRef = Map.empty
                     }
+  -- add imports to symbol table
   _

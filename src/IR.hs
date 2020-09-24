@@ -269,7 +269,7 @@ updateSymbolTable t = do
   put $ state { symbolTables = Map.insert (currentScopeID state) t (symbolTables state) }
 
 -- lookup symbol in local scope.
--- this is useful to find naming conflicts.
+-- this is useful to find conflicting symbol names.
 lookupLocalVariable :: IR.Name -> Semantic (Maybe IR.FieldDecl)
 lookupLocalVariable name = do
   table <- getSymbolTable
@@ -355,9 +355,14 @@ addMethodDef def = do
       newST = localST { methodSymbols = Just methodSymbols' }
   updateSymbolTable newST
 
--- traverse ir tree to compose symbol tables and check semantic errors
-semanticAnalysis :: IR.IRRoot -> Semantic ()
-semanticAnalysis (IR.IRRoot imports vars methods) = do
+----------------------------------------------------------------------
+-- Convert the parser tree into an IR tree
+-- Generate symbol tables at the same time.
+-- Also detects semantic errors.
+----------------------------------------------------------------------
+
+generate :: P.Program -> Semantic IRRoot
+generate (P.Program imports fields methods) = do
   -- initial state
   let globalST = SymbolTable { scopeID = 0
                              , parent = Nothing
@@ -369,47 +374,76 @@ semanticAnalysis (IR.IRRoot imports vars methods) = do
                     , currentScopeID = 0
                     , symbolTables = Map.fromList [(0, globalST)]
                     }
-  -- add imports to symbol table
-  _
-
-----------------------------------------------------------------------
--- Convert the parser tree into an IR tree
--- Generate symbol tables at the same time.
--- Also detects semantic errors.
-----------------------------------------------------------------------
-
-generate :: P.Program -> Semantic IRRoot
-generate (P.Program imports fields methods) = do
-  imports <- irgenImportDecl <$> imports
-  _
+  imports' <- irgenImports imports
+  variables' <- irgenFieldDecls fields
+  methods' <- irgenMethodDecls methods
+  return $ IRRoot imports' variables' methods'
 
 irgenType :: P.Type -> Type
 irgenType P.IntType  = IntType
 irgenType P.BoolType = BoolType
 
-irgenImportDecl :: P.ImportDecl -> Semantic ImportDecl
-irgenImportDecl (P.ImportDecl id) = return $ ImportDecl id
+irgenImports :: [P.ImportDecl] -> Semantic [ImportDecl]
+irgenImports []          = return []
+irgenImports ((P.ImportDecl id):rest) = do
+  let importSymbol = ImportDecl id
+  addImportDef importSymbol
+  -- TODO: This kind of recursions will potentially lead to stack overflows.
+  -- For now it should do the job. Will try to fix in the future.
+  rest' <- irgenImports rest
+  return $ (importSymbol : rest')
 
-irgenFieldDecl :: P.FieldDecl -> [FieldDecl]
-irgenFieldDecl (P.FieldDecl tpe elems) =
-  flip fmap elems $ \case
-      (P.ScalarField id)
-        -> FieldDecl id (irgenType tpe) Nothing
-      (P.VectorField id size)
-        -> FieldDecl id (irgenType tpe) (Just sz)
-           where sz = read $ B.toString size
+irgenFieldDecls :: [P.FieldDecl] -> Semantic [FieldDecl]
+irgenFieldDecls []          = return []
+irgenFieldDecls (decl:rest) = do
+  let fields = convertFieldDecl decl
+  vars <- addVariables fields
+  rest' <- irgenFieldDecls rest
+  return (vars ++ rest')
+  where
+    convertFieldDecl (P.FieldDecl tpe elems) =
+        flip fmap elems $ \case
+            (P.ScalarField id)
+                -> FieldDecl id (irgenType tpe) Nothing
+            (P.VectorField id size)
+                -> FieldDecl id (irgenType tpe) (Just sz)
+                where sz = read $ B.toString size
+    addVariables [] = return []
+    addVariables (v:vs) = do
+        addVariableDef v
+        vs' <- addVariables vs
+        return (v:vs')
 
-irgenMethodDecl :: P.MethodDecl -> MethodDecl
-irgenMethodDecl (P.MethodDecl id returnType arguments block) =
-  MethodDecl id (irgenType <$> returnType) args (irgenBlock block)
+irgenMethodDecls :: [P.MethodDecl] -> Semantic [MethodDecl]
+irgenMethodDecls [] = return []
+irgenMethodDecls (decl:rest) = do
+  method <- convertMethodDecl decl
+  rest' <- irgenMethodDecls rest
+  return (method:rest')
+  where
+    convertMethodDecl (P.MethodDecl id returnType arguments block) = do
+      block <- irgenBlock block
+      return $ MethodDecl id (irgenType <$> returnType) args block
+      where
+          args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
+
+
+irgenMethodDecl :: P.MethodDecl -> Semantic MethodDecl
+irgenMethodDecl (P.MethodDecl id returnType arguments block) = do
+  block <- irgenBlock block
+  return $ MethodDecl id (irgenType <$> returnType) args block
   where
     args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
 
 irgenBlock :: P.Block -> Semantic Block
-irgenBlock (P.Block fieldDecls statements) = Block fields stmts
-  where
-    fields = concat $ irgenFieldDecl <$> fieldDecls
-    stmts = irgenStmt <$> statements
+irgenBlock (P.Block fieldDecls statements) = do
+  state <- get
+  let nextID = nextScopeID state
+  fields <- irgenFieldDecls fieldDecls
+  stmts <- irgenStatements statements
+  let block = Block fields stmts nextID
+  enterScope block
+  return block
 
 irgenLocation :: P.Location -> Location
 irgenLocation (P.ScalarLocation id)      = Location id Nothing
@@ -421,19 +455,34 @@ irgenAssign loc expr = Assignment (irgenLocation loc) op' expr'
           (P.AssignExpr op expr) -> (parseAssignOp op, Just $ irgenExpr expr)
           (P.IncrementExpr op)   -> (parseAssignOp op, Nothing)
 
-irgenStmt :: P.Statement -> Statement
-irgenStmt (P.AssignStatement loc expr) = AssignStmt $ irgenAssign loc expr
-irgenStmt (P.MethodCallStatement (P.MethodCall method args)) = MethodCallStmt $
+irgenStatements :: [P.Statement] -> Semantic [Statement]
+irgenStatements [] = return []
+irgenStatements (s:xs) = do
+  s' <- irgenStmt s
+  xs' <- irgenStatements xs
+  return (s':xs')
+
+irgenStmt :: P.Statement -> Semantic Statement
+irgenStmt (P.AssignStatement loc expr) = return $ AssignStmt $ irgenAssign loc expr
+irgenStmt (P.MethodCallStatement (P.MethodCall method args)) = return $ MethodCallStmt $
   MethodCall method (irgenImportArg <$> args)
-irgenStmt (P.IfStatement expr block) = IfStmt (irgenExpr expr) (irgenBlock block) Nothing
-irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = IfStmt (irgenExpr expr) (irgenBlock ifBlock) (Just $ irgenBlock elseBlock)
-irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) =
-  ForStmt counter (irgenExpr counterExpr) (irgenExpr predExpr) (irgenAssign loc expr) (irgenBlock block)
-irgenStmt (P.WhileStatement expr block) = WhileStmt (irgenExpr expr) (irgenBlock block)
-irgenStmt (P.ReturnExprStatement expr) = ReturnStmt $ Just $ irgenExpr expr
-irgenStmt P.ReturnVoidStatement = ReturnStmt Nothing
-irgenStmt P.BreakStatement = BreakStmt
-irgenStmt P.ContinueStatement = ContinueStmt
+irgenStmt (P.IfStatement expr block) = do
+  ifBlock <- irgenBlock block
+  return $ IfStmt (irgenExpr expr) ifBlock Nothing
+irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
+  ifBlock' <- irgenBlock ifBlock
+  elseBlock' <- irgenBlock elseBlock
+  return $ IfStmt (irgenExpr expr) ifBlock' (Just $ elseBlock')
+irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
+  block' <- irgenBlock block
+  return $ ForStmt counter (irgenExpr counterExpr) (irgenExpr predExpr) (irgenAssign loc expr) block'
+irgenStmt (P.WhileStatement expr block) = do
+  block' <- irgenBlock block
+  return $ WhileStmt (irgenExpr expr) block'
+irgenStmt (P.ReturnExprStatement expr) = return $ ReturnStmt $ Just $ irgenExpr expr
+irgenStmt P.ReturnVoidStatement = return $ ReturnStmt Nothing
+irgenStmt P.BreakStatement = return $ BreakStmt
+irgenStmt P.ContinueStatement = return $ ContinueStmt
 
 irgenExpr :: P.Expr -> Expr
 irgenExpr (P.LocationExpr loc)    = LocationExpr $ irgenLocation loc

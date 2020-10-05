@@ -128,6 +128,7 @@ parse configuration input = do
   let tree = mungeErrorMessage configuration x
   outputStageResult configuration [ppShow <$> tree]
   let ir = IR.generate <$> tree
+  let semantic = IR.runSemantic <$> ir
   -- TODO: This does not work for now. We need to find a way to thread IO Monad into our
   -- SemanticState so that we can do IO operations here.
   outputStageResult configuration [ppShow <$> ir]

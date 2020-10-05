@@ -27,6 +27,8 @@ module IR ( generate
           , TernaryOp
           , AssignOp
           , Type
+          , SemanticState
+          , runSemanticIO
           ) where
 
 import           Control.Monad.Except
@@ -212,6 +214,12 @@ data SemanticState = SemanticState
 -- is thrown.
 newtype Semantic a = Semantic { runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState))  a }
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
+
+runSemanticIO :: (Either SemanticException a -> [SemanticError] -> SemanticState -> IO a) -> Semantic a -> Semantic (IO a)
+runSemanticIO f s = do
+  state <- get
+  let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) state
+  return $ liftIO $ f except errors state
 
 throwSemanticException :: String -> Semantic a
 throwSemanticException msg = throwError $ SemanticException $ B.fromString msg

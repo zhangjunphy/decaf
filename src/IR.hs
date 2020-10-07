@@ -28,7 +28,9 @@ module IR ( generate
           , AssignOp
           , Type
           , SemanticState
-          , runSemanticIO
+          , SemanticException
+          , SemanticError
+          , runSemanticAnalysis
           ) where
 
 import           Control.Monad.Except
@@ -215,11 +217,10 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic { runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState))  a }
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticIO :: (Either SemanticException a -> [SemanticError] -> SemanticState -> IO a) -> Semantic a -> Semantic (IO a)
-runSemanticIO f s = do
-  state <- get
-  let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) state
-  return $ liftIO $ f except errors state
+runSemanticAnalysis :: Semantic a -> (Either SemanticException a, [SemanticError], SemanticState)
+runSemanticAnalysis s =
+  let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) initialSemanticState
+  in (except, errors, state)
 
 throwSemanticException :: String -> Semantic a
 throwSemanticException msg = throwError $ SemanticException $ B.fromString msg
@@ -333,12 +334,14 @@ addVariableDef def = do
   -- check for duplications
   let nm = IR.name (def :: IR.FieldDecl)
   case Map.lookup (IR.name (def :: IR.FieldDecl)) (variableSymbols localST) of
-    Just _ -> addSemanticError $ printf "duplicate definition for variable %d" $ B.toString nm
+    Just _ -> addSemanticError $ printf "duplicate definition for variable %s" $ B.toString nm
+    _      -> return ()
   let variableSymbols' = Map.insert (IR.name (def :: IR.FieldDecl)) def (variableSymbols localST)
       newST = localST { variableSymbols = variableSymbols' }
   -- ensure declared array size > 0
   case IR.size def of
-    Just s -> if s > 0 then addSemanticError "" else tell []
+    Just s -> if s < 0 then addSemanticError (printf "Invalid size of array %s" $ B.toString nm) else tell []
+    _      -> return ()
   updateSymbolTable newST
 
 addImportDef :: IR.ImportDecl -> Semantic ()
@@ -347,7 +350,8 @@ addImportDef def = do
   importTable <- getLocalImports'
   let nm = IR.name (def :: IR.ImportDecl)
   case Map.lookup (IR.name (def :: IR.ImportDecl)) importTable of
-    Just _ -> addSemanticError $ printf "duplicate import %d" $ B.toString nm
+    Just _ -> addSemanticError $ printf "duplicate import %s" $ B.toString nm
+    _      -> return ()
   let importSymbols' = Map.insert (IR.name (def :: IR.ImportDecl)) def importTable
       newST = localST { importSymbols = Just importSymbols' }
   updateSymbolTable newST
@@ -358,7 +362,7 @@ addMethodDef def = do
   methodTable <- getLocalMethods'
   let nm = IR.name (def :: IR.MethodDecl)
   case Map.lookup (IR.name (def :: IR.MethodDecl)) methodTable of
-    Just _ -> addSemanticError $ printf "duplicate definition for method %d" $ B.toString nm
+    Just _ -> addSemanticError $ printf "duplicate definition for method %s" $ B.toString nm
   let methodSymbols' = Map.insert (IR.name (def :: IR.MethodDecl)) def methodTable
       newST = localST { methodSymbols = Just methodSymbols' }
   updateSymbolTable newST
@@ -369,19 +373,21 @@ addMethodDef def = do
 -- Also detects semantic errors.
 ----------------------------------------------------------------------
 
-generate :: P.Program -> Semantic IRRoot
-generate (P.Program imports fields methods) = do
-  -- initial state
+initialSemanticState :: SemanticState
+initialSemanticState =
   let globalST = SymbolTable { scopeID = 0
                              , parent = Nothing
                              , importSymbols = Just Map.empty
                              , variableSymbols = Map.empty
                              , methodSymbols = Just Map.empty
                              }
-  put SemanticState { nextScopeID = 1
-                    , currentScopeID = 0
-                    , symbolTables = Map.fromList [(0, globalST)]
-                    }
+  in SemanticState { nextScopeID = 1
+                   , currentScopeID = 0
+                   , symbolTables = Map.fromList [(0, globalST)]
+                   }
+
+generate :: P.Program -> Semantic IRRoot
+generate (P.Program imports fields methods) = do
   imports' <- irgenImports imports
   variables' <- irgenFieldDecls fields
   methods' <- irgenMethodDecls methods

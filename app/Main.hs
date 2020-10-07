@@ -17,10 +17,10 @@ import           Prelude                    hiding (readFile)
 import qualified Prelude
 
 import           Control.Exception          (bracket)
-import           Control.Monad              (forM_, void)
+import           Control.Monad              (forM_, guard, void, when)
 import           Control.Monad.IO.Class     (liftIO)
 import           Control.Monad.Trans.Except (ExceptT (..), runExceptT)
-import           Data.Either                (partitionEithers)
+import           Data.Either                (isRight, partitionEithers)
 import           Debug.Trace
 import           GHC.IO.Handle              (hDuplicate)
 import           System.Environment         (getProgName)
@@ -127,11 +127,12 @@ parse configuration input = do
   let x = Parser.parse input
   let tree = mungeErrorMessage configuration x
   outputStageResult configuration [ppShow <$> tree]
+  guard (isRight tree)
   let ir = IR.generate <$> tree
-  let semantic = IR.runSemantic <$> ir
+  let semantic = IR.runSemanticAnalysis <$> ir
   -- TODO: This does not work for now. We need to find a way to thread IO Monad into our
   -- SemanticState so that we can do IO operations here.
-  outputStageResult configuration [ppShow <$> ir]
+  outputStageResult configuration [ppShow <$> semantic]
 
   -- let (errors, tokens) = partitionEithers $ Scanner.alexMonadScan input
   -- -- If errors occurred, bail out.

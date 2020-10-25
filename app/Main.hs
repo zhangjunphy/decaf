@@ -1,5 +1,5 @@
 {- Main -- main entry point
-Copyright (C) 2013, 2014  Benjamin Barenblat <bbaren@mit.edu>
+Copyright (C) 2020 J.Z. <zhangjunphy at gmail dot com>
 
 This file is a part of decafc.
 
@@ -20,6 +20,7 @@ import           Control.Exception          (bracket)
 import           Control.Monad              (forM_, guard, void, when)
 import           Control.Monad.IO.Class     (liftIO)
 import           Control.Monad.Trans.Except (ExceptT (..), runExceptT)
+import           Data.Bifunctor             (first)
 import           Data.Either                (isRight, partitionEithers)
 import           Debug.Trace
 import           GHC.IO.Handle              (hDuplicate)
@@ -84,7 +85,7 @@ parser won't contain the file name--the file name has to get added in this
 function. -}
 mungeErrorMessage :: Configuration -> Either String a -> Either String a
 mungeErrorMessage configuration =
-  ifLeft ((Configuration.input configuration ++ ":")++)
+  ifLeft $ \msg -> Configuration.input configuration ++ ":" ++ msg
   where ifLeft f (Left v)  = Left $ f v
         ifLeft _ (Right a) = Right a
 
@@ -97,7 +98,7 @@ process configuration input =
     Scan  -> scan configuration input
     Parse -> parse configuration input
     -- Inter -> irgen configuration input
-    phase -> Left $ show phase ++ " not implemented\n"
+    phase -> Left $ (show phase) <> " not implemented\n"
 
 {- We have to interleave output to standard error (for errors) and standard
 output or a file (for output), so we need to actually build an appropriate
@@ -124,32 +125,8 @@ scan configuration input =
 
 parse :: Configuration -> ByteString -> Either String [IO ()]
 parse configuration input = do
-  let x = Parser.parse input
-  let tree = mungeErrorMessage configuration x
-  outputStageResult configuration [ppShow <$> tree]
-  guard (isRight tree)
-  let ir = IR.generate <$> tree
-  let semantic = IR.runSemanticAnalysis <$> ir
-  -- TODO: This does not work for now. We need to find a way to thread IO Monad into our
-  -- SemanticState so that we can do IO operations here.
-  outputStageResult configuration [ppShow <$> semantic]
-
-  -- let (errors, tokens) = partitionEithers $ Scanner.alexMonadScan input
-  -- -- If errors occurred, bail out.
-  -- mapM_ (mungeErrorMessage configuration . Left) errors
-  -- -- Otherwise, attempt a parse.
-  -- -- void $ mungeErrorMessage configuration $ Parser.parse tokens
-  -- -- comment the above line and uncomment the following two lines to print out your parse tree
-  -- let x = Parser.parse tokens
-  -- void $ mungeErrorMessage configuration $ trace (ppShow x) x
-  -- Right []
-
--- | IR generator
--- irgen :: Configuration -> String -> Either String [IO ()]
--- irgen configuration input = do
---   let (errors, tokens) = partitionEithers $ Scanner.scan input
---   mapM_ (mungeErrorMessage configuration . Left) errors
---   let x = Parser.parse tokens
---   case x of
---     Left msg -> Left msg
---     Right ast -> Right $ [ print $ IR.generate $ ast]
+  let result = do
+        tree <- Parser.parse input
+        ir <- IR.runSemanticAnalysis $ IR.generate tree
+        return ir
+  outputStageResult configuration [ppShow <$> result]

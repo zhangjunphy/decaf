@@ -1,5 +1,5 @@
 {- CLI -- command-line options
-Copyright (C) 2013  Benjamin Barenblat <bbaren@mit.edu>
+Copyright (C) 2020 J.Z. <zhangjunphy at gmail dot com>
 
 This file is a part of decafc.
 
@@ -9,6 +9,8 @@ terms of the MIT (X11) License as described in the LICENSE file.
 decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.  See the X11 license for more details. -}
+{-# LANGUAGE OverloadedStrings #-}
+
 module CLI (generateUsage, getConfiguration) where
 
 import           Control.Applicative   ((<$>))

@@ -217,10 +217,13 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic { runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState))  a }
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticAnalysis :: Semantic a -> (Either SemanticException a, [SemanticError], SemanticState)
+runSemanticAnalysis :: Semantic a -> Either String (a, [SemanticError], SemanticState)
 runSemanticAnalysis s =
   let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) initialSemanticState
-  in (except, errors, state)
+  in
+    case except of
+      Left (SemanticException msg) -> Left $ B.toString msg
+      Right a                      -> Right (a, errors, state)
 
 throwSemanticException :: String -> Semantic a
 throwSemanticException msg = throwError $ SemanticException $ B.fromString msg

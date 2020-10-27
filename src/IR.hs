@@ -299,6 +299,39 @@ lookupVariable name = do
                        Nothing -> Nothing
                        Just p  -> lookup name p
 
+lookupLocalMethod' :: IR.Name -> SymbolTable -> Maybe (Either IR.ImportDecl IR.MethodDecl)
+lookupLocalMethod' name table =
+  let method = do
+        methodTable <- methodSymbols table
+        method' <- Map.lookup name methodTable
+        return method'
+      import' = do
+        importTable <- importSymbols table
+        import'' <- Map.lookup name importTable
+        return import''
+  in case method of
+    Just m -> Just $ Right m
+    Nothing -> case import' of
+      Just im -> Just $ Left im
+      Nothing -> Nothing
+
+lookupLocalMethod :: IR.Name -> Semantic (Maybe (Either IR.ImportDecl IR.MethodDecl))
+lookupLocalMethod name = do
+  table <- getSymbolTable
+  return $ table >>= lookupLocalMethod' name
+
+lookupMethod:: IR.Name -> Semantic (Maybe (Either IR.ImportDecl IR.MethodDecl))
+lookupMethod name = do
+  local <- getSymbolTable'
+  return $ lookup name local
+  where lookup name table = case lookupLocalMethod' name table of
+          -- found in local symbol table
+          Just s -> Just s
+          -- otherwise search in parent table
+          Nothing -> case (parent table) of
+                       Nothing -> Nothing
+                       Just p  -> lookup name p
+
 enterScope :: IR.Block -> Semantic ()
 enterScope block = do
   state <- get
@@ -330,6 +363,21 @@ exitScope = do
           throwSemanticException "Cannot exit root scope!"
         Just p ->
           put $ state { currentScopeID = scopeID p }
+
+----------------------------------------------------------------------
+-- Convert the parser tree into an IR tree
+-- Generate symbol tables at the same time.
+-- Also detects semantic errors.
+----------------------------------------------------------------------
+
+{-
+Semantic rules to be checked:
+1. Identifier duplication.
+   We check this when adding symbol definitions.
+2. Identifier should be declared before used.
+   Check when identifier get used. This only happends in expressions
+   and method calls.
+-}
 
 addVariableDef :: IR.FieldDecl -> Semantic ()
 addVariableDef def = do
@@ -369,12 +417,6 @@ addMethodDef def = do
   let methodSymbols' = Map.insert (IR.name (def :: IR.MethodDecl)) def methodTable
       newST = localST { methodSymbols = Just methodSymbols' }
   updateSymbolTable newST
-
-----------------------------------------------------------------------
--- Convert the parser tree into an IR tree
--- Generate symbol tables at the same time.
--- Also detects semantic errors.
-----------------------------------------------------------------------
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -462,15 +504,24 @@ irgenBlock (P.Block fieldDecls statements) = do
   enterScope block
   return block
 
-irgenLocation :: P.Location -> Location
-irgenLocation (P.ScalarLocation id)      = Location id Nothing
-irgenLocation (P.VectorLocation id expr) = Location id (Just $ irgenExpr expr)
+irgenLocation :: P.Location -> Semantic Location
+irgenLocation (P.ScalarLocation id)      = do
+  id' <- lookupVariable id
+  return $ Location id Nothing
+irgenLocation (P.VectorLocation id expr) = do
+  expr' <- irgenExpr expr
+  return $ Location id (Just expr')
 
-irgenAssign :: P.Location -> P.AssignExpr -> Assignment
-irgenAssign loc expr = Assignment (irgenLocation loc) op' expr'
-  where (op', expr') = case expr of
-          (P.AssignExpr op expr) -> (parseAssignOp op, Just $ irgenExpr expr)
-          (P.IncrementExpr op)   -> (parseAssignOp op, Nothing)
+irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
+irgenAssign loc (P.AssignExpr op expr) = do
+  loc' <- irgenLocation loc
+  expr' <- irgenExpr expr
+  let op' = parseAssignOp op
+  return $ Assignment loc' op' (Just expr')
+irgenAssign loc (P.IncrementExpr op) = do
+  loc' <- irgenLocation loc
+  let op' = parseAssignOp op
+  return $ Assignment loc' op' Nothing
 
 irgenStatements :: [P.Statement] -> Semantic [Statement]
 irgenStatements [] = return []
@@ -479,45 +530,87 @@ irgenStatements (s:xs) = do
   xs' <- irgenStatements xs
   return (s':xs')
 
+irgenMethod :: P.MethodCall -> Semantic MethodCall
+irgenMethod (P.MethodCall method args) = do
+  decl' <- lookupVariable method
+  args' <- sequenceA $ irgenImportArg <$> args
+  case decl' of
+    Nothing -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
+    _ -> return $ MethodCall method args'
+
 irgenStmt :: P.Statement -> Semantic Statement
-irgenStmt (P.AssignStatement loc expr) = return $ AssignStmt $ irgenAssign loc expr
-irgenStmt (P.MethodCallStatement (P.MethodCall method args)) = return $ MethodCallStmt $
-  MethodCall method (irgenImportArg <$> args)
+irgenStmt (P.AssignStatement loc expr) = do
+  assign <- irgenAssign loc expr
+  return $ AssignStmt assign
+irgenStmt (P.MethodCallStatement method) = do
+  method' <- irgenMethod method
+  return $ MethodCallStmt method'
 irgenStmt (P.IfStatement expr block) = do
   ifBlock <- irgenBlock block
-  return $ IfStmt (irgenExpr expr) ifBlock Nothing
+  expr' <- irgenExpr expr
+  return $ IfStmt expr' ifBlock Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
   ifBlock' <- irgenBlock ifBlock
   elseBlock' <- irgenBlock elseBlock
-  return $ IfStmt (irgenExpr expr) ifBlock' (Just $ elseBlock')
+  expr' <- irgenExpr expr
+  return $ IfStmt expr' ifBlock' (Just $ elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
   block' <- irgenBlock block
-  return $ ForStmt counter (irgenExpr counterExpr) (irgenExpr predExpr) (irgenAssign loc expr) block'
+  counterExpr' <- irgenExpr counterExpr
+  predExpr' <- irgenExpr predExpr
+  assign <- irgenAssign loc expr
+  return $ ForStmt counter counterExpr' predExpr' assign block'
 irgenStmt (P.WhileStatement expr block) = do
   block' <- irgenBlock block
-  return $ WhileStmt (irgenExpr expr) block'
-irgenStmt (P.ReturnExprStatement expr) = return $ ReturnStmt $ Just $ irgenExpr expr
+  expr' <- irgenExpr expr
+  return $ WhileStmt expr' block'
+irgenStmt (P.ReturnExprStatement expr) = do
+  expr' <- irgenExpr expr
+  return $ ReturnStmt $ Just expr'
 irgenStmt P.ReturnVoidStatement = return $ ReturnStmt Nothing
 irgenStmt P.BreakStatement = return $ BreakStmt
 irgenStmt P.ContinueStatement = return $ ContinueStmt
 
-irgenExpr :: P.Expr -> Expr
-irgenExpr (P.LocationExpr loc)    = LocationExpr $ irgenLocation loc
-irgenExpr (P.MethodCallExpr (P.MethodCall method args)) = MethodCallExpr $
-  MethodCall method (irgenImportArg <$> args)
-irgenExpr (P.IntLiteralExpr i) = IntLiteralExpr $ read $ B.toString i
-irgenExpr (P.BoolLiteralExpr b) = BoolLiteralExpr $ read $ B.toString b
-irgenExpr (P.CharLiteralExpr c) = CharLiteralExpr $ read $ B.toString c
-irgenExpr (P.LenExpr id) = LengthExpr id
-irgenExpr (P.ArithOpExpr op l r) = BinaryOpExpr (parseBinaryOp op) (irgenExpr l) (irgenExpr r)
-irgenExpr (P.RelOpExpr op l r) = BinaryOpExpr (parseBinaryOp op) (irgenExpr l) (irgenExpr r)
-irgenExpr (P.EqOpExpr op l r) = BinaryOpExpr (parseBinaryOp op) (irgenExpr l) (irgenExpr r)
-irgenExpr (P.CondOpExpr op l r) = BinaryOpExpr (parseBinaryOp op) (irgenExpr l) (irgenExpr r)
-irgenExpr (P.NegativeExpr expr) = UnaryOpExpr Negative (irgenExpr expr)
-irgenExpr (P.NegateExpr expr) = UnaryOpExpr Negate (irgenExpr expr)
+irgenExpr :: P.Expr -> Semantic Expr
+irgenExpr (P.LocationExpr loc) = do
+  loc' <- irgenLocation loc
+  return $ LocationExpr loc'
+irgenExpr (P.MethodCallExpr method) = do
+  method' <- irgenMethod method
+  return $ MethodCallExpr method'
+irgenExpr (P.IntLiteralExpr i) = return $ IntLiteralExpr $ read $ B.toString i
+irgenExpr (P.BoolLiteralExpr b) = return $ BoolLiteralExpr $ read $ B.toString b
+irgenExpr (P.CharLiteralExpr c) = return $ CharLiteralExpr $ read $ B.toString c
+irgenExpr (P.LenExpr id) = return $ LengthExpr id
+irgenExpr (P.ArithOpExpr op l r) = do
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  return $ BinaryOpExpr (parseBinaryOp op) l' r'
+irgenExpr (P.RelOpExpr op l r) = do
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  return $ BinaryOpExpr (parseBinaryOp op) l' r'
+irgenExpr (P.EqOpExpr op l r) = do
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  return $ BinaryOpExpr (parseBinaryOp op) l' r'
+irgenExpr (P.CondOpExpr op l r) = do
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  return $ BinaryOpExpr (parseBinaryOp op) l' r'
+irgenExpr (P.NegativeExpr expr) = do
+  expr' <- irgenExpr expr
+  return $ UnaryOpExpr Negative expr'
+irgenExpr (P.NegateExpr expr) = do
+  expr' <- irgenExpr expr
+  return $ UnaryOpExpr Negate expr'
 irgenExpr (P.ParenExpr expr) = irgenExpr expr
-irgenExpr (P.ChoiceExpr pred l r) = TernaryOpExpr Choice (irgenExpr pred) (irgenExpr l) (irgenExpr r)
+irgenExpr (P.ChoiceExpr pred l r) = do
+  pred' <- irgenExpr pred
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  return $ TernaryOpExpr Choice pred' l' r'
 
-irgenImportArg :: P.ImportArg -> Expr
+irgenImportArg :: P.ImportArg -> Semantic Expr
 irgenImportArg (P.ExprImportArg expr)  = irgenExpr expr
-irgenImportArg (P.StringImportArg arg) = StringLiteralExpr arg
+irgenImportArg (P.StringImportArg arg) = return $ StringLiteralExpr arg

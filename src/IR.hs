@@ -590,7 +590,7 @@ irgenMethodDecls (decl : rest) = do
   return (method : rest')
   where
     convertMethodDecl (P.MethodDecl id returnType arguments block) = do
-      block <- irgenBlock block
+      block@(Block _ stats _) <- irgenBlock block
       return $ MethodDecl id (irgenType <$> returnType) args block
       where
         args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments

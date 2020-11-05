@@ -151,13 +151,13 @@ data Location = Location
 data Assignment = Assignment
   { location :: Location,
     op :: AssignOp,
-    expr :: Maybe Expr
+    expr :: Maybe (WithType Expr)
   }
   deriving (Show)
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [Expr]
+    args :: [WithType Expr]
   }
   deriving (Show)
 
@@ -189,16 +189,16 @@ data MethodDecl = MethodDecl
 
 data Statement
   = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: Expr, ifBlock :: Block, elseBlock :: Maybe Block}
+  | IfStmt {pred :: WithType Expr, ifBlock :: Block, elseBlock :: Maybe Block}
   | ForStmt
       { counter :: Name,
-        initCounter :: Expr,
-        pred :: Expr,
+        initCounter :: WithType Expr,
+        pred :: WithType Expr,
         update :: Assignment,
         block :: Block
       }
-  | WhileStmt {pred :: Expr, block :: Block}
-  | ReturnStmt {expr :: (Maybe Expr)}
+  | WhileStmt {pred :: WithType Expr, block :: Block}
+  | ReturnStmt {expr :: (Maybe (WithType Expr))}
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
@@ -207,22 +207,23 @@ data Statement
 data Expr
   = LocationExpr {location :: Location}
   | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [Expr]}
+  | ExternCallExpr {name :: Name, args :: [WithType Expr]}
   | IntLiteralExpr {intVal :: Int}
   | BoolLiteralExpr {boolVal :: Bool}
   | CharLiteralExpr {charVal :: Char}
   | StringLiteralExpr {strVal :: ByteString}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: Expr, rhs :: Expr}
-  | RelOpExpr {relOp :: RelOp, lhs :: Expr, rhs :: Expr}
-  | CondOpExpr {condOp :: CondOp, lhs :: Expr, rhs :: Expr}
-  | EqOpExpr {eqOp :: EqOp, lhs :: Expr, rhs :: Expr}
-  | NegOpExpr {negOp :: NegOp, expr :: Expr}
-  | NotOpExpr {notOp :: NotOp, expr :: Expr}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: Expr, expr2 :: Expr, expr3 :: Expr}
+  | ArithOpExpr {arithOp :: ArithOp, lhs :: WithType Expr, rhs :: WithType Expr}
+  | RelOpExpr {relOp :: RelOp, lhs :: WithType Expr, rhs :: WithType Expr}
+  | CondOpExpr {condOp :: CondOp, lhs :: WithType Expr, rhs :: WithType Expr}
+  | EqOpExpr {eqOp :: EqOp, lhs :: WithType Expr, rhs :: WithType Expr}
+  | NegOpExpr {negOp :: NegOp, expr :: WithType Expr}
+  | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
+  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
   | LengthExpr {name :: Name}
   deriving (Show)
 
 data WithType a = WithType {ele :: a, tpe :: Type}
+  deriving (Show)
 
 data Block = Block
   { vars :: [FieldDecl],
@@ -479,6 +480,8 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in below.
 6. Method must return something if used in expressions.
 7. String literals and array variables may not be used as args to non-import methods.
 8. Method declared without a return type shall return nothing.
+9. Method return type should match declared type.
+10. id used as location should name a variable or parameter.
 -}
 
 addVariableDef :: FieldDecl -> Semantic ()
@@ -585,6 +588,8 @@ irgenMethodDecls :: [P.MethodDecl] -> Semantic [MethodDecl]
 irgenMethodDecls [] = return []
 irgenMethodDecls (decl : rest) = do
   method <- convertMethodDecl decl
+  -- Semantic[8] and Semantic[9]
+  checkMethod method
   addMethodDef method
   rest' <- irgenMethodDecls rest
   return (method : rest')
@@ -594,6 +599,35 @@ irgenMethodDecls (decl : rest) = do
       return $ MethodDecl id (irgenType <$> returnType) args block
       where
         args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
+
+checkMethod :: MethodDecl -> Semantic ()
+checkMethod (MethodDecl name tpe _ (Block _ stmts _)) = do
+  let returnTypes = concat $ map extractRetType stmts
+  mapM_ (checkReturnType name tpe) returnTypes
+  where
+    extractRetType stmt = case stmt of
+      (ReturnStmt tpe) -> [tpe]
+      _ -> []
+
+checkReturnType :: Name -> Maybe Type -> Maybe (WithType Expr) -> Semantic ()
+checkReturnType _ Nothing Nothing = return ()
+checkReturnType method Nothing _ = addSemanticError $ printf "Method %s expects no return value!" (B.toString method)
+checkReturnType method (Just tpe) Nothing =
+  addSemanticError $
+    printf
+      "Method %s expects return type of %s!"
+      (B.toString method)
+      (show tpe)
+checkReturnType method (Just tpe) (Just (WithType _ tpe')) =
+  if tpe == tpe'
+    then return ()
+    else
+      addSemanticError $
+        printf
+          "Method %s expects return type of %s, but got %s instead."
+          (B.toString method)
+          (show tpe)
+          (show tpe')
 
 irgenBlock :: P.Block -> Semantic Block
 irgenBlock (P.Block fieldDecls statements) = do
@@ -622,7 +656,7 @@ irgenLocation (P.VectorLocation id expr) = do
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
 irgenAssign loc (P.AssignExpr op expr) = do
   loc' <- irgenLocation loc
-  (WithType expr' _) <- irgenExpr expr
+  expr' <- irgenExpr expr
   let op' = parseAssignOp op
   return $ Assignment loc' op' (Just expr')
 irgenAssign loc (P.IncrementExpr op) = do
@@ -642,11 +676,10 @@ irgenMethod (P.MethodCall method args') = do
   -- Semantic[2]
   decl' <- lookupMethod method
   argsWithType <- sequenceA $ irgenImportArg <$> args'
-  let args'' = (\(WithType e _) -> e) <$> argsWithType
   case decl' of
     Nothing -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
     Just decl -> case decl of
-      Left _ -> return $ MethodCall method args''
+      Left _ -> return $ MethodCall method argsWithType
       Right m -> do
         let formal = args (m :: MethodDecl)
         -- Semantic[5]
@@ -654,7 +687,7 @@ irgenMethod (P.MethodCall method args') = do
         checkArgType formal argsWithType
         -- Semantic[7]
         checkForArrayArg argsWithType
-        return $ MethodCall method args''
+        return $ MethodCall method argsWithType
   where
     matchPred ((_, tpe), (WithType _ tpe')) = tpe == tpe'
     argName ((name, _), _) = name
@@ -701,25 +734,25 @@ irgenStmt (P.MethodCallStatement method) = do
   return $ MethodCallStmt method'
 irgenStmt (P.IfStatement expr block) = do
   ifBlock <- irgenBlock block
-  (WithType expr' _) <- irgenExpr expr
+  expr' <- irgenExpr expr
   return $ IfStmt expr' ifBlock Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
   ifBlock' <- irgenBlock ifBlock
   elseBlock' <- irgenBlock elseBlock
-  (WithType expr' _) <- irgenExpr expr
+  expr' <- irgenExpr expr
   return $ IfStmt expr' ifBlock' (Just $ elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
   block' <- irgenBlock block
-  (WithType counterExpr' _) <- irgenExpr counterExpr
-  (WithType predExpr' _) <- irgenExpr predExpr
+  counterExpr' <- irgenExpr counterExpr
+  predExpr' <- irgenExpr predExpr
   assign <- irgenAssign loc expr
   return $ ForStmt counter counterExpr' predExpr' assign block'
 irgenStmt (P.WhileStatement expr block) = do
   block' <- irgenBlock block
-  (WithType expr' _) <- irgenExpr expr
+  expr' <- irgenExpr expr
   return $ WhileStmt expr' block'
 irgenStmt (P.ReturnExprStatement expr) = do
-  (WithType expr' _) <- irgenExpr expr
+  expr' <- irgenExpr expr
   return $ ReturnStmt $ Just expr'
 irgenStmt P.ReturnVoidStatement = return $ ReturnStmt Nothing
 irgenStmt P.BreakStatement = return $ BreakStmt
@@ -760,46 +793,46 @@ irgenExpr (P.CharLiteralExpr c) =
   return $ WithType (CharLiteralExpr $ read $ B.toString c) IntType
 irgenExpr (P.LenExpr id) = return $ WithType (LengthExpr id) IntType
 irgenExpr (P.ArithOpExpr op l r) = do
-  (WithType l' ltp) <- irgenExpr l
-  (WithType r' rtp) <- irgenExpr r
+  l'@(WithType _ ltp) <- irgenExpr l
+  r'@(WithType _ rtp) <- irgenExpr r
   case (ltp, rtp) of
     (IntType, IntType) ->
       return $ WithType (ArithOpExpr (parseArithOp op) l' r') IntType
     _ -> throwSemanticException "There can only be integer values in arithmetic expressions."
 irgenExpr (P.RelOpExpr op l r) = do
-  (WithType l' ltp) <- irgenExpr l
-  (WithType r' rtp) <- irgenExpr r
+  l'@(WithType _ ltp) <- irgenExpr l
+  r'@(WithType _ rtp) <- irgenExpr r
   case (ltp, rtp) of
     (IntType, IntType) ->
       return $ WithType (RelOpExpr (parseRelOp op) l' r') IntType
     _ -> throwSemanticException "There can only be integer values in relational expressions."
 irgenExpr (P.EqOpExpr op l r) = do
-  (WithType l' ltp) <- irgenExpr l
-  (WithType r' rtp) <- irgenExpr r
+  l'@(WithType _ ltp) <- irgenExpr l
+  r'@(WithType _ rtp) <- irgenExpr r
   if (ltp, rtp) == (IntType, IntType) || (ltp, rtp) == (BoolType, BoolType)
     then return $ WithType (EqOpExpr (parseEqOp op) l' r') BoolType
     else throwSemanticException "Can only check equality of expressions with the SAME type!"
 irgenExpr (P.CondOpExpr op l r) = do
-  (WithType l' ltp) <- irgenExpr l
-  (WithType r' rtp) <- irgenExpr r
+  l'@(WithType _ ltp) <- irgenExpr l
+  r'@(WithType _ rtp) <- irgenExpr r
   case (ltp, rtp) of
     (BoolType, BoolType) ->
       return $ WithType (CondOpExpr (parseCondOp op) l' r') BoolType
     _ -> throwSemanticException "Conditional ops only accept booleans!"
 irgenExpr (P.NegativeExpr expr) = do
-  (WithType expr' tpe) <- irgenExpr expr
+  expr'@(WithType _ tpe) <- irgenExpr expr
   case tpe of
     IntType -> return $ WithType (NegOpExpr Neg expr') IntType
     _ -> throwSemanticException "Operator \"-\" only accepts integers!"
 irgenExpr (P.NegateExpr expr) = do
-  (WithType expr' tpe) <- irgenExpr expr
+  expr'@(WithType _ tpe) <- irgenExpr expr
   case tpe of
     BoolType -> return $ WithType (NotOpExpr Not expr') BoolType
     _ -> throwSemanticException "Operator \"!\" only accepts integers!"
 irgenExpr (P.ChoiceExpr pred l r) = do
-  (WithType pred' ptp) <- irgenExpr pred
-  (WithType l' ltp) <- irgenExpr l
-  (WithType r' rtp) <- irgenExpr r
+  pred'@(WithType _ ptp) <- irgenExpr pred
+  l'@(WithType _ ltp) <- irgenExpr l
+  r'@(WithType _ rtp) <- irgenExpr r
   case ptp of
     BoolType ->
       if ltp == rtp

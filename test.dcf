@@ -1,6 +1,6 @@
 import a;
-int a[3], b;
-bool a;
-int main() {
+int a[3];
+bool b;
+void main() {
 a = b ? 1 : 3;
 }

@@ -144,7 +144,8 @@ parseAssignOp s = case s of
 -- auxiliary data types
 data Location = Location
   { name :: Name,
-    idx :: Maybe Expr
+    idx :: Maybe Expr,
+    variableDef :: Either Argument FieldDecl
   }
   deriving (Show)
 
@@ -157,7 +158,8 @@ data Assignment = Assignment
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [WithType Expr]
+    args :: [WithType Expr],
+    methodDef :: Either ImportDecl MethodDecl
   }
   deriving (Show)
 
@@ -179,10 +181,16 @@ data FieldDecl = FieldDecl
   }
   deriving (Show)
 
+data Argument = Argument
+  { name :: Name,
+    tpe :: Type
+  }
+  deriving (Show)
+
 data MethodSig = MethodSig
   { name :: Name,
     tpe :: (Maybe Type),
-    args :: [(Name, Type)]
+    args :: [Argument]
   }
   deriving (Show)
 
@@ -397,12 +405,21 @@ lookupLocalVariable name = do
   table <- getSymbolTable
   return $ table >>= (Map.lookup name . variableSymbols)
 
-lookupVariable' :: Name -> Semantic (FieldDecl)
+lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
   v <- lookupVariable name
   case v of
-    Nothing -> throwSemanticException $ printf "Variable %s not defined" (B.toString name)
     Just v' -> return v'
+    Nothing -> do
+      methodSig <- getMethodSignature
+      _
+
+lookupArgument :: Name -> Semantic (Maybe Argument)
+lookupArgument name = do
+  methodSig <- getMethodSignature
+  case methodSig of
+    Nothing -> return Nothing
+    Just sig -> first $ filter (\(Argument nm _) -> nm == name) (args (sig :: MethodSig))
 
 lookupVariable :: Name -> Semantic (Maybe FieldDecl)
 lookupVariable name = do
@@ -707,7 +724,7 @@ irgenMethod (P.MethodCall method args') = do
   case decl' of
     Nothing -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
     Just decl -> case decl of
-      Left _ -> return $ MethodCall method argsWithType
+      Left d -> return $ MethodCall method argsWithType (Left d)
       Right m -> do
         let formal = args (sig m :: MethodSig)
         -- Semantic[5]
@@ -715,7 +732,7 @@ irgenMethod (P.MethodCall method args') = do
         checkArgType formal argsWithType
         -- Semantic[7]
         checkForArrayArg argsWithType
-        return $ MethodCall method argsWithType
+        return $ MethodCall method argsWithType (Right m)
   where
     matchPred ((_, tpe), (WithType _ tpe')) = tpe == tpe'
     argName ((name, _), _) = name
@@ -794,8 +811,8 @@ irgenStmt P.ContinueStatement = return $ ContinueStmt
 {- generate expressions, also do type inference -}
 irgenExpr :: P.Expr -> Semantic (WithType Expr)
 irgenExpr (P.LocationExpr loc) = do
-  loc'@(Location name idx) <- irgenLocation loc
-  (FieldDecl _ tpe sz) <- lookupVariable' name
+  loc'@(Location name idx _) <- irgenLocation loc
+  Right (FieldDecl _ tpe sz) <- lookupVariable' name
   let expr' = WithType (LocationExpr loc') tpe
   case (sz, idx) of
     (Nothing, Nothing) -> return expr'

@@ -179,10 +179,15 @@ data FieldDecl = FieldDecl
   }
   deriving (Show)
 
-data MethodDecl = MethodDecl
+data MethodSig = MethodSig
   { name :: Name,
     tpe :: (Maybe Type),
-    args :: [(Name, Type)],
+    args :: [(Name, Type)]
+  }
+  deriving (Show)
+
+data MethodDecl = MethodDecl
+  { sig :: MethodSig,
     block :: Block
   }
   deriving (Show)
@@ -254,7 +259,8 @@ data SymbolTable = SymbolTable
     parent :: Maybe SymbolTable,
     importSymbols :: Maybe (Map Name ImportDecl),
     variableSymbols :: Map Name FieldDecl,
-    methodSymbols :: Maybe (Map Name MethodDecl)
+    methodSymbols :: Maybe (Map Name MethodDecl),
+    methodSig :: Maybe MethodSig
   }
   deriving (Show)
 
@@ -288,7 +294,8 @@ initialSemanticState =
             parent = Nothing,
             importSymbols = Just Map.empty,
             variableSymbols = Map.empty,
-            methodSymbols = Just Map.empty
+            methodSymbols = Just Map.empty,
+            methodSig = Nothing
           }
    in SemanticState
         { nextScopeID = globalScopeID + 1,
@@ -303,8 +310,8 @@ addSemanticError :: String -> Semantic ()
 addSemanticError msg = tell $ [SemanticError (B.fromString msg)]
 
 -- find symbol table for blogal scope
-getGlobalSymbolTable :: Semantic (SymbolTable)
-getGlobalSymbolTable = do
+getGlobalSymbolTable' :: Semantic (SymbolTable)
+getGlobalSymbolTable' = do
   state <- get
   case Map.lookup globalScopeID $ symbolTables state of
     Nothing -> throwSemanticException $ printf "No global symbol table found!"
@@ -359,6 +366,29 @@ updateSymbolTable t = do
   -- ensure the symbol table is present, otherwise throw an exception
   getSymbolTable'
   put $ state {symbolTables = Map.insert (currentScopeID state) t (symbolTables state)}
+
+getMethodSignature :: Semantic (Maybe MethodSig)
+getMethodSignature = do
+  st <- getSymbolTable
+  return $ findMethodSig st
+  where
+    findMethodSig Nothing = Nothing
+    findMethodSig (Just st) = case (methodSig st) of
+      Just sig -> Just sig
+      Nothing -> findMethodSig (parent st)
+
+getMethodSignature' :: Semantic MethodSig
+getMethodSignature' = do
+  st <- getSymbolTable
+  let sig = findMethodSig st
+  case sig of
+    Nothing -> throwSemanticException $ "Cannot find signature for current function!"
+    Just s -> return s
+  where
+    findMethodSig Nothing = Nothing
+    findMethodSig (Just st) = case (methodSig st) of
+      Just sig -> Just sig
+      Nothing -> findMethodSig (parent st)
 
 -- lookup symbol in local scope.
 -- this is useful to find conflicting symbol names.
@@ -428,8 +458,8 @@ lookupMethod name = do
         Nothing -> Nothing
         Just p -> lookup name p
 
-enterScope :: Semantic ScopeID
-enterScope = do
+enterScope :: Maybe MethodSig -> Semantic ScopeID
+enterScope sig = do
   state <- get
   parentST <- getSymbolTable
   let nextID = nextScopeID state
@@ -439,7 +469,8 @@ enterScope = do
             parent = parentST,
             variableSymbols = Map.empty,
             importSymbols = Nothing,
-            methodSymbols = Nothing
+            methodSymbols = Nothing,
+            methodSig = sig
           }
   put $
     state
@@ -518,11 +549,11 @@ addMethodDef def = do
   localST <- getSymbolTable'
   methodTable <- getLocalMethods'
   -- Semantic[1]
-  let nm = name (def :: MethodDecl)
-  case Map.lookup (name (def :: MethodDecl)) methodTable of
+  let nm = name ((sig def) :: MethodSig)
+  case Map.lookup nm methodTable of
     Just _ -> addSemanticError $ printf "duplicate definition for method %s" $ B.toString nm
     _ -> return ()
-  let methodSymbols' = Map.insert (name (def :: MethodDecl)) def methodTable
+  let methodSymbols' = Map.insert nm def methodTable
       newST = localST {methodSymbols = Just methodSymbols'}
   updateSymbolTable newST
 
@@ -534,19 +565,30 @@ generate (P.Program imports fields methods) = do
 
   -- check method "main"
   -- Semantic[3]
-  globalTable <- getGlobalSymbolTable
+  globalTable <- getGlobalSymbolTable'
   let main = do
         methodSyms <- methodSymbols globalTable
         Map.lookup mainMethodName methodSyms
-  case main of
-    Nothing -> addSemanticError $ printf "Method \"main\" not found!"
-    Just methodDecl -> case tpe (methodDecl :: MethodDecl) of
-      Nothing -> case args (methodDecl :: MethodDecl) of
-        [] -> return ()
-        _ -> addSemanticError $ "Method \"main\" should have no argument."
-      _ -> addSemanticError $ "Method \"main\" should have return type of void."
-
+  mainDecl <- checkMainExist main
+  let mainSig = sig mainDecl
+  checkMainRetType $ tpe (mainSig :: MethodSig)
+  checkMainArgsType $ args (mainSig :: MethodSig)
   return $ IRRoot imports' variables' methods'
+  where
+    checkMainExist main = do
+      case main of
+        Nothing -> throwSemanticException $ printf "Method \"main\" not found!"
+        Just decl -> return decl
+    checkMainRetType tpe = case tpe of
+      Nothing -> return ()
+      Just tpe ->
+        addSemanticError $
+          printf
+            "Method \"main\" should have return type of void, got %s instead."
+            (show tpe)
+    checkMainArgsType args = case args of
+      [] -> return ()
+      _ -> addSemanticError $ "Method \"main\" should have no argument."
 
 irgenType :: P.Type -> Type
 irgenType P.IntType = IntType
@@ -589,49 +631,35 @@ irgenMethodDecls [] = return []
 irgenMethodDecls (decl : rest) = do
   method <- convertMethodDecl decl
   -- Semantic[8] and Semantic[9]
-  checkMethod method
+  -- checkMethod method
   addMethodDef method
   rest' <- irgenMethodDecls rest
   return (method : rest')
   where
     convertMethodDecl (P.MethodDecl id returnType arguments block) = do
-      block@(Block _ stats _) <- irgenBlock block
-      return $ MethodDecl id (irgenType <$> returnType) args block
+      let sig = (MethodSig id (irgenType <$> returnType) args)
+      block <- irgenBlock (Just sig) block
+      return $ MethodDecl sig block
       where
         args = map (\(P.Argument id tpe) -> (id, irgenType tpe)) arguments
 
-checkMethod :: MethodDecl -> Semantic ()
-checkMethod (MethodDecl name tpe _ (Block _ stmts _)) = do
-  let returnTypes = concat $ map extractRetType stmts
-  mapM_ (checkReturnType name tpe) returnTypes
-  where
-    extractRetType stmt = case stmt of
-      (ReturnStmt tpe) -> [tpe]
-      _ -> []
+checkReturnType :: Maybe (WithType Expr) -> Semantic ()
+checkReturnType Nothing = do
+  (MethodSig method tpe _) <- getMethodSignature'
+  case tpe of
+    Nothing -> return ()
+    t -> addSemanticError $ printf "Method %s expects return type of %s!" (B.toString method) (show t)
+checkReturnType (Just (WithType _ tpe')) = do
+  (MethodSig method tpe _) <- getMethodSignature'
+  case tpe of
+    Nothing -> addSemanticError $ printf "Method %s expects no return value!" (B.toString method)
+    t | t /= tpe -> addSemanticError $ printf "Method %s expects return type of %s, but got %s instead."
+                    (B.toString method) (show tpe) (show tpe')
+    _ -> return ()
 
-checkReturnType :: Name -> Maybe Type -> Maybe (WithType Expr) -> Semantic ()
-checkReturnType _ Nothing Nothing = return ()
-checkReturnType method Nothing _ = addSemanticError $ printf "Method %s expects no return value!" (B.toString method)
-checkReturnType method (Just tpe) Nothing =
-  addSemanticError $
-    printf
-      "Method %s expects return type of %s!"
-      (B.toString method)
-      (show tpe)
-checkReturnType method (Just tpe) (Just (WithType _ tpe')) =
-  if tpe == tpe'
-    then return ()
-    else
-      addSemanticError $
-        printf
-          "Method %s expects return type of %s, but got %s instead."
-          (B.toString method)
-          (show tpe)
-          (show tpe')
-
-irgenBlock :: P.Block -> Semantic Block
-irgenBlock (P.Block fieldDecls statements) = do
-  nextID <- enterScope
+irgenBlock :: Maybe MethodSig -> P.Block -> Semantic Block
+irgenBlock sig (P.Block fieldDecls statements) = do
+  nextID <- enterScope sig
   fields <- irgenFieldDecls fieldDecls
   stmts <- irgenStatements statements
   let block = Block fields stmts nextID
@@ -681,7 +709,7 @@ irgenMethod (P.MethodCall method args') = do
     Just decl -> case decl of
       Left _ -> return $ MethodCall method argsWithType
       Right m -> do
-        let formal = args (m :: MethodDecl)
+        let formal = args (sig m :: MethodSig)
         -- Semantic[5]
         checkArgNum formal argsWithType
         checkArgType formal argsWithType
@@ -733,28 +761,33 @@ irgenStmt (P.MethodCallStatement method) = do
   method' <- irgenMethod method
   return $ MethodCallStmt method'
 irgenStmt (P.IfStatement expr block) = do
-  ifBlock <- irgenBlock block
+  ifBlock <- irgenBlock Nothing block
   expr' <- irgenExpr expr
   return $ IfStmt expr' ifBlock Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
-  ifBlock' <- irgenBlock ifBlock
-  elseBlock' <- irgenBlock elseBlock
+  ifBlock' <- irgenBlock Nothing ifBlock
+  elseBlock' <- irgenBlock Nothing elseBlock
   expr' <- irgenExpr expr
   return $ IfStmt expr' ifBlock' (Just $ elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
-  block' <- irgenBlock block
+  block' <- irgenBlock Nothing block
   counterExpr' <- irgenExpr counterExpr
   predExpr' <- irgenExpr predExpr
   assign <- irgenAssign loc expr
   return $ ForStmt counter counterExpr' predExpr' assign block'
 irgenStmt (P.WhileStatement expr block) = do
-  block' <- irgenBlock block
+  block' <- irgenBlock Nothing block
   expr' <- irgenExpr expr
   return $ WhileStmt expr' block'
 irgenStmt (P.ReturnExprStatement expr) = do
   expr' <- irgenExpr expr
+  -- Semantic[8] and Semantic[9]
+  checkReturnType $ Just expr'
   return $ ReturnStmt $ Just expr'
-irgenStmt P.ReturnVoidStatement = return $ ReturnStmt Nothing
+irgenStmt P.ReturnVoidStatement = do
+  -- Semantic[8] and Semantic[9]
+  checkReturnType Nothing
+  return $ ReturnStmt Nothing
 irgenStmt P.BreakStatement = return $ BreakStmt
 irgenStmt P.ContinueStatement = return $ ContinueStmt
 
@@ -778,7 +811,7 @@ irgenExpr (P.MethodCallExpr method@(P.MethodCall name _)) = do
     Left _ ->
       throwSemanticException $
         printf "Cannot call imported method %s in expressions." (B.toString name)
-    Right (MethodDecl _ tpe _ _) -> do
+    Right (MethodDecl (MethodSig _ tpe _) _) -> do
       case tpe of
         -- Semantic[6]
         Nothing ->

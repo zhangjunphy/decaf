@@ -27,6 +27,7 @@ import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer.Lazy
 import Data.ByteString.Lazy (ByteString)
+import Data.Int (Int64)
 import qualified Data.ByteString.Lazy.UTF8 as B
 import Data.Map (Map)
 import qualified Data.Map as Map
@@ -404,9 +405,21 @@ checkReturnType (Just (WithType _ tpe')) = do
             (show tpe')
     _ -> return ()
 
--- Semantic[22]
-checkIntLiteral :: String -> Semantic ()
-checkIntLiteral lit = return ()
+-- | Check if content of lit is a valid int64.
+-- lit should be striped of whitespace from both ends and contains only
+-- numeric characters or the minus sign '-'.
+-- -9223372036854775808 ≤ x ≤ 9223372036854775807
+-- checks Semantic[22].
+checkInt64Literal :: String -> Semantic Int64
+checkInt64Literal lit = do
+  if null lit
+    then throwSemanticException $ "Cannot parse int literal from an empty token!"
+    else return ()
+  let isNegative = (head lit) == '-'
+  if (isNegative && (drop 1 lit) <= "9223372036854775808")
+    || (not isNegative && lit <= "9223372036854775807")
+    then return $ (read lit)
+    else throwSemanticException $ printf "Int literal %s is out of bound" lit
 
 {-
   Methods to generate ir piece by piece.
@@ -462,7 +475,7 @@ irgenImports ((P.ImportDecl id) : rest) = do
 irgenFieldDecls :: [P.FieldDecl] -> Semantic [FieldDecl]
 irgenFieldDecls [] = return []
 irgenFieldDecls (decl : rest) = do
-  let fields = convertFieldDecl decl
+  fields <- sequence $ convertFieldDecl decl
   vars <- addVariables fields
   rest' <- irgenFieldDecls rest
   return (vars ++ rest')
@@ -470,11 +483,10 @@ irgenFieldDecls (decl : rest) = do
     convertFieldDecl (P.FieldDecl tpe elems) =
       flip fmap elems $ \case
         (P.ScalarField id) ->
-          FieldDecl id (irgenType tpe) Nothing
-        (P.VectorField id size) ->
-          FieldDecl id (irgenType tpe) (Just sz)
-          where
-            sz = read $ B.toString size
+          return $ FieldDecl id (irgenType tpe) Nothing
+        (P.VectorField id size) -> do
+          sz <- checkInt64Literal (B.toString size)
+          return $ FieldDecl id (irgenType tpe) (Just sz)
     addVariables [] = return []
     addVariables (v : vs) = do
       addVariableDef v

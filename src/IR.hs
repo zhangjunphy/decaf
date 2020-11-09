@@ -19,6 +19,7 @@
 module IR where
 
 import Data.ByteString.Lazy (ByteString)
+import Data.Int (Int64)
 
 type Name = ByteString
 
@@ -148,7 +149,7 @@ data ImportDecl = ImportDecl {name :: Name}
 data FieldDecl = FieldDecl
   { name :: Name,
     tpe :: Type,
-    size :: Maybe Int
+    size :: Maybe Int64
   }
   deriving (Show)
 
@@ -192,7 +193,7 @@ data Expr
   = LocationExpr {location :: Location}
   | MethodCallExpr {methodCall :: MethodCall}
   | ExternCallExpr {name :: Name, args :: [WithType Expr]}
-  | IntLiteralExpr {intVal :: Int}
+  | IntLiteralExpr {intVal :: Int64}
   | BoolLiteralExpr {boolVal :: Bool}
   | CharLiteralExpr {charVal :: Char}
   | StringLiteralExpr {strVal :: ByteString}

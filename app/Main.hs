@@ -13,35 +13,32 @@ PARTICULAR PURPOSE.  See the X11 license for more details. -}
 
 module Main where
 
-import           Prelude                    hiding (readFile)
-import qualified Prelude
-
-import           Control.Exception          (bracket)
-import           Control.Monad              (forM_, guard, void, when)
-import           Control.Monad.IO.Class     (liftIO)
-import           Control.Monad.Trans.Except (ExceptT (..), runExceptT)
-import           Data.Bifunctor             (first)
-import           Data.Either                (isRight, partitionEithers)
-import           Debug.Trace
-import           GHC.IO.Handle              (hDuplicate)
-import           System.Environment         (getProgName)
-import qualified System.Exit
-import           System.IO                  (IOMode (..), hClose, hPutStrLn,
-                                             openFile, stderr, stdout)
-import           Text.Printf                (printf)
-import           Text.Show.Pretty
-
 import qualified CLI
-import           Configuration              (CompilerStage (..), Configuration)
+import Configuration (CompilerStage (..), Configuration)
 import qualified Configuration
-import qualified IR
+import Control.Exception (bracket)
+import Control.Monad (forM_)
+import Control.Monad.IO.Class (liftIO)
+import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
+import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as B
+import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Scanner
-
-import           Data.ByteString.Lazy       (ByteString)
-import qualified Data.ByteString.Lazy       as B
-import qualified Data.ByteString.Lazy.UTF8  as B (fromString, toString)
-
+import qualified Semantic
+import System.Environment (getProgName)
+import qualified System.Exit
+import System.IO
+  ( IOMode (..),
+    hClose,
+    hPutStrLn,
+    openFile,
+    stderr,
+    stdout,
+  )
+import Text.Printf (printf)
+import Text.Show.Pretty
+import Prelude hiding (readFile)
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
 
@@ -62,8 +59,9 @@ main = do
   case result of
     -- Part III: Write output
     Left errorMessage -> fatal errorMessage
-    Right actions     -> sequence_ actions
-  where hoistEither = ExceptT . return
+    Right actions -> sequence_ actions
+  where
+    hoistEither = ExceptT . return
 
 readFile :: FilePath -> ExceptT String IO ByteString
 readFile name = liftIO $ B.readFile name
@@ -73,7 +71,6 @@ fatal message = do
   progName <- getProgName
   hPutStrLn stderr $ printf "%s: %s" progName message
   System.Exit.exitFailure
-
 
 ---------------------------- Pure code: Processing ----------------------------
 
@@ -86,8 +83,9 @@ function. -}
 mungeErrorMessage :: Configuration -> Either String a -> Either String a
 mungeErrorMessage configuration =
   ifLeft $ \msg -> Configuration.input configuration ++ ":" ++ msg
-  where ifLeft f (Left v)  = Left $ f v
-        ifLeft _ (Right a) = Right a
+  where
+    ifLeft f (Left v) = Left $ f v
+    ifLeft _ (Right a) = Right a
 
 {- The pure guts of the compiler convert input to output.  Exactly what output
 they produce, though, depends on the configuration. -}
@@ -95,7 +93,7 @@ process :: Configuration -> ByteString -> Either String [IO ()]
 process configuration input =
   -- Dispatch on the configuration, modifying error messages appropriately.
   case Configuration.target configuration of
-    Scan  -> scan configuration input
+    Scan -> scan configuration input
     Parse -> parse configuration input
     -- Inter -> irgen configuration input
     phase -> Left $ (show phase) <> " not implemented\n"
@@ -105,28 +103,32 @@ output or a file (for output), so we need to actually build an appropriate
 set of IO actions. -}
 outputStageResult :: Configuration -> [Either String String] -> Either String [IO ()]
 outputStageResult configuration resultAndErrors =
-    Right [ bracket openOutputHandle hClose $ \hOutput ->
-                forM_ resultAndErrors $ \resultOrError ->
-                    case resultOrError of
-                        Left err -> hPutStrLn hOutput err
-                        Right r  -> hPutStrLn hOutput r
-          ]
-    where openOutputHandle = maybe (hDuplicate stdout) (`openFile` WriteMode) $
-                             Configuration.outputFileName configuration
+  Right
+    [ bracket openOutputHandle hClose $ \hOutput ->
+        forM_ resultAndErrors $ \resultOrError ->
+          case resultOrError of
+            Left err -> hPutStrLn hOutput err
+            Right r -> hPutStrLn hOutput r
+    ]
+  where
+    openOutputHandle =
+      maybe (hDuplicate stdout) (`openFile` WriteMode) $
+        Configuration.outputFileName configuration
 
 scan :: Configuration -> ByteString -> Either String [IO ()]
 scan configuration input =
   let tokensAndErrors =
-        Scanner.scan input |>
-        map (mungeErrorMessage configuration) |>
-        map Scanner.formatTokenOrError
-  in outputStageResult configuration tokensAndErrors
-  where v |> f = f v            -- like a Unix pipeline, but pure
+        Scanner.scan input
+          |> map (mungeErrorMessage configuration)
+          |> map Scanner.formatTokenOrError
+   in outputStageResult configuration tokensAndErrors
+  where
+    v |> f = f v -- like a Unix pipeline, but pure
 
 parse :: Configuration -> ByteString -> Either String [IO ()]
 parse configuration input = do
   let result = do
         tree <- Parser.parse input
-        ir <- IR.runSemanticAnalysis $ IR.generate tree
+        ir <- Semantic.runSemanticAnalysis $ Semantic.generate tree
         return ir
   outputStageResult configuration [ppShow <$> result]

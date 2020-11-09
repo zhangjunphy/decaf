@@ -122,7 +122,7 @@ Program : ImportDecls FieldDecls MethodDecls                { Program (reverse $
 
 ImportDecls : {- empty -}                                   { [] }
             | ImportDecls ImportDecl                        { $2 : $1 }
-ImportDecl : import id ';'                                  { ImportDecl $2 }
+ImportDecl : import pos id ';'                              { WithPos (ImportDecl $3) $2 }
 
 FieldDecls : {- empty -}                                    { [] }
            | FieldDecls FieldDecl                           { $2 : $1 }
@@ -210,8 +210,8 @@ Expr1 : Location                                            { LocationExpr $1 }
       | '!' Expr1                                           { NegateExpr $2 }
       | '(' Expr1 ')'                                       { ParenExpr $2 }
 
-lineno :: { AlexPosn }
-        : {- empty -}  {% getLexerPosn }
+pos :: { Posn }
+    : {- empty -}  {% getPosn }
 
 ----------------------------------- Haskell -----------------------------------
 {
@@ -221,7 +221,19 @@ lexerwrap s = do
   token <- alexMonadScan
   s token
 
-data Program = Program { importDecls :: [ImportDecl]
+getPosn :: Alex Posn
+getPosn = do
+  (AlexPn _ row col)<- getLexerPosn
+  return $ Posn row col
+
+data Posn = Posn { row :: Int
+                 , col :: Int
+                 } deriving (Show, Eq, Ord)
+
+data WithPos a = WithPos { unPos :: a, getPos :: Posn }
+                 deriving (Show)
+
+data Program = Program { importDecls :: [WithPos ImportDecl]
                        , fieldDecls :: [FieldDecl]
                        , methodDecls :: [MethodDecl]
                        } deriving (Show)

@@ -67,8 +67,14 @@ data SymbolTable = SymbolTable
 
 instance Show SymbolTable where
   show (SymbolTable sid p imports variables methods tpe) =
-    printf "SymbolTable {scopeID=%d, parent=%s, importSymbols=%s, variableSymbols=%s, methodSymbols=%s, blockType=%s}"
-    sid (show $ scopeID <$> p) (show imports) (show variables) (show methods) (show tpe)
+    printf
+      "SymbolTable {scopeID=%d, parent=%s, importSymbols=%s, variableSymbols=%s, methodSymbols=%s, blockType=%s}"
+      sid
+      (show $ scopeID <$> p)
+      (show imports)
+      (show variables)
+      (show methods)
+      (show tpe)
 
 data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
@@ -126,7 +132,7 @@ addSemanticError msg = do
 updatePosn :: P.Posn -> Semantic ()
 updatePosn posn = do
   st <- get
-  put st{currentPosn = posn}
+  put st {currentPosn = posn}
 
 getPosn :: Semantic P.Posn
 getPosn = do
@@ -310,18 +316,21 @@ lookupArgument name = do
     Nothing -> return Nothing
     Just sig -> return $ listToMaybe $ filter (\(Argument nm _) -> nm == name) (args (sig :: MethodSig))
 
+-- | Helper function to lookup symbol table recursively
+recursiveLookup :: (SymbolTable -> Maybe t) -> (t -> Maybe a) -> Semantic (Maybe a)
+recursiveLookup getTable lookup = do
+  st <- getSymbolTable
+  let loop st = do
+        st' <- st
+        table <- getTable st'
+        case lookup table of
+          r@(Just _) -> r
+          _ -> loop (parent st')
+  return $ loop st
+
 lookupFieldDecl :: Name -> Semantic (Maybe FieldDecl)
 lookupFieldDecl name = do
-  local <- getSymbolTable
-  return $ local >>= lookup name
-  where
-    lookup name table = case Map.lookup name (variableSymbols table) of
-      -- found in local symbol table
-      Just s -> Just s
-      -- otherwise search in parent table
-      Nothing -> case (parent table) of
-        Nothing -> Nothing
-        Just p -> lookup name p
+  recursiveLookup (Just . variableSymbols) (Map.lookup name)
 
 lookupLocalMethodFromTable :: Name -> SymbolTable -> Maybe (Either ImportDecl MethodDecl)
 lookupLocalMethodFromTable name table =
@@ -577,7 +586,7 @@ irgenAssign loc (P.AssignExpr op expr) = do
   loc'@(WithType _ tpe) <- irgenLocation loc
   expr'@(WithType _ tpe') <- irgenExpr expr
   -- Semantic[19]
-  if tpe == tpe'
+  if tpe /= tpe'
     then addSemanticError $ printf "Assign statement has different types: %s and %s" (show tpe) (show tpe')
     else return ()
   let op' = parseAssignOp op
@@ -614,8 +623,8 @@ irgenMethod (P.MethodCall method args') = do
       case currentMethod of
         -- Recursive method calling itself
         (Just (MethodSig name _ formal)) | name == method -> do
-                                            checkCallingSemantics formal argsWithType
-                                            return $ MethodCall method argsWithType
+          checkCallingSemantics formal argsWithType
+          return $ MethodCall method argsWithType
         _ -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
     Just decl -> case decl of
       Left d -> return $ MethodCall method argsWithType
@@ -721,6 +730,7 @@ irgenStmt P.BreakStatement = do
   -- Semantic[21]
   if btpe == ForBlock || btpe == WhileBlock
     then return ()
+    -- FIXME: need to check this recursively, going up through the block hierarchy
     else addSemanticError $ "Found break statement outside for or while block!"
   return $ BreakStmt
 irgenStmt P.ContinueStatement = do
@@ -733,7 +743,7 @@ irgenStmt P.ContinueStatement = do
 
 {- generate expressions, also do type inference -}
 irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)
-irgenExpr (P.WithPos (P.LocationExpr loc) pos)  = do
+irgenExpr (P.WithPos (P.LocationExpr loc) pos) = do
   updatePosn pos
   (WithType loc' tpe) <- irgenLocation loc
   return $ WithType (LocationExpr loc') tpe
@@ -742,9 +752,8 @@ irgenExpr (P.WithPos (P.MethodCallExpr method@(P.MethodCall name _)) pos) = do
   method' <- irgenMethod method
   m <- lookupMethod' name
   case m of
-    Left _ ->
-      throwSemanticException $
-        printf "Cannot call imported method %s in expressions." (B.toString name)
+    -- treat import methods as always return int
+    Left _ -> return $ WithType (MethodCallExpr method') IntType
     Right (MethodDecl (MethodSig _ tpe _) _) -> do
       case tpe of
         -- Semantic[6]
@@ -790,7 +799,7 @@ irgenExpr (P.WithPos (P.RelOpExpr op l r) pos) = do
     (IntType, IntType) ->
       return $ WithType (RelOpExpr (parseRelOp op) l' r') IntType
     _ -> throwSemanticException "There can only be integer values in relational expressions."
-irgenExpr (P.WithPos (P.EqOpExpr op l r) pos)  = do
+irgenExpr (P.WithPos (P.EqOpExpr op l r) pos) = do
   updatePosn pos
   -- Semantic[17]
   l'@(WithType _ ltp) <- irgenExpr l

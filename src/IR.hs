@@ -20,6 +20,8 @@ module IR where
 
 import Data.ByteString.Lazy (ByteString)
 import Data.Int (Int64)
+import qualified Data.ByteString.Lazy.UTF8 as B
+import Text.Printf (printf)
 
 type Name = ByteString
 
@@ -36,6 +38,9 @@ data RelOp
 data ArithOp
   = Plus
   | Minus
+  | Multiply
+  | Division
+  | Modulo
   deriving (Show, Eq)
 
 data EqOp
@@ -79,6 +84,9 @@ parseArithOp :: ByteString -> ArithOp
 parseArithOp op = case op of
   "+" -> Plus
   "-" -> Minus
+  "*" -> Multiply
+  "/" -> Division
+  "%" -> Modulo
 
 parseRelOp :: ByteString -> RelOp
 parseRelOp op = case op of
@@ -119,7 +127,9 @@ data Location = Location
     idx :: Maybe Expr,
     variableDef :: Either Argument FieldDecl
   }
-  deriving (Show)
+
+instance Show Location where
+  show (Location nm idx _) = printf "Location {name=%s, idx=%s}" (B.toString nm) (show idx)
 
 data Assignment = Assignment
   { location :: WithType Location,

@@ -27,8 +27,8 @@ import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer.Lazy
 import Data.ByteString.Lazy (ByteString)
-import Data.Int (Int64)
 import qualified Data.ByteString.Lazy.UTF8 as B
+import Data.Int (Int64)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (listToMaybe)
@@ -43,13 +43,13 @@ import Text.Printf (printf)
 -- semantic errors
 -- these errors are produced during semantic analysis,
 -- we try to detect as many as we can in a single pass
-newtype SemanticError = SemanticError ByteString
+data SemanticError = SemanticError P.Posn ByteString
   deriving (Show)
 
 -- exceptions during semantic analysis
 -- difference from SemanticError:
 -- whenever an exception is raised, the analysis procedure will be aborted.
-newtype SemanticException = SemanticException ByteString
+data SemanticException = SemanticException P.Posn ByteString
   deriving (Show)
 
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
@@ -69,7 +69,8 @@ data SymbolTable = SymbolTable
 data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
     currentScopeID :: ScopeID,
-    symbolTables :: Map ScopeID SymbolTable
+    symbolTables :: Map ScopeID SymbolTable,
+    currentPosn :: P.Posn
   }
   deriving (Show)
 
@@ -85,7 +86,7 @@ runSemanticAnalysis :: Semantic a -> Either String (a, [SemanticError], Semantic
 runSemanticAnalysis s =
   let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) initialSemanticState
    in case except of
-        Left (SemanticException msg) -> Left $ B.toString msg
+        Left (SemanticException (P.Posn row col) msg) -> Left $ printf "(%d:%d) %s" row col $ B.toString msg
         Right a -> Right (a, errors, state)
 
 initialSemanticState :: SemanticState
@@ -102,14 +103,31 @@ initialSemanticState =
    in SemanticState
         { nextScopeID = globalScopeID + 1,
           currentScopeID = globalScopeID,
-          symbolTables = Map.fromList [(globalScopeID, globalST)]
+          symbolTables = Map.fromList [(globalScopeID, globalST)],
+          currentPosn = P.Posn {row = 0, col = 0}
         }
 
+-- throw exception or store errors
 throwSemanticException :: String -> Semantic a
-throwSemanticException msg = throwError $ SemanticException $ B.fromString msg
+throwSemanticException msg = do
+  posn <- getPosn
+  throwError $ SemanticException posn (B.fromString msg)
 
 addSemanticError :: String -> Semantic ()
-addSemanticError msg = tell $ [SemanticError (B.fromString msg)]
+addSemanticError msg = do
+  posn <- getPosn
+  tell $ [SemanticError posn (B.fromString msg)]
+
+-- get or update position information
+updatePosn :: P.Posn -> Semantic ()
+updatePosn posn = do
+  st <- get
+  put st{currentPosn = posn}
+
+getPosn :: Semantic P.Posn
+getPosn = do
+  SemanticState {currentPosn = posn} <- get
+  return posn
 
 -- find symbol table for blogal scope
 getGlobalSymbolTable' :: Semantic (SymbolTable)
@@ -462,9 +480,10 @@ irgenType :: P.Type -> Type
 irgenType P.IntType = IntType
 irgenType P.BoolType = BoolType
 
-irgenImports :: [P.ImportDecl] -> Semantic [ImportDecl]
+irgenImports :: [P.WithPos P.ImportDecl] -> Semantic [ImportDecl]
 irgenImports [] = return []
-irgenImports ((P.ImportDecl id) : rest) = do
+irgenImports ((P.WithPos (P.ImportDecl id) pos) : rest) = do
+  updatePosn pos
   let importSymbol = ImportDecl id
   addImportDef importSymbol
   -- TODO: This kind of recursions potentially lead to stack overflows.
@@ -472,9 +491,10 @@ irgenImports ((P.ImportDecl id) : rest) = do
   rest' <- irgenImports rest
   return $ (importSymbol : rest')
 
-irgenFieldDecls :: [P.FieldDecl] -> Semantic [FieldDecl]
+irgenFieldDecls :: [P.WithPos P.FieldDecl] -> Semantic [FieldDecl]
 irgenFieldDecls [] = return []
-irgenFieldDecls (decl : rest) = do
+irgenFieldDecls ((P.WithPos decl pos) : rest) = do
+  updatePosn pos
   fields <- sequence $ convertFieldDecl decl
   vars <- addVariables fields
   rest' <- irgenFieldDecls rest
@@ -482,9 +502,11 @@ irgenFieldDecls (decl : rest) = do
   where
     convertFieldDecl (P.FieldDecl tpe elems) =
       flip fmap elems $ \case
-        (P.ScalarField id) ->
+        (P.WithPos (P.ScalarField id) pos) -> do
+          updatePosn pos
           return $ FieldDecl id (irgenType tpe) Nothing
-        (P.VectorField id size) -> do
+        (P.WithPos (P.VectorField id size) pos) -> do
+          updatePosn pos
           sz <- checkInt64Literal (B.toString size)
           return $ FieldDecl id (irgenType tpe) (Just sz)
     addVariables [] = return []
@@ -493,9 +515,10 @@ irgenFieldDecls (decl : rest) = do
       vs' <- addVariables vs
       return (v : vs')
 
-irgenMethodDecls :: [P.MethodDecl] -> Semantic [MethodDecl]
+irgenMethodDecls :: [P.WithPos P.MethodDecl] -> Semantic [MethodDecl]
 irgenMethodDecls [] = return []
-irgenMethodDecls (decl : rest) = do
+irgenMethodDecls ((P.WithPos decl pos) : rest) = do
+  updatePosn pos
   method <- convertMethodDecl decl
   -- Semantic[8] and Semantic[9]
   -- checkMethod method
@@ -508,7 +531,7 @@ irgenMethodDecls (decl : rest) = do
       block <- irgenBlock (MethodBlock sig) block
       return $ MethodDecl sig block
       where
-        args = map (\(P.Argument id tpe) -> Argument id (irgenType tpe)) arguments
+        args = map (\(P.WithPos (P.Argument id tpe) _) -> Argument id (irgenType tpe)) arguments
 
 irgenBlock :: BlockType -> P.Block -> Semantic Block
 irgenBlock blockType (P.Block fieldDecls statements) = do
@@ -568,9 +591,10 @@ irgenAssign loc (P.IncrementExpr op) = do
     else return ()
   return $ Assignment loc' op' Nothing
 
-irgenStatements :: [P.Statement] -> Semantic [Statement]
+irgenStatements :: [P.WithPos P.Statement] -> Semantic [Statement]
 irgenStatements [] = return []
-irgenStatements (s : xs) = do
+irgenStatements ((P.WithPos s pos) : xs) = do
+  updatePosn pos
   s' <- irgenStmt s
   xs' <- irgenStatements xs
   return (s' : xs')
@@ -696,11 +720,13 @@ irgenStmt P.ContinueStatement = do
   return $ ContinueStmt
 
 {- generate expressions, also do type inference -}
-irgenExpr :: P.Expr -> Semantic (WithType Expr)
-irgenExpr (P.LocationExpr loc) = do
+irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)
+irgenExpr (P.WithPos (P.LocationExpr loc) pos)  = do
+  updatePosn pos
   (WithType loc' tpe) <- irgenLocation loc
   return $ WithType (LocationExpr loc') tpe
-irgenExpr (P.MethodCallExpr method@(P.MethodCall name _)) = do
+irgenExpr (P.WithPos (P.MethodCallExpr method@(P.MethodCall name _)) pos) = do
+  updatePosn pos
   method' <- irgenMethod method
   m <- lookupMethod' name
   case m of
@@ -714,13 +740,18 @@ irgenExpr (P.MethodCallExpr method@(P.MethodCall name _)) = do
           throwSemanticException $
             printf "Method %s cannot be used in expressions as it returns nothing!" (B.toString name)
         Just tpe' -> return $ WithType (MethodCallExpr method') tpe'
-irgenExpr (P.IntLiteralExpr i) =
-  return $ WithType (IntLiteralExpr $ read $ B.toString i) IntType
-irgenExpr (P.BoolLiteralExpr b) =
+irgenExpr (P.WithPos (P.IntLiteralExpr i) pos) = do
+  updatePosn pos
+  literalVal <- checkInt64Literal $ B.toString i
+  return $ WithType (IntLiteralExpr literalVal) IntType
+irgenExpr (P.WithPos (P.BoolLiteralExpr b) pos) = do
+  updatePosn pos
   return $ WithType (BoolLiteralExpr $ read $ B.toString b) BoolType
-irgenExpr (P.CharLiteralExpr c) =
+irgenExpr (P.WithPos (P.CharLiteralExpr c) pos) = do
+  updatePosn pos
   return $ WithType (CharLiteralExpr $ read $ B.toString c) IntType
-irgenExpr (P.LenExpr id) = do
+irgenExpr (P.WithPos (P.LenExpr id) pos) = do
+  updatePosn pos
   def <- lookupVariable' id
   -- Semantic[13]
   case def of
@@ -729,7 +760,8 @@ irgenExpr (P.LenExpr id) = do
       Nothing -> throwSemanticException $ printf "len cannot operate on scalar variable %s!" (B.toString nm)
       Just _ -> return ()
   return $ WithType (LengthExpr id) IntType
-irgenExpr (P.ArithOpExpr op l r) = do
+irgenExpr (P.WithPos (P.ArithOpExpr op l r) pos) = do
+  updatePosn pos
   -- Semantic[16]
   l'@(WithType _ ltp) <- irgenExpr l
   r'@(WithType _ rtp) <- irgenExpr r
@@ -737,7 +769,8 @@ irgenExpr (P.ArithOpExpr op l r) = do
     (IntType, IntType) ->
       return $ WithType (ArithOpExpr (parseArithOp op) l' r') IntType
     _ -> throwSemanticException "There can only be integer values in arithmetic expressions."
-irgenExpr (P.RelOpExpr op l r) = do
+irgenExpr (P.WithPos (P.RelOpExpr op l r) pos) = do
+  updatePosn pos
   -- Semantic[16]
   l'@(WithType _ ltp) <- irgenExpr l
   r'@(WithType _ rtp) <- irgenExpr r
@@ -745,14 +778,16 @@ irgenExpr (P.RelOpExpr op l r) = do
     (IntType, IntType) ->
       return $ WithType (RelOpExpr (parseRelOp op) l' r') IntType
     _ -> throwSemanticException "There can only be integer values in relational expressions."
-irgenExpr (P.EqOpExpr op l r) = do
+irgenExpr (P.WithPos (P.EqOpExpr op l r) pos)  = do
+  updatePosn pos
   -- Semantic[17]
   l'@(WithType _ ltp) <- irgenExpr l
   r'@(WithType _ rtp) <- irgenExpr r
   if (ltp, rtp) == (IntType, IntType) || (ltp, rtp) == (BoolType, BoolType)
     then return $ WithType (EqOpExpr (parseEqOp op) l' r') BoolType
     else throwSemanticException "Can only check equality of expressions with the SAME type!"
-irgenExpr (P.CondOpExpr op l r) = do
+irgenExpr (P.WithPos (P.CondOpExpr op l r) pos) = do
+  updatePosn pos
   -- Semantic[18]
   l'@(WithType _ ltp) <- irgenExpr l
   r'@(WithType _ rtp) <- irgenExpr r
@@ -760,19 +795,22 @@ irgenExpr (P.CondOpExpr op l r) = do
     (BoolType, BoolType) ->
       return $ WithType (CondOpExpr (parseCondOp op) l' r') BoolType
     _ -> throwSemanticException "Conditional ops only accept booleans!"
-irgenExpr (P.NegativeExpr expr) = do
+irgenExpr (P.WithPos (P.NegativeExpr expr) pos) = do
+  updatePosn pos
   -- Semantic[16]
   expr'@(WithType _ tpe) <- irgenExpr expr
   case tpe of
     IntType -> return $ WithType (NegOpExpr Neg expr') IntType
     _ -> throwSemanticException "Operator \"-\" only accepts integers!"
-irgenExpr (P.NegateExpr expr) = do
+irgenExpr (P.WithPos (P.NegateExpr expr) pos) = do
+  updatePosn pos
   -- Semantic[18]
   expr'@(WithType _ tpe) <- irgenExpr expr
   case tpe of
     BoolType -> return $ WithType (NotOpExpr Not expr') BoolType
     _ -> throwSemanticException "Operator \"!\" only accepts integers!"
-irgenExpr (P.ChoiceExpr pred l r) = do
+irgenExpr (P.WithPos (P.ChoiceExpr pred l r) pos) = do
+  updatePosn pos
   pred'@(WithType _ ptp) <- irgenExpr pred
   l'@(WithType _ ltp) <- irgenExpr l
   r'@(WithType _ rtp) <- irgenExpr r
@@ -783,9 +821,12 @@ irgenExpr (P.ChoiceExpr pred l r) = do
         then return $ WithType (ChoiceOpExpr Choice pred' l' r') ltp
         else throwSemanticException "Alternatives of choice op should have same type!"
     _ -> throwSemanticException "Predicate of choice operator must be a boolean!"
-irgenExpr (P.ParenExpr expr) = irgenExpr expr
+irgenExpr (P.WithPos (P.ParenExpr expr) pos) = do
+  updatePosn pos
+  irgenExpr expr
 
 irgenImportArg :: P.ImportArg -> Semantic (WithType Expr)
 irgenImportArg (P.ExprImportArg expr) = irgenExpr expr
-irgenImportArg (P.StringImportArg arg) =
+irgenImportArg (P.StringImportArg (P.WithPos arg pos)) = do
+  updatePosn pos
   return $ WithType (StringLiteralExpr arg) StringType

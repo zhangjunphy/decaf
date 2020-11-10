@@ -221,6 +221,8 @@ runAlex          :: ByteString.ByteString -> Alex a -> Either String a
 
 alexError        :: String -> Alex a
 
+alexMonadScan    :: Alex a
+
 -- token :: (ByteString.ByteString -> Int -> token) -> AlexAction token
 -}
 

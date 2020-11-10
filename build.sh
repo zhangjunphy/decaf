@@ -1,7 +1,7 @@
-#!/bin/bash -eu
+#!/bin/bash
 
-declare -r TOP="$(git rev-parse --show-toplevel)"
-declare -r GREP="grep --quiet --no-messages"
+TOP="$(git rev-parse --show-toplevel)"
+GREP="grep --quiet --no-messages"
 
 cd "$TOP"
 

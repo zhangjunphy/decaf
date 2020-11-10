@@ -64,7 +64,11 @@ data SymbolTable = SymbolTable
     methodSymbols :: Maybe (Map Name MethodDecl),
     blockType :: BlockType
   }
-  deriving (Show)
+
+instance Show SymbolTable where
+  show (SymbolTable sid p imports variables methods tpe) =
+    printf "SymbolTable {scopeID=%d, parent=%s, importSymbols=%s, variableSymbols=%s, methodSymbols=%s, blockType=%s}"
+    sid (show $ scopeID <$> p) (show imports) (show variables) (show methods) (show tpe)
 
 data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
@@ -605,17 +609,21 @@ irgenMethod (P.MethodCall method args') = do
   decl' <- lookupMethod method
   argsWithType <- sequenceA $ irgenImportArg <$> args'
   case decl' of
-    Nothing -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
+    Nothing -> do
+      currentMethod <- getMethodSignature
+      case currentMethod of
+        -- Recursive method calling itself
+        (Just (MethodSig name _ formal)) | name == method -> do
+                                            checkCallingSemantics formal argsWithType
+                                            return $ MethodCall method argsWithType
+        _ -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
     Just decl -> case decl of
-      Left d -> return $ MethodCall method argsWithType (Left d)
+      Left d -> return $ MethodCall method argsWithType
       Right m -> do
         let formal = args (sig m :: MethodSig)
-        -- Semantic[5]
-        checkArgNum formal argsWithType
-        checkArgType formal argsWithType
-        -- Semantic[7]
-        checkForArrayArg argsWithType
-        return $ MethodCall method argsWithType (Right m)
+        -- Semantic[5] and Semantic[7]
+        checkCallingSemantics formal argsWithType
+        return $ MethodCall method argsWithType
   where
     matchPred ((Argument _ tpe), (WithType _ tpe')) = tpe == tpe'
     argName ((Argument name _), _) = name
@@ -652,6 +660,10 @@ irgenMethod (P.MethodCall method args') = do
                   "Argument of array or string type can not be used for method %s"
                   (B.toString method)
             else return ()
+    checkCallingSemantics formal args = do
+      checkArgNum formal args
+      checkArgType formal args
+      checkForArrayArg args
 
 irgenStmt :: P.Statement -> Semantic Statement
 irgenStmt (P.AssignStatement loc expr) = do

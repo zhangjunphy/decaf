@@ -130,8 +130,7 @@ data Assignment = Assignment
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [WithType Expr],
-    methodDef :: Either ImportDecl MethodDecl
+    args :: [WithType Expr]
   }
   deriving (Show)
 

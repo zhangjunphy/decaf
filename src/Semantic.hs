@@ -35,6 +35,7 @@ import Data.Maybe (listToMaybe)
 import IR
 import qualified Parser as P
 import Text.Printf (printf)
+import Control.Applicative ((<|>))
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -290,12 +291,37 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in comments 
   Helper functions.
 -}
 
--- lookup symbol in local scope.
+-- | Helper function to lookup symbol table recursively
+recursiveLookup :: (SymbolTable -> Maybe t) -> (t -> Maybe a) -> Semantic (Maybe a)
+recursiveLookup getTable lookup = do
+  st <- getSymbolTable
+  let loop st = do
+        st' <- st
+        table <- getTable st'
+        case lookup table of
+          r@(Just _) -> r
+          _ -> loop (parent st')
+  return $ loop st
+
+{- Varaible lookup. -}
+
+-- | Lookup symbol in local scope.
 -- this is useful to find conflicting symbol names.
 lookupLocalFieldDecl :: Name -> Semantic (Maybe FieldDecl)
 lookupLocalFieldDecl name = do
   table <- getSymbolTable
   return $ table >>= (Map.lookup name . variableSymbols)
+
+lookupFieldDecl :: Name -> Semantic (Maybe FieldDecl)
+lookupFieldDecl name = do
+  recursiveLookup (Just . variableSymbols) (Map.lookup name)
+
+lookupArgument :: Name -> Semantic (Maybe Argument)
+lookupArgument name = do
+  methodSig <- getMethodSignature
+  case methodSig of
+    Nothing -> return Nothing
+    Just sig -> return $ listToMaybe $ filter (\(Argument nm _) -> nm == name) (args (sig :: MethodSig))
 
 lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
@@ -309,28 +335,7 @@ lookupVariable' name = do
         Nothing -> throwSemanticException $ printf "Varaible %s not defined" (B.toString name)
         Just a -> return $ Left a
 
-lookupArgument :: Name -> Semantic (Maybe Argument)
-lookupArgument name = do
-  methodSig <- getMethodSignature
-  case methodSig of
-    Nothing -> return Nothing
-    Just sig -> return $ listToMaybe $ filter (\(Argument nm _) -> nm == name) (args (sig :: MethodSig))
-
--- | Helper function to lookup symbol table recursively
-recursiveLookup :: (SymbolTable -> Maybe t) -> (t -> Maybe a) -> Semantic (Maybe a)
-recursiveLookup getTable lookup = do
-  st <- getSymbolTable
-  let loop st = do
-        st' <- st
-        table <- getTable st'
-        case lookup table of
-          r@(Just _) -> r
-          _ -> loop (parent st')
-  return $ loop st
-
-lookupFieldDecl :: Name -> Semantic (Maybe FieldDecl)
-lookupFieldDecl name = do
-  recursiveLookup (Just . variableSymbols) (Map.lookup name)
+{- Method lookup. -}
 
 lookupLocalMethodFromTable :: Name -> SymbolTable -> Maybe (Either ImportDecl MethodDecl)
 lookupLocalMethodFromTable name table =
@@ -599,9 +604,7 @@ irgenAssign loc (P.IncrementExpr op) = do
   loc'@(WithType _ tpe) <- irgenLocation loc
   let op' = parseAssignOp op
   -- Semantic[20]
-  if tpe /= IntType
-    then addSemanticError $ printf "Inc or dec operator only works on int type!"
-    else return ()
+  when (tpe /= IntType) (addSemanticError $ printf "Inc or dec operator only works on int type!")
   return $ Assignment loc' op' Nothing
 
 irgenStatements :: [P.WithPos P.Statement] -> Semantic [Statement]

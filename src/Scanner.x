@@ -22,6 +22,7 @@ module Scanner ( Token(..)
                , alexMonadScan
                , runAlex
                , getLexerPosn
+               , AlexState(..)
                ) where
 
 import Data.Maybe

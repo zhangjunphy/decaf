@@ -31,6 +31,7 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy.UTF8 as B
 import Data.Functor ((<&>))
 import Data.Int (Int64)
+import Data.List (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing, listToMaybe)
@@ -128,7 +129,7 @@ throwSemanticException msg = do
 addSemanticError :: String -> Semantic ()
 addSemanticError msg = do
   posn <- getPosn
-  tell $ [SemanticError posn (B.fromString msg)]
+  tell [SemanticError posn (B.fromString msg)]
 
 -- get or update position information
 updatePosn :: P.Posn -> Semantic ()
@@ -142,7 +143,7 @@ getPosn = do
   return posn
 
 -- find symbol table for blogal scope
-getGlobalSymbolTable' :: Semantic (SymbolTable)
+getGlobalSymbolTable' :: Semantic SymbolTable
 getGlobalSymbolTable' = do
   state <- get
   case Map.lookup globalScopeID $ symbolTables state of
@@ -157,9 +158,7 @@ getSymbolTable = do
   return $ Map.lookup id $ symbolTables state
 
 getCurrentScopeID :: Semantic Int
-getCurrentScopeID = do
-  state <- get
-  return $ currentScopeID state
+getCurrentScopeID = gets currentScopeID
 
 -- find symbol table for current scope
 -- will throw SemanticException if nothing is found
@@ -170,13 +169,12 @@ getSymbolTable' = do
   case t of
     Nothing ->
       throwSemanticException $
-        printf "No symble table found for current scope %d" $ scopeID
+        printf "No symble table found for current scope %d" scopeID
     Just table -> return table
 
 getLocalVariables' :: Semantic (Map Name FieldDecl)
 getLocalVariables' = do
-  localST <- getSymbolTable'
-  return $ variableSymbols localST
+  variableSymbols <$> getSymbolTable'
 
 getLocalImports' :: Semantic (Map Name ImportDecl)
 getLocalImports' = do
@@ -214,7 +212,7 @@ getMethodSignature' :: Semantic MethodSig
 getMethodSignature' = do
   sig <- getMethodSignature
   case sig of
-    Nothing -> throwSemanticException $ "Cannot find signature for current function!"
+    Nothing -> throwSemanticException "Cannot find signature for current function!"
     Just s -> return s
 
 enterScope :: BlockType -> Semantic ScopeID
@@ -307,7 +305,7 @@ lookupLocalVariableFromST name st =
       (MethodSig _ _ args) <- case btpe of
         (MethodBlock sig') -> Just sig'
         _ -> Nothing
-      listToMaybe $ filter (\(Argument nm _) -> nm == name) args
+      find (\(Argument nm _) -> nm == name) args
 
 lookupVariable :: Name -> Semantic (Maybe (Either Argument FieldDecl))
 lookupVariable name = do
@@ -329,18 +327,15 @@ lookupLocalMethodFromST :: Name -> SymbolTable -> Maybe (Either ImportDecl Metho
 lookupLocalMethodFromST name table =
   let method = do
         methodTable <- methodSymbols table
-        method' <- Map.lookup name methodTable
-        return method'
+        Map.lookup name methodTable
       import' = do
         importTable <- importSymbols table
-        import'' <- Map.lookup name importTable
-        return import''
+        Map.lookup name importTable
    in (Right <$> method) <|> (Left <$> import')
 
 lookupMethod :: Name -> Semantic (Maybe (Either ImportDecl MethodDecl))
 lookupMethod name = do
-  local <- getSymbolTable'
-  return $ lookup name local
+  lookup name <$> getSymbolTable'
   where
     lookup name table = (lookupLocalMethodFromST name table) <|> (parent table >>= lookup name)
 
@@ -387,7 +382,7 @@ addMethodDef def = do
   localST <- getSymbolTable'
   methodTable <- getLocalMethods'
   -- Semantic[1]
-  let nm = name ((sig def) :: MethodSig)
+  let nm = name (sig def :: MethodSig)
   when
     (isJust $ lookupLocalMethodFromST nm localST)
     (addSemanticError $ printf "duplicate definition for method %s" $ B.toString nm)
@@ -427,19 +422,17 @@ checkReturnType (Just (WithType _ tpe')) = do
 -- checks Semantic[22].
 checkInt64Literal :: String -> Semantic Int64
 checkInt64Literal lit = do
-  if null lit
-    then throwSemanticException $ "Cannot parse int literal from an empty token!"
-    else return ()
+  when (null lit) $
+    throwSemanticException "Cannot parse int literal from an empty token!"
   let isNegative = (head lit) == '-'
   if (isNegative && (drop 1 lit) <= "9223372036854775808")
     || (not isNegative && lit <= "9223372036854775807")
-    then return $ (read lit)
+    then return (read lit)
     else throwSemanticException $ printf "Int literal %s is out of bound" lit
 
 isInsideLoop :: Semantic Bool
 isInsideLoop = do
-  st <- getSymbolTable'
-  return $ lookup st
+  lookup <$> getSymbolTable'
   where
     lookup SymbolTable {blockType = ForBlock} = True
     lookup SymbolTable {blockType = WhileBlock} = True
@@ -463,7 +456,7 @@ generate (P.Program imports fields methods) = do
         methodSyms <- methodSymbols globalTable
         Map.lookup mainMethodName methodSyms
   mainDecl <- checkMainExist main
-  case (mainDecl >>= Just . sig) of
+  case mainDecl >>= Just . sig of
     Just (MethodSig _ retType args) -> do
       checkMainRetType retType
       checkMainArgsType args
@@ -484,9 +477,9 @@ generate (P.Program imports fields methods) = do
             "Method \"main\" should have return type of void, got %s instead."
             (show tpe)
     checkMainArgsType args =
-      when
-        (not (null args))
-        (addSemanticError $ "Method \"main\" should have no argument.")
+      unless
+        (null args)
+        (addSemanticError "Method \"main\" should have no argument.")
 
 irgenType :: P.Type -> Type
 irgenType P.IntType = IntType
@@ -501,7 +494,7 @@ irgenImports ((P.WithPos (P.ImportDecl id) pos) : rest) = do
   -- TODO: This kind of recursions potentially lead to stack overflows.
   -- For now it should do the job. Will try to fix in the future.
   rest' <- irgenImports rest
-  return $ (importSymbol : rest')
+  return $ importSymbol : rest'
 
 irgenFieldDecls :: [P.WithPos P.FieldDecl] -> Semantic [FieldDecl]
 irgenFieldDecls [] = return []
@@ -539,7 +532,7 @@ irgenMethodDecls ((P.WithPos decl pos) : rest) = do
   return (method : rest')
   where
     convertMethodDecl (P.MethodDecl id returnType arguments block) = do
-      let sig = (MethodSig id (irgenType <$> returnType) args)
+      let sig = MethodSig id (irgenType <$> returnType) args
       block <- irgenBlock (MethodBlock sig) block
       return $ MethodDecl sig block
       where
@@ -559,7 +552,7 @@ irgenLocation (P.ScalarLocation id) = do
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariable' id
   let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
-  let sz = either (\_ -> Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
   -- Semantic[12]
   case sz of
     Nothing -> return $ WithType (Location id Nothing def) tpe
@@ -569,7 +562,7 @@ irgenLocation (P.VectorLocation id expr) = do
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariable' id
   let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
-  let sz = either (\_ -> Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
   -- Semantic[12]
   when (indexTpe /= IntType) (addSemanticError "Index must be of int type!")
   case sz of
@@ -623,18 +616,18 @@ irgenMethod (P.MethodCall method args') = do
           return $ MethodCall method argsWithType
         _ -> throwSemanticException $ printf "method %s not declared!" (B.toString method)
     Just decl -> case decl of
-      Left d -> return $ MethodCall method argsWithType
+      Left _ -> return $ MethodCall method argsWithType
       Right m -> do
         let formal = args (sig m :: MethodSig)
         -- Semantic[5] and Semantic[7]
         checkCallingSemantics formal argsWithType
         return $ MethodCall method argsWithType
   where
-    matchPred ((Argument _ tpe), (WithType _ tpe')) = tpe == tpe'
-    argName ((Argument name _), _) = name
+    matchPred (Argument _ tpe, WithType _ tpe') = tpe == tpe'
+    argName (Argument name _, _) = name
     checkArgNum formal args =
-      when
-        (not $ (length formal) == (length args))
+      unless
+        (length formal == length args)
         ( addSemanticError $
             printf
               "Calling %s with wrong number of args. Required: %d, supplied: %d."
@@ -644,8 +637,8 @@ irgenMethod (P.MethodCall method args') = do
         )
     checkArgType formal args =
       let mismatch = map argName $ filter (not . matchPred) $ zip formal args
-       in when
-            (not (null mismatch))
+       in unless
+            (null mismatch)
             ( addSemanticError $
                 printf
                   "Calling %s with wrong type of args: %s"
@@ -658,8 +651,8 @@ irgenMethod (P.MethodCall method args') = do
       _ -> False
     checkForArrayArg args =
       let arrayArgs = map ele $ filter arrayOrStringTypePred args
-       in when
-            (not $ null arrayArgs)
+       in unless
+            (null arrayArgs)
             ( addSemanticError $
                 printf
                   "Argument of array or string type can not be used for method %s"
@@ -693,7 +686,7 @@ irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
   when
     (tpe /= BoolType)
     (addSemanticError $ printf "The pred of if statment must have type bool, but got %s instead!" (show tpe))
-  return $ IfStmt expr' ifBlock' (Just $ elseBlock')
+  return $ IfStmt expr' ifBlock' (Just elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
   block' <- irgenBlock ForBlock block
   counterExpr' <- irgenExpr counterExpr
@@ -722,21 +715,19 @@ irgenStmt P.ReturnVoidStatement = do
   checkReturnType Nothing
   return $ ReturnStmt Nothing
 irgenStmt P.BreakStatement = do
-  SymbolTable {blockType = btpe} <- getSymbolTable'
   -- Semantic[21]
   inLoop <- isInsideLoop
-  when
-    (not inLoop)
-    (addSemanticError $ "Found break statement outside for or while block!")
-  return $ BreakStmt
+  unless
+    inLoop
+    (addSemanticError "Found break statement outside for or while block!")
+  return BreakStmt
 irgenStmt P.ContinueStatement = do
-  SymbolTable {blockType = btpe} <- getSymbolTable'
   -- Semantic[21]
   inLoop <- isInsideLoop
-  when
-    (not inLoop)
-    (addSemanticError $ "Found continue statement outside for or while block!")
-  return $ ContinueStmt
+  unless
+    inLoop
+    (addSemanticError "Found continue statement outside for or while block!")
+  return ContinueStmt
 
 {- generate expressions, also do type inference -}
 irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)

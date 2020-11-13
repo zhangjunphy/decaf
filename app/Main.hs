@@ -136,7 +136,7 @@ parse :: Configuration -> ByteString -> Either String [IO ()]
 parse configuration input =
   let irAndError = do
         tree <- Parser.parse input
-        Semantic.runSemanticAnalysis $ Semantic.generate tree
+        Semantic.runSemanticAnalysis tree
       result = case irAndError of
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err

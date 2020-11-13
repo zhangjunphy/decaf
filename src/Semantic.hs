@@ -17,7 +17,9 @@
 
 module Semantic
   ( runSemanticAnalysis,
-    generate,
+    SymbolTable(..),
+    SemanticState(..),
+    ScopeID
   )
 where
 
@@ -98,9 +100,10 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticAnalysis :: Semantic a -> Either String (a, [SemanticError], SemanticState)
-runSemanticAnalysis s =
-  let ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic s) initialSemanticState
+runSemanticAnalysis :: P.Program -> Either String (IRRoot, [SemanticError], SemanticState)
+runSemanticAnalysis p =
+  let ir = irgenRoot p
+      ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
         Left (SemanticException (P.Posn row col) msg) -> Left $ printf "(%d:%d) %s" row col $ B.toString msg
         Right a -> Right (a, errors, state)
@@ -448,8 +451,8 @@ isInsideLoop = do
   Methods to generate ir piece by piece.
 -}
 
-generate :: P.Program -> Semantic IRRoot
-generate (P.Program imports fields methods) = do
+irgenRoot :: P.Program -> Semantic IRRoot
+irgenRoot (P.Program imports fields methods) = do
   imports' <- irgenImports imports
   variables' <- irgenFieldDecls fields
   methods' <- irgenMethodDecls methods

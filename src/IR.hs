@@ -192,7 +192,7 @@ data Statement
         block :: Block
       }
   | WhileStmt {pred :: WithType Expr, block :: Block}
-  | ReturnStmt {expr :: (Maybe (WithType Expr))}
+  | ReturnStmt {expr :: Maybe (WithType Expr)}
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt

@@ -22,6 +22,8 @@ import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
+import Data.Functor ((<&>))
+import Data.List
 import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Scanner
@@ -96,19 +98,21 @@ process configuration input =
     Scan -> scan configuration input
     Parse -> parse configuration input
     -- Inter -> irgen configuration input
-    phase -> Left $ (show phase) <> " not implemented\n"
+    phase -> Left $ show phase <> " not implemented\n"
 
 {- We have to interleave output to standard error (for errors) and standard
 output or a file (for output), so we need to actually build an appropriate
 set of IO actions. -}
-outputStageResult :: Configuration -> [Either String String] -> Either String [IO ()]
-outputStageResult configuration resultAndErrors =
+outputStageResult :: Configuration -> Either [String] String -> Either String [IO ()]
+outputStageResult configuration resultOrErrors =
   Right
-    [ bracket openOutputHandle hClose $ \hOutput ->
-        forM_ resultAndErrors $ \resultOrError ->
-          case resultOrError of
-            Left err -> hPutStrLn hOutput err
-            Right r -> hPutStrLn hOutput r
+    [ case resultOrErrors of
+        Left errors ->
+          bracket openOutputHandle hClose $ \hOutput ->
+            forM_ errors (hPutStrLn hOutput)
+        Right result ->
+          bracket openOutputHandle hClose $ \hOutput ->
+            hPutStrLn hOutput result
     ]
   where
     openOutputHandle =
@@ -119,16 +123,22 @@ scan :: Configuration -> ByteString -> Either String [IO ()]
 scan configuration input =
   let tokensAndErrors =
         Scanner.scan input
-          |> map (mungeErrorMessage configuration)
-          |> map Scanner.formatTokenOrError
-   in outputStageResult configuration tokensAndErrors
-  where
-    v |> f = f v -- like a Unix pipeline, but pure
+          <&> mungeErrorMessage configuration
+          <&> Scanner.formatTokenOrError
+      tokens = intercalate "\n" $ tokensAndErrors >>= either (const []) return
+      errors = tokensAndErrors >>= either return (const [])
+      result = case errors of
+        [] -> Right tokens
+        _ -> Left errors
+   in outputStageResult configuration result
 
 parse :: Configuration -> ByteString -> Either String [IO ()]
-parse configuration input = do
-  let result = do
+parse configuration input =
+  let irAndError = do
         tree <- Parser.parse input
-        ir <- Semantic.runSemanticAnalysis $ Semantic.generate tree
-        return ir
-  outputStageResult configuration [ppShow <$> result]
+        Semantic.runSemanticAnalysis $ Semantic.generate tree
+      result = case irAndError of
+        Left exception -> Left [exception]
+        Right (_, err, _) | not (null err) -> Left $ show <$> err
+        Right (root, _, _) -> Right $ ppShow root
+  in outputStageResult configuration result

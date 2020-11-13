@@ -13,7 +13,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Semantic
@@ -34,7 +33,7 @@ import Data.Int (Int64)
 import Data.List (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (isJust, isNothing, listToMaybe)
+import Data.Maybe (isJust, isNothing)
 import IR
 import qualified Parser as P
 import Text.Printf (printf)
@@ -47,13 +46,17 @@ import Text.Printf (printf)
 -- these errors are produced during semantic analysis,
 -- we try to detect as many as we can in a single pass
 data SemanticError = SemanticError P.Posn ByteString
-  deriving (Show)
+
+instance Show SemanticError where
+  show (SemanticError (P.Posn row col) msg) = printf "[%d:%d] %s" row col (B.toString msg)
 
 -- exceptions during semantic analysis
 -- difference from SemanticError:
 -- whenever an exception is raised, the analysis procedure will be aborted.
 data SemanticException = SemanticException P.Posn ByteString
-  deriving (Show)
+
+instance Show SemanticException where
+  show (SemanticException (P.Posn row col) msg) = printf "[%d:%d] %s" row col (B.toString msg)
 
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
   deriving (Show, Eq)
@@ -359,9 +362,11 @@ addVariableDef def = do
   let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableSymbols localST)
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
-  when
-    (isJust (size def))
-    (addSemanticError $ printf "Invalid size of array %s" $ B.toString nm)
+  case def of
+    (FieldDecl _ _ (Just sz))
+      | sz < 0 ->
+        addSemanticError $ printf "Invalid size of array %s" $ B.toString nm
+    _ -> return ()
   updateSymbolTable newST
 
 addImportDef :: ImportDecl -> Semantic ()
@@ -506,7 +511,7 @@ irgenFieldDecls ((P.WithPos decl pos) : rest) = do
   return (vars ++ rest')
   where
     convertFieldDecl (P.FieldDecl tpe elems) =
-      elems <&> \case
+      elems <&> \e -> case e of
         (P.WithPos (P.ScalarField id) pos) -> do
           updatePosn pos
           return $ FieldDecl id (irgenType tpe) Nothing

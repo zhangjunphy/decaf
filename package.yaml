@@ -29,6 +29,7 @@ dependencies:
 - mtl
 - bytestring ==0.10.*
 - utf8-string ==1.0.*
+- text ==1.2.*
 
 library:
   source-dirs:

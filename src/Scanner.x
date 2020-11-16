@@ -31,6 +31,8 @@ import Data.Word (Word8)
 
 import Control.Monad.State
 
+import Data.Text (Text)
+import qualified Data.Text.Encoding as E
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.UTF8 as B (fromString, toString)
@@ -139,19 +141,19 @@ tokens :-
 
 {
 -- | A token.
-data Token = Keyword ByteString
-           | Identifier ByteString
-           | CharLiteral ByteString
-           | IntLiteral ByteString
-           | BooleanLiteral ByteString
-           | StringLiteral ByteString
+data Token = Keyword Text
+           | Identifier Text
+           | CharLiteral Text
+           | IntLiteral Text
+           | BooleanLiteral Text
+           | StringLiteral Text
            | AssignOp
-           | CompoundAssignOp ByteString
-           | IncrementOp ByteString
-           | ArithmeticOp ByteString
-           | RelationOp ByteString
-           | EquationOp ByteString
-           | ConditionOp ByteString
+           | CompoundAssignOp Text
+           | IncrementOp Text
+           | ArithmeticOp Text
+           | RelationOp Text
+           | EquationOp Text
+           | ConditionOp Text
            | LCurly
            | RCurly
            | LParen
@@ -164,7 +166,7 @@ data Token = Keyword ByteString
            | Comma
            | Negate
            | EOF
-           | Error ByteString
+           | Error Text
            deriving (Eq)
 
 instance Show Token where
@@ -284,10 +286,10 @@ plainToken :: Token -> Action
 plainToken tok _ _ =
     return tok
 
-stringToken :: (ByteString -> Token) -> Action
+stringToken :: (Text -> Token) -> Action
 stringToken tok (_, _, str, _) len =
     let tokenContent = B.take len str in
-    return $ tok tokenContent
+    return $ tok $ E.decodeUtf8 tokenContent
 
 enterComment :: Action
 enterComment inp len =

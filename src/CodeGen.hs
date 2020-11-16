@@ -26,6 +26,7 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified IR
 import Semantic
+import Text.Printf (printf)
 
 bsFromInt64 :: Int64 -> ByteString
 bsFromInt64 = B.toLazyByteString . B.int64Dec
@@ -58,10 +59,9 @@ addToText asm = do
   put st {textSeg = textSeg st ++ [asm]}
 
 codegenRoot :: IR.IRRoot -> Codegen ()
-codegenRoot (IR.IRRoot imports globals methods) =
+codegenRoot (IR.IRRoot imports globals methods) = do
   mapM_ codegenGlobalVar globals
   mapM_ codegenMethods methods
-  _
 
 codegenGlobalVar :: IR.FieldDecl -> Codegen ()
 codegenGlobalVar (IR.FieldDecl name tpe sz) = do
@@ -70,7 +70,7 @@ codegenGlobalVar (IR.FieldDecl name tpe sz) = do
       totalSize = case sz of
         Nothing -> width
         Just sz' -> sz' * width
-      asm = [".comm" <> name <> bsFromInt64 totalSize <> bsFromInt64 align]
+      asm = [".comm " <> name <> ", " <> bsFromInt64 totalSize <> ", " <> bsFromInt64 align]
   addToText $ Assembly asm
 
 codegenMethods :: IR.MethodDecl -> Codegen ()

@@ -33,8 +33,6 @@ module Parser ( parse
               , WithPos(..)
               ) where
 
-import Text.Printf (printf)
-
 import Scanner ( Token(..)
                , Alex(..)
                , AlexPosn(..)
@@ -44,10 +42,9 @@ import Scanner ( Token(..)
                , AlexState(..)
                )
 
+import Text.Printf (printf)
+import Data.Text (Text)
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.UTF8 as B (fromString, toString)
-import qualified Data.ByteString.Lazy.Char8 as C8
 }
 
 --------------------------------- Directives ----------------------------------
@@ -253,27 +250,27 @@ data Program = Program { importDecls :: [WithPos ImportDecl]
                        , methodDecls :: [WithPos MethodDecl]
                        } deriving (Show)
 
-data ImportDecl = ImportDecl { importId :: ByteString }
+data ImportDecl = ImportDecl { importId :: Text }
                   deriving (Show)
 
 data FieldDecl = FieldDecl { fieldType :: Type
                            , elems:: [WithPos FieldElem]
                            } deriving (Show)
 
-data FieldElem = ScalarField { fieldId :: ByteString }
-               | VectorField { fieldId :: ByteString, size :: ByteString }
+data FieldElem = ScalarField { fieldId :: Text }
+               | VectorField { fieldId :: Text, size :: Text }
                  deriving (Show)
 
 data Type = IntType | BoolType
             deriving (Show)
 
-data MethodDecl = MethodDecl { methodId :: ByteString
+data MethodDecl = MethodDecl { methodId :: Text
                              , returnType :: Maybe Type
                              , arguments :: [WithPos Argument]
                              , block :: Block
                              } deriving (Show)
 
-data Argument = Argument { argumentId :: ByteString
+data Argument = Argument { argumentId :: Text
                          , argumentType :: Type
                          } deriving (Show)
 
@@ -285,7 +282,7 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | MethodCallStatement { methodCallStatement :: MethodCall }
                | IfStatement { ifExpr :: WithPos Expr, ifBlock :: Block }
                | IfElseStatement { ifExpr :: WithPos Expr, ifBlock :: Block, elseBlock :: Block}
-               | ForStatement { counterId :: ByteString, counterExpr :: WithPos Expr, forPredExpr :: WithPos Expr,
+               | ForStatement { counterId :: Text, counterExpr :: WithPos Expr, forPredExpr :: WithPos Expr,
                                 counterUpdate :: CounterUpdate, forBlock :: Block }
                | WhileStatement { whileExpr :: WithPos Expr, whileBlock :: Block }
                | ReturnVoidStatement
@@ -295,19 +292,19 @@ data Statement = AssignStatement { assignLocation :: Location, assignExpr :: Ass
                | ErrorStatement
                  deriving (Show)
 
-data Location = ScalarLocation { locationId :: ByteString }
-              | VectorLocation { locationId :: ByteString, arrayIndexExpr :: WithPos Expr }
+data Location = ScalarLocation { locationId :: Text }
+              | VectorLocation { locationId :: Text, arrayIndexExpr :: WithPos Expr }
                 deriving (Show)
 
-data AssignExpr = AssignExpr { assignOp :: ByteString, assignSourceExpr:: WithPos Expr }
-                | IncrementExpr { incrementOp :: ByteString }
+data AssignExpr = AssignExpr { assignOp :: Text, assignSourceExpr:: WithPos Expr }
+                | IncrementExpr { incrementOp :: Text }
                   deriving (Show)
 
-data MethodCall = MethodCall { methodName :: ByteString, importArguments :: [ImportArg] }
+data MethodCall = MethodCall { methodName :: Text, importArguments :: [ImportArg] }
                   deriving (Show)
 
 data ImportArg = ExprImportArg { argumentExpr :: WithPos Expr }
-               | StringImportArg { argumentString :: WithPos ByteString }
+               | StringImportArg { argumentString :: WithPos Text }
                  deriving (Show)
 
 data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: AssignExpr }
@@ -315,14 +312,14 @@ data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: 
 
 data Expr = LocationExpr { location :: Location }
           | MethodCallExpr { methodCallExpr :: MethodCall }
-          | IntLiteralExpr { intLiteral :: ByteString }
-          | CharLiteralExpr { charLiteral :: ByteString }
-          | BoolLiteralExpr { boolLiteral :: ByteString }
-          | LenExpr { lenId :: ByteString }
-          | ArithOpExpr { arithOp :: ByteString, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | RelOpExpr { relOp :: ByteString, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | EqOpExpr { eqOp :: ByteString, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | CondOpExpr { condOp :: ByteString, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
+          | IntLiteralExpr { intLiteral :: Text }
+          | CharLiteralExpr { charLiteral :: Text }
+          | BoolLiteralExpr { boolLiteral :: Text }
+          | LenExpr { lenId :: Text }
+          | ArithOpExpr { arithOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
+          | RelOpExpr { relOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
+          | EqOpExpr { eqOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
+          | CondOpExpr { condOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
           | NegativeExpr { negativeExpr :: WithPos Expr }
           | NegateExpr { negateExpr :: WithPos Expr }
           | ParenExpr { parenExpr :: WithPos Expr }

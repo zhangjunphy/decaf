@@ -1,4 +1,4 @@
--- IR -- Decaf IR generator
+-- Constants -- Definitions for some constants
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -18,10 +18,10 @@ module Constants
   )
 where
 
-import Data.ByteString.Lazy as ByteString
+import Data.Text (Text)
 
 globalScopeID :: Int
 globalScopeID = 0
 
-mainMethodName :: ByteString
+mainMethodName :: Text
 mainMethodName = "main"

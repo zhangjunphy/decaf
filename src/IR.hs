@@ -1,4 +1,4 @@
--- IR -- Decaf IR elements
+-- IR -- Decaf Intermidiate code
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -12,18 +12,19 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module IR where
 
-import Data.ByteString.Lazy (ByteString)
 import Data.Int (Int64)
-import qualified Data.ByteString.Lazy.UTF8 as B
+import Data.Text (Text)
 import Text.Printf (printf)
 
-type Name = ByteString
+type Name = Text
+
+type Label = Text
+
+type Index = Int64
 
 type ScopeID = Int
 
@@ -80,7 +81,7 @@ data Type
   | ArrayType Type
   deriving (Show, Eq)
 
-parseArithOp :: ByteString -> ArithOp
+parseArithOp :: Text -> ArithOp
 parseArithOp op = case op of
   "+" -> Plus
   "-" -> Minus
@@ -88,32 +89,32 @@ parseArithOp op = case op of
   "/" -> Division
   "%" -> Modulo
 
-parseRelOp :: ByteString -> RelOp
+parseRelOp :: Text -> RelOp
 parseRelOp op = case op of
   "<" -> LessThan
   ">" -> GreaterThan
   "<=" -> LessEqual
   ">=" -> GreaterEqual
 
-parseEqOp :: ByteString -> EqOp
+parseEqOp :: Text -> EqOp
 parseEqOp op = case op of
   "==" -> Equal
   "!=" -> NotEqual
 
-parseCondOp :: ByteString -> CondOp
+parseCondOp :: Text -> CondOp
 parseCondOp op = case op of
   "||" -> OR
   "&&" -> AND
 
-parseNegOp :: ByteString -> NegOp
+parseNegOp :: Text -> NegOp
 parseNegOp op = case op of
   "-" -> Neg
 
-parseNotOp :: ByteString -> NotOp
+parseNotOp :: Text -> NotOp
 parseNotOp op = case op of
   "!" -> Not
 
-parseAssignOp :: ByteString -> AssignOp
+parseAssignOp :: Text -> AssignOp
 parseAssignOp s = case s of
   "+=" -> IncAssign
   "-=" -> DecAssign
@@ -121,107 +122,125 @@ parseAssignOp s = case s of
   "++" -> PlusPlus
   "--" -> MinusMinus
 
--- auxiliary data types
-data Location = Location
-  { name :: Name,
-    idx :: Maybe Expr,
-    variableDef :: Either Argument FieldDecl
-  }
+{-
+-- SSA instructions
+-}
+data IRInstructions
+  = Arithmetic {target :: Name, arithOp :: ArithOp, lhs :: Name, rhs :: Name}
+  | Relational {target :: Name, relOp :: RelOp, lhs :: Name, rhs :: Name}
+  | Condition {target :: Name, condOp :: CondOp, lhs :: Name, rhs :: Name}
+  | Equality {target :: Name, eqOp :: EqOp, lhs :: Name, rhs :: Name}
+  | UnaryMinus {target :: Name, source :: Name}
+  | Negate {target :: Name, source :: Name}
+  | ScalarCopy {target :: Name, source :: Name}
+  | ArrayToScalarCopy {target :: Name, source :: Name, sourceIndex :: Index}
+  | ScalarToArrayCopy {target :: Name, source :: Name, targetIndex :: Index}
+  | UnconditionalJump {label :: Label}
+  | ConditionalJump {pred :: Name, label :: Label}
+  | ProcedureCall {method :: Name, params :: [Name]}
+  | Return {source :: Maybe Name}
 
-instance Show Location where
-  show (Location nm idx _) = printf "Location {name=%s, idx=%s}" (B.toString nm) (show idx)
+-- -- auxiliary data types
+-- data Location = Location
+--   { name :: Name,
+--     idx :: Maybe Expr,
+--     variableDef :: Either Argument FieldDecl
+--   }
 
-data Assignment = Assignment
-  { location :: WithType Location,
-    op :: AssignOp,
-    expr :: Maybe (WithType Expr)
-  }
-  deriving (Show)
+-- instance Show Location where
+--   show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
 
-data MethodCall = MethodCall
-  { name :: Name,
-    args :: [WithType Expr]
-  }
-  deriving (Show)
+-- data Assignment = Assignment
+--   { location :: WithType Location,
+--     op :: AssignOp,
+--     expr :: Maybe (WithType Expr)
+--   }
+--   deriving (Show)
 
--- ir nodes
-data IRRoot = IRRoot
-  { imports :: [ImportDecl],
-    vars :: [FieldDecl],
-    methods :: [MethodDecl]
-  }
-  deriving (Show)
+-- data MethodCall = MethodCall
+--   { name :: Name,
+--     args :: [WithType Expr]
+--   }
+--   deriving (Show)
 
-data ImportDecl = ImportDecl {name :: Name}
-  deriving (Show)
+-- -- ir nodes
+-- data IRRoot = IRRoot
+--   { imports :: [ImportDecl],
+--     vars :: [FieldDecl],
+--     methods :: [MethodDecl]
+--   }
+--   deriving (Show)
 
-data FieldDecl = FieldDecl
-  { name :: Name,
-    tpe :: Type,
-    size :: Maybe Int64
-  }
-  deriving (Show)
+-- data ImportDecl = ImportDecl {name :: Name}
+--   deriving (Show)
 
-data Argument = Argument
-  { name :: Name,
-    tpe :: Type
-  }
-  deriving (Show, Eq)
+-- data FieldDecl = FieldDecl
+--   { name :: Name,
+--     tpe :: Type,
+--     size :: Maybe Int64
+--   }
+--   deriving (Show)
 
-data MethodSig = MethodSig
-  { name :: Name,
-    tpe :: (Maybe Type),
-    args :: [Argument]
-  }
-  deriving (Show, Eq)
+-- data Argument = Argument
+--   { name :: Name,
+--     tpe :: Type
+--   }
+--   deriving (Show, Eq)
 
-data MethodDecl = MethodDecl
-  { sig :: MethodSig,
-    block :: Block
-  }
-  deriving (Show)
+-- data MethodSig = MethodSig
+--   { name :: Name,
+--     tpe :: (Maybe Type),
+--     args :: [Argument]
+--   }
+--   deriving (Show, Eq)
 
-data Statement
-  = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: WithType Expr, ifBlock :: Block, elseBlock :: Maybe Block}
-  | ForStmt
-      { counter :: Name,
-        initCounter :: WithType Expr,
-        pred :: WithType Expr,
-        update :: Assignment,
-        block :: Block
-      }
-  | WhileStmt {pred :: WithType Expr, block :: Block}
-  | ReturnStmt {expr :: Maybe (WithType Expr)}
-  | MethodCallStmt {methodCall :: MethodCall}
-  | BreakStmt
-  | ContinueStmt
-  deriving (Show)
+-- data MethodDecl = MethodDecl
+--   { sig :: MethodSig,
+--     block :: Block
+--   }
+--   deriving (Show)
 
-data Expr
-  = LocationExpr {location :: Location}
-  | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [WithType Expr]}
-  | IntLiteralExpr {intVal :: Int64}
-  | BoolLiteralExpr {boolVal :: Bool}
-  | CharLiteralExpr {charVal :: Char}
-  | StringLiteralExpr {strVal :: ByteString}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | RelOpExpr {relOp :: RelOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | CondOpExpr {condOp :: CondOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | EqOpExpr {eqOp :: EqOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | NegOpExpr {negOp :: NegOp, expr :: WithType Expr}
-  | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
-  | LengthExpr {name :: Name}
-  deriving (Show)
+-- data Statement
+--   = AssignStmt {assign :: Assignment}
+--   | IfStmt {pred :: WithType Expr, ifBlock :: Block, elseBlock :: Maybe Block}
+--   | ForStmt
+--       { counter :: Name,
+--         initCounter :: WithType Expr,
+--         pred :: WithType Expr,
+--         update :: Assignment,
+--         block :: Block
+--       }
+--   | WhileStmt {pred :: WithType Expr, block :: Block}
+--   | ReturnStmt {expr :: Maybe (WithType Expr)}
+--   | MethodCallStmt {methodCall :: MethodCall}
+--   | BreakStmt
+--   | ContinueStmt
+--   deriving (Show)
 
-data WithType a = WithType {ele :: a, tpe :: Type}
-  deriving (Show)
+-- data Expr
+--   = LocationExpr {location :: Location}
+--   | MethodCallExpr {methodCall :: MethodCall}
+--   | ExternCallExpr {name :: Name, args :: [WithType Expr]}
+--   | IntLiteralExpr {intVal :: Int64}
+--   | BoolLiteralExpr {boolVal :: Bool}
+--   | CharLiteralExpr {charVal :: Char}
+--   | StringLiteralExpr {strVal :: Text}
+--   | ArithOpExpr {arithOp :: ArithOp, lhs :: WithType Expr, rhs :: WithType Expr}
+--   | RelOpExpr {relOp :: RelOp, lhs :: WithType Expr, rhs :: WithType Expr}
+--   | CondOpExpr {condOp :: CondOp, lhs :: WithType Expr, rhs :: WithType Expr}
+--   | EqOpExpr {eqOp :: EqOp, lhs :: WithType Expr, rhs :: WithType Expr}
+--   | NegOpExpr {negOp :: NegOp, expr :: WithType Expr}
+--   | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
+--   | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
+--   | LengthExpr {name :: Name}
+--   deriving (Show)
 
-data Block = Block
-  { vars :: [FieldDecl],
-    stats :: [Statement],
-    blockID :: ScopeID
-  }
-  deriving (Show)
+-- data WithType a = WithType {ele :: a, tpe :: Type}
+--   deriving (Show)
+
+-- data Block = Block
+--   { vars :: [FieldDecl],
+--     stats :: [Statement],
+--     blockID :: ScopeID
+--   }
+--   deriving (Show)

@@ -21,25 +21,24 @@ import Control.Monad.Writer
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import qualified Data.ByteString.Lazy.UTF8 as B
+import Data.Text (Text)
 import qualified Data.ByteString.Builder as B
+import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified IR
 import Semantic
 import Text.Printf (printf)
 
-bsFromInt64 :: Int64 -> ByteString
-bsFromInt64 = B.toLazyByteString . B.int64Dec
-
 newtype Codegen a = Codegen {runCodegen :: ExceptT CodegenException (WriterT [Assembly] (State CodegenState)) a}
   deriving (Functor, Applicative, Monad, MonadError CodegenException, MonadWriter [Assembly], MonadState CodegenState)
 
-newtype CodegenException = CodegenException ByteString
+newtype CodegenException = CodegenException Text
 
 instance Show CodegenException where
   show (CodegenException msg) = show msg
 
-newtype Assembly = Assembly [ByteString]
+newtype Assembly = Assembly [Text]
   deriving (Show)
 
 data CodegenState = CodegenState
@@ -61,17 +60,17 @@ addToText asm = do
 codegenRoot :: IR.IRRoot -> Codegen ()
 codegenRoot (IR.IRRoot imports globals methods) = do
   mapM_ codegenGlobalVar globals
-  mapM_ codegenMethods methods
+  -- mapM_ codegenMethods methods
 
 codegenGlobalVar :: IR.FieldDecl -> Codegen ()
 codegenGlobalVar (IR.FieldDecl name tpe sz) = do
   let width = if tpe == IR.BoolType then 1 else 8
-      align = if tpe == IR.BoolType then 1 else 8
+      align = if tpe == IR.BoolType then (1 :: Int) else 8
       totalSize = case sz of
         Nothing -> width
         Just sz' -> sz' * width
-      asm = [".comm " <> name <> ", " <> bsFromInt64 totalSize <> ", " <> bsFromInt64 align]
+      asm = [T.pack $ printf ".comm %s, %d, %d" name totalSize align]
   addToText $ Assembly asm
 
-codegenMethods :: IR.MethodDecl -> Codegen ()
-codegenMethods  = _
+-- codegenMethods :: IR.MethodDecl -> Codegen ()
+-- codegenMethods  = _

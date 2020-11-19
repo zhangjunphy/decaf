@@ -31,12 +31,11 @@ import Data.Word (Word8)
 
 import Control.Monad.State
 
-import Data.Text (Text)
-import qualified Data.Text.Encoding as E
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.UTF8 as B (fromString, toString)
 import qualified Data.ByteString.Lazy.Char8 as C8
+import Data.Text (Text)
+import qualified Data.Text.Encoding as E
 }
 
 %wrapper "monadUserState-bytestring"
@@ -289,7 +288,7 @@ plainToken tok _ _ =
 stringToken :: (Text -> Token) -> Action
 stringToken tok (_, _, str, _) len =
     let tokenContent = B.take len str in
-    return $ tok $ E.decodeUtf8 tokenContent
+    return $ tok $ E.decodeUtf8 $ B.toStrict tokenContent
 
 enterComment :: Action
 enterComment inp len =
@@ -315,7 +314,7 @@ exitString ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerStringState False
        alexSetStartCode 0
-       return (StringLiteral $ B.reverse value)
+       return (StringLiteral $ E.decodeUtf8 $ B.toStrict $ B.reverse value)
 
 addToString :: Char -> Action
 addToString c inp len =
@@ -337,7 +336,7 @@ exitChar ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerCharState False
        alexSetStartCode 0
-       return (CharLiteral value)
+       return (CharLiteral $ E.decodeUtf8 $ B.toStrict value)
 
 addToChar :: Char -> Action
 addToChar c inp len =
@@ -353,7 +352,7 @@ addCurrentToChar inp@(_, _, str, _) len = addToChar (C8.head str) inp len
 scannerError :: (ByteString -> ByteString) -> Action
 scannerError fn ((AlexPn _ lineNo columnNo), _, str, _) len =
     let content = B.take len str
-    in return (Error $ fn content)
+    in return (Error $ E.decodeUtf8 $ B.toStrict $ fn content)
 
 
 ---------------------------- Scanner entry point -----------------------------
@@ -379,7 +378,7 @@ scan str =
           tokOrError <- catchErrors alexMonadScan
           pos <- getLexerPosn
           case tokOrError of
-              (Error m) -> --alexError $ B.toString m
+              (Error m) ->
                   do toks <- loop
                      return ((Right (pos, Error m)) : toks)
               tok ->

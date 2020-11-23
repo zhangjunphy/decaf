@@ -28,6 +28,8 @@ type Index = Int64
 
 type ScopeID = Int
 
+type SymbolID = Int
+
 -- operators
 data RelOp
   = LessThan
@@ -125,20 +127,25 @@ parseAssignOp s = case s of
 {-
 -- SSA instructions
 -}
+
+data Variable = Variable { name :: Name, tpe :: Type }
+  deriving Show
+
 data IRInstructions
-  = Arithmetic {target :: Name, arithOp :: ArithOp, lhs :: Name, rhs :: Name}
-  | Relational {target :: Name, relOp :: RelOp, lhs :: Name, rhs :: Name}
-  | Condition {target :: Name, condOp :: CondOp, lhs :: Name, rhs :: Name}
-  | Equality {target :: Name, eqOp :: EqOp, lhs :: Name, rhs :: Name}
-  | UnaryMinus {target :: Name, source :: Name}
-  | Negate {target :: Name, source :: Name}
-  | ScalarCopy {target :: Name, source :: Name}
-  | ArrayToScalarCopy {target :: Name, source :: Name, sourceIndex :: Index}
-  | ScalarToArrayCopy {target :: Name, source :: Name, targetIndex :: Index}
+  = Arithmetic {target :: Variable, arithOp :: ArithOp, lhs :: Variable, rhs :: Variable}
+  | Relational {target :: Variable, relOp :: RelOp, lhs :: Variable, rhs :: Variable}
+  | Condition {target :: Variable, condOp :: CondOp, lhs :: Variable, rhs :: Variable}
+  | Equality {target :: Variable, eqOp :: EqOp, lhs :: Variable, rhs :: Variable}
+  | UnaryMinus {target :: Variable, source :: Variable}
+  | Negate {target :: Variable, source :: Variable}
+  | ScalarCopy {target :: Variable, source :: Variable}
+  | ArrayToScalarCopy {target :: Variable, source :: Variable, sourceIndex :: Index}
+  | ScalarToArrayCopy {target :: Variable, source :: Variable, targetIndex :: Index}
   | UnconditionalJump {label :: Label}
-  | ConditionalJump {pred :: Name, label :: Label}
-  | ProcedureCall {method :: Name, params :: [Name]}
-  | Return {source :: Maybe Name}
+  | ConditionalJump {pred :: Variable, label :: Label}
+  | ProcedureCall {target :: Variable, method :: Name, params :: [Variable]}
+  | Return {value :: Maybe Variable}
+  deriving (Show)
 
 -- -- auxiliary data types
 -- data Location = Location

@@ -13,9 +13,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Constants
-  ( globalScopeID
-  , mainMethodName
-  )
 where
 
 import Data.Text (Text)
@@ -25,3 +22,9 @@ globalScopeID = 0
 
 mainMethodName :: Text
 mainMethodName = "main"
+
+rootScopeName :: Text
+rootScopeName = "root"
+
+symbolPrefix :: Text
+symbolPrefix = "sym"

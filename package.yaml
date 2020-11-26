@@ -21,23 +21,22 @@ description:         Please see the README on GitHub at <https://github.com/zhan
 
 dependencies:
 - base >=4.7 && <5
-- array ==0.5.*
 - split ==0.2.*
+- array ==0.5.*
+- containers ==0.6.*
 - transformers ==0.5.*
-- containers >=0.4
-- pretty-show
-- mtl
+- mtl ==2.2.*
 - bytestring ==0.10.*
-- utf8-string ==1.0.*
-- text ==1.2.3.*
+- text ==1.2.*
+- formatting ==6.3.*
 
 library:
   source-dirs:
     - src
 
   build-tools:
-    - alex >=3.0.2
-    - happy
+    - alex ==3.2.*
+    - happy ==1.19.*
 
 executables:
   decafc:

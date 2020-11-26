@@ -140,5 +140,5 @@ parse configuration input =
       result = case irAndError of
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err
-        Right (root, _, _) -> Right $ ppShow root
+        Right (root, _, _) -> Right $ show root
   in outputStageResult configuration result

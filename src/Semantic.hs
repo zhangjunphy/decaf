@@ -40,7 +40,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import IR
 import qualified Parser as P
-import Text.Printf (printf)
+import Formatting
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -52,7 +52,7 @@ import Text.Printf (printf)
 data SemanticError = SemanticError P.Posn Text
 
 instance Show SemanticError where
-  show (SemanticError (P.Posn row col) msg) = printf "[%d:%d] %s" row col msg
+  show (SemanticError (P.Posn row col) msg) = formatToString ("[" % int % ":" % int % "] " % stext) row col msg
 
 -- exceptions during semantic analysis
 -- difference from SemanticError:
@@ -60,7 +60,7 @@ instance Show SemanticError where
 data SemanticException = SemanticException P.Posn Text
 
 instance Show SemanticException where
-  show (SemanticException (P.Posn row col) msg) = printf "[%d:%d] %s" row col msg
+  show (SemanticException (P.Posn row col) msg) = formatToString ("[" % int % ":" % int % "] " % stext) row col msg
 
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
   deriving (Show, Eq)
@@ -105,8 +105,8 @@ data SymbolTable = SymbolTable
 
 instance Show SymbolTable where
   show (SymbolTable sid p imports variables methods tpe _) =
-    printf
-      "SymbolTable {scopeID=%d, parent=%s, importSymbols=%s, variableSymbols=%s, methodSymbols=%s, blockType=%s}"
+    formatToString ("SymbolTable {scopeID=" % int % ", parent=" % string % ", imports=" % string %
+                    ", variables=" % string % ", methods=" % string % ", blockType=" % string % "}")
       sid
       (show $ scopeID <$> p)
       (show imports)
@@ -160,11 +160,14 @@ initialSemanticState =
           instrs = []
         }
 
+wrapper :: Format Text a -> a
+wrapper = sformat
+
 -- throw exception or store errors
-throwSemanticException :: String -> Semantic a
-throwSemanticException msg = do
+throwSemanticException :: (Format Text Text) -> Semantic a
+throwSemanticException fmt = do
   posn <- getPosn
-  throwError $ SemanticException posn $ T.pack msg
+  throwError $ SemanticException posn $ sformat fmt
 
 addSemanticError :: String -> Semantic ()
 addSemanticError msg = do
@@ -259,8 +262,8 @@ genSym :: Maybe Name -> Semantic Name
 genSym nm = do
   id <- gets nextSymbolID
   return $ case nm of
-    Nothing -> printf "@%s@%d" symbolPrefix id
-    Just nm' -> printf "@%s@%s@%d" symbolPrefix nm' id
+    Nothing -> sformat ("@" % stext % "@" % int) symbolPrefix id
+    Just nm' -> sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
 
 updateVariable :: Maybe Name -> Type -> Semantic Variable
 updateVariable nm tpe = do

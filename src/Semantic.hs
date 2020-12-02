@@ -37,10 +37,12 @@ import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing, maybeToList)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.Builder as TLB
 import qualified Data.Text.Read as T
+import Formatting
 import IR
 import qualified Parser as P
-import Formatting
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -90,7 +92,8 @@ data MethodSig = MethodSig
 
 data MethodInst = MethodInstr
   { instr :: [IRInstructions]
-  } deriving (Show)
+  }
+  deriving (Show)
 
 -- symbol table definitions
 data SymbolTable = SymbolTable
@@ -105,8 +108,16 @@ data SymbolTable = SymbolTable
 
 instance Show SymbolTable where
   show (SymbolTable sid p imports variables methods tpe _) =
-    formatToString ("SymbolTable {scopeID=" % int % ", parent=" % string % ", imports=" % string %
-                    ", variables=" % string % ", methods=" % string % ", blockType=" % string % "}")
+    formatToString
+      ( "SymbolTable {scopeID=" % int % ", parent=" % string % ", imports=" % string
+          % ", variables="
+          % string
+          % ", methods="
+          % string
+          % ", blockType="
+          % string
+          % "}"
+      )
       sid
       (show $ scopeID <$> p)
       (show imports)
@@ -129,16 +140,16 @@ data SemanticState = SemanticState
 -- Semantic errors encountered are recorded by the writer monad (WriterT [SemanticError]).
 -- If a serious problem happened such that the analysis has to be aborted, a SemanticException
 -- is thrown.
-newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
+newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT [SemanticError] (Except SemanticException)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
 runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [(MethodSig, MethodInst)])
 runSemanticAnalysis p =
   let ir = _ p
-      ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
-   in case except of
-        Left (SemanticException (P.Posn row col) msg) -> Left $ printf "(%d:%d) %s" row col msg
-        Right _ -> Right (errors, instrs state)
+      exceptOrResult = (runExcept $ runWriterT $ runStateT (runSemantic ir) initialSemanticState)
+   in case exceptOrResult of
+        Left except -> Left $ show except
+        Right ((_, state), errors) -> Right (errors, instrs state)
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -160,19 +171,25 @@ initialSemanticState =
           instrs = []
         }
 
-wrapper :: Format Text a -> a
-wrapper = sformat
+-- throw exception
+throwSemanticException :: Format (Semantic a) b -> b
+throwSemanticException m =
+  runFormat
+    m
+    ( \builder -> do
+        posn <- getPosn
+        throwError $ SemanticException posn (TL.toStrict $ TLB.toLazyText builder)
+    )
 
--- throw exception or store errors
-throwSemanticException :: (Format Text Text) -> Semantic a
-throwSemanticException fmt = do
-  posn <- getPosn
-  throwError $ SemanticException posn $ sformat fmt
-
-addSemanticError :: String -> Semantic ()
-addSemanticError msg = do
-  posn <- getPosn
-  tell [SemanticError posn $ T.pack msg]
+-- store errors
+addSemanticError :: Format (Semantic ()) a -> a
+addSemanticError m = do
+  runFormat
+    m
+    ( \builder -> do
+        posn <- getPosn
+        tell [SemanticError posn (TL.toStrict $ TLB.toLazyText builder)]
+    )
 
 -- get or update position information
 updatePosn :: P.Posn -> Semantic ()
@@ -211,8 +228,7 @@ getSymbolTable' = do
   t <- getSymbolTable
   case t of
     Nothing ->
-      throwSemanticException $
-        printf "No symble table found for current scope %d" scopeID
+      throwSemanticException ("No symble table found for current scope " % int) scopeID
     Just table -> return table
 
 getLocalVariables' :: Semantic (Map Name FieldDecl)
@@ -223,14 +239,14 @@ getLocalImports' :: Semantic (Map Name ImportDecl)
 getLocalImports' = do
   localST <- getSymbolTable'
   case importSymbols localST of
-    Nothing -> throwSemanticException $ printf "No import table for scope %d" $ scopeID localST
+    Nothing -> throwSemanticException ("No import table for scope " % int) (scopeID localST)
     Just t -> return t
 
 getLocalMethods' :: Semantic (Map Name MethodSig)
 getLocalMethods' = do
   localST <- getSymbolTable'
   case methodSymbols localST of
-    Nothing -> throwSemanticException $ printf "No method table for scope %d" $ scopeID localST
+    Nothing -> throwSemanticException ("No method table for scope " % int) (scopeID localST)
     Just t -> return t
 
 updateSymbolTable :: SymbolTable -> Semantic ()
@@ -241,9 +257,9 @@ updateSymbolTable t = do
   put $ state {symbolTables = Map.insert (currentScopeID state) t (symbolTables state)}
 
 getMethodSignatureFromST :: SymbolTable -> Maybe MethodSig
-getMethodSignatureFromST SymbolTable{blockType=RootBlock} = Nothing
-getMethodSignatureFromST SymbolTable{blockType=(MethodBlock sig)}  = Just sig
-getMethodSignatureFromST SymbolTable{parent=(Just parent)} = getMethodSignatureFromST parent
+getMethodSignatureFromST SymbolTable {blockType = RootBlock} = Nothing
+getMethodSignatureFromST SymbolTable {blockType = (MethodBlock sig)} = Just sig
+getMethodSignatureFromST SymbolTable {parent = (Just parent)} = getMethodSignatureFromST parent
 getMethodSignatureFromST _ = Nothing
 
 getMethodSignature :: Semantic (Maybe MethodSig)
@@ -267,11 +283,11 @@ genSym nm = do
 
 updateVariable :: Maybe Name -> Type -> Semantic Variable
 updateVariable nm tpe = do
-  st@SymbolTable{variables=varMap} <- getSymbolTable'
+  st@SymbolTable {variables = varMap} <- getSymbolTable'
   sym <- genSym nm
   let var = Variable sym tpe
   let newVarMap = Map.alter (\vars -> Just $ concat (maybeToList vars) ++ [var]) nm varMap
-  updateSymbolTable st{variables=newVarMap}
+  updateSymbolTable st {variables = newVarMap}
   return var
 
 enterScope :: BlockType -> Semantic ScopeID
@@ -302,8 +318,9 @@ exitScope = do
   localST <- getSymbolTable
   case localST of
     Nothing ->
-      throwSemanticException $
-        printf "No symbol table is associated with scope(%d)!" $ currentScopeID state
+      throwSemanticException
+        ("No symbol table is associated with scope(" % int % ")!")
+        (currentScopeID state)
     Just table ->
       case parent table of
         Nothing ->
@@ -346,7 +363,6 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in comments 
 (64 bits).
 -}
 
-
 {-
   Auxiliary data types
 -}
@@ -358,7 +374,7 @@ data Location = Location
   }
 
 instance Show Location where
-  show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
+  show (Location nm idx _) = T.unpack $ sformat ("Location {name=" % stext % ", idx=" % string % "}") nm (show idx)
 
 {-
   Helper functions to manipulate symbol tables.
@@ -391,7 +407,7 @@ lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
   v <- lookupVariable name
   case v of
-    Nothing -> throwSemanticException $ printf "Varaible %s not defined" name
+    Nothing -> throwSemanticException ("Varaible " % stext % " not defined") name
     Just v -> return v
 
 {- Method lookup. -}
@@ -416,7 +432,7 @@ lookupMethod' :: Name -> Semantic (Either ImportDecl MethodSig)
 lookupMethod' name = do
   m <- lookupMethod name
   case m of
-    Nothing -> throwSemanticException $ printf "Method %s not found" name
+    Nothing -> throwSemanticException ("Method " % stext % " not found") name
     Just m' -> return m'
 
 {- Add variables and methods -}
@@ -428,14 +444,14 @@ addVariableDef def = do
   let nm = name (def :: FieldDecl)
   when
     (isJust (lookupLocalVariableFromST nm localST))
-    (addSemanticError $ printf "duplicate definition for variable %s" $ nm)
+    (addSemanticError ("duplicate definition for variable " % stext) nm)
   let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableSymbols localST)
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
   case def of
     (FieldDecl _ _ (Just sz))
       | sz < 0 ->
-        addSemanticError $ printf "Invalid size of array %s" $ nm
+        addSemanticError ("Invalid size of array " % stext) nm
     _ -> return ()
   updateSymbolTable newST
 
@@ -447,7 +463,7 @@ addImportDef def = do
   let nm = name (def :: ImportDecl)
   when
     (isJust $ Map.lookup (name (def :: ImportDecl)) importTable)
-    (addSemanticError $ printf "duplicate import %s" $ nm)
+    (addSemanticError ("duplicate import " % stext)  nm)
   let importSymbols' = Map.insert (name (def :: ImportDecl)) def importTable
       newST = localST {importSymbols = Just importSymbols'}
   updateSymbolTable newST
@@ -460,7 +476,7 @@ addMethodDef def = do
   let nm = name (def :: MethodSig)
   when
     (isJust $ lookupLocalMethodFromST nm localST)
-    (addSemanticError $ printf "duplicate definition for method %s" $ nm)
+    (addSemanticError ("duplicate definition for method " % stext)  nm)
   let methodSymbols' = Map.insert nm def methodTable
       newST = localST {methodSymbols = Just methodSymbols'}
   updateSymbolTable newST
@@ -504,24 +520,24 @@ checkInt64Literal lit = do
     ( (isNegative && (T.drop 1 lit) <= "9223372036854775808")
         || (not isNegative && lit <= "9223372036854775807")
     )
-    (throwSemanticException $ printf "Int literal %s is out of bound" lit)
+    (throwSemanticException ("Int literal "%stext%" is out of bound") lit)
   case T.decimal lit of
     Right (n, _) -> return n
-    Left msg -> throwSemanticException $ printf "cannot parse int literal %s" msg
+    Left msg -> throwSemanticException ("cannot parse int literal "%string) msg
 
 checkBoolLiteral :: Text -> Semantic Bool
 checkBoolLiteral lit
   | lit == "true" = return True
   | lit == "flase" = return False
   | otherwise = do
-    addSemanticError $ printf "error parsing bool literal from string %s" lit
+    addSemanticError ("error parsing bool literal from string "%stext) lit
     return True
 
 checkCharLiteral :: Text -> Semantic Char
 checkCharLiteral lit = do
   when
     (T.length lit > 1 || T.null lit)
-    (throwSemanticException $ printf "cannot parse char literal from string %s" lit)
+    (throwSemanticException ("cannot parse char literal from string "%stext) lit)
   return $ T.head lit
 
 isInsideLoop :: Semantic Bool
@@ -670,6 +686,7 @@ irgenStmt :: P.Statement -> Semantic ()
 irgenStmt (P.AssignStatement loc expr) = do
   assign <- irgenAssign loc expr
   return ()
+
 -- irgenStmt (P.MethodCallStatement method) = do
 --   method' <- irgenMethod method
 --   return $ MethodCallStmt method'

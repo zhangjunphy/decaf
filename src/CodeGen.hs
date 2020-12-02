@@ -18,17 +18,13 @@ import Data.Int (Int64)
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.UTF8 as B
 import Data.Text (Text)
-import qualified Data.ByteString.Builder as B
 import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified IR
 import Semantic
-import Text.Printf (printf)
+import Formatting
 
 newtype Codegen a = Codegen {runCodegen :: ExceptT CodegenException (WriterT [Assembly] (State CodegenState)) a}
   deriving (Functor, Applicative, Monad, MonadError CodegenException, MonadWriter [Assembly], MonadState CodegenState)
@@ -69,7 +65,7 @@ codegenGlobalVar (IR.FieldDecl name tpe sz) = do
       totalSize = case sz of
         Nothing -> width
         Just sz' -> sz' * width
-      asm = [T.pack $ printf ".comm %s, %d, %d" name totalSize align]
+      asm = [sformat (".comm "%stext%", "%int%", "%int%"") name totalSize align]
   addToText $ Assembly asm
 
 -- codegenMethods :: IR.MethodDecl -> Codegen ()

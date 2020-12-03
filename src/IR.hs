@@ -18,7 +18,6 @@ module IR where
 
 import Data.Int (Int64)
 import Data.Text (Text)
-import Text.Printf (printf)
 
 type Name = Text
 
@@ -139,8 +138,8 @@ data IRInstructions
   | UnaryMinus {target :: Variable, source :: Variable}
   | Negate {target :: Variable, source :: Variable}
   | ScalarCopy {target :: Variable, source :: Variable}
-  | ArrayToScalarCopy {target :: Variable, source :: Variable, sourceIndex :: Index}
-  | ScalarToArrayCopy {target :: Variable, source :: Variable, targetIndex :: Index}
+  | ArrayToScalarCopy {target :: Variable, source :: Variable, sourceIndex :: Variable}
+  | ScalarToArrayCopy {target :: Variable, source :: Variable, targetIndex :: Variable}
   | UnconditionalJump {label :: Label}
   | ConditionalJump {pred :: Variable, label :: Label}
   | ProcedureCall {target :: Variable, method :: Name, params :: [Variable]}

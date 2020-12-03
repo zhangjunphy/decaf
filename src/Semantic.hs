@@ -99,17 +99,17 @@ data MethodInst = MethodInstr
 data SymbolTable = SymbolTable
   { scopeID :: ScopeID,
     parent :: Maybe SymbolTable,
+    variables :: Map Name [Variable],
+    variableDecl :: Map Name FieldDecl,
     importSymbols :: Maybe (Map Name ImportDecl),
-    variableSymbols :: Map Name FieldDecl,
     methodSymbols :: Maybe (Map Name MethodSig),
-    blockType :: BlockType,
-    variables :: Map (Maybe Name) [Variable]
+    blockType :: BlockType
   }
 
 instance Show SymbolTable where
-  show (SymbolTable sid p imports variables methods tpe _) =
+  show (SymbolTable sid p _ variables imports methods tpe) =
     formatToString
-      ( "SymbolTable {scopeID=" % int % ", parent=" % string % ", imports=" % string
+      ( "SymbolTable {scopeID=" % int % ", parent=" % build % ", imports=" % string
           % ", variables="
           % string
           % ", methods="
@@ -119,7 +119,7 @@ instance Show SymbolTable where
           % "}"
       )
       sid
-      (show $ scopeID <$> p)
+      (scopeID <$> p)
       (show imports)
       (show variables)
       (show methods)
@@ -145,7 +145,7 @@ newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT [Sem
 
 runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [(MethodSig, MethodInst)])
 runSemanticAnalysis p =
-  let ir = _ p
+  let ir = irgenRoot p
       exceptOrResult = (runExcept $ runWriterT $ runStateT (runSemantic ir) initialSemanticState)
    in case exceptOrResult of
         Left except -> Left $ show except
@@ -158,7 +158,8 @@ initialSemanticState =
           { scopeID = globalScopeID,
             parent = Nothing,
             importSymbols = Just Map.empty,
-            variableSymbols = Map.empty,
+            variables = Map.empty,
+            variableDecl = Map.empty,
             methodSymbols = Just Map.empty,
             blockType = RootBlock
           }
@@ -233,7 +234,7 @@ getSymbolTable' = do
 
 getLocalVariables' :: Semantic (Map Name FieldDecl)
 getLocalVariables' = do
-  variableSymbols <$> getSymbolTable'
+  variableDecl <$> getSymbolTable'
 
 getLocalImports' :: Semantic (Map Name ImportDecl)
 getLocalImports' = do
@@ -274,22 +275,6 @@ getMethodSignature' = do
     Nothing -> throwSemanticException "Cannot find signature for current function!"
     Just s -> return s
 
-genSym :: Maybe Name -> Semantic Name
-genSym nm = do
-  id <- gets nextSymbolID
-  return $ case nm of
-    Nothing -> sformat ("@" % stext % "@" % int) symbolPrefix id
-    Just nm' -> sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
-
-updateVariable :: Maybe Name -> Type -> Semantic Variable
-updateVariable nm tpe = do
-  st@SymbolTable {variables = varMap} <- getSymbolTable'
-  sym <- genSym nm
-  let var = Variable sym tpe
-  let newVarMap = Map.alter (\vars -> Just $ concat (maybeToList vars) ++ [var]) nm varMap
-  updateSymbolTable st {variables = newVarMap}
-  return var
-
 enterScope :: BlockType -> Semantic ScopeID
 enterScope blockType = do
   state <- get
@@ -299,7 +284,8 @@ enterScope blockType = do
         SymbolTable
           { scopeID = nextID,
             parent = parentST,
-            variableSymbols = Map.empty,
+            variables = Map.empty,
+            variableDecl = Map.empty,
             importSymbols = Nothing,
             methodSymbols = Nothing,
             blockType = blockType
@@ -388,7 +374,7 @@ lookupLocalVariableFromST name st =
       a = lookupArgument name st
    in (Right <$> f) <|> (Left <$> a)
   where
-    lookupLocalFieldDecl name st = Map.lookup name $ variableSymbols st
+    lookupLocalFieldDecl name st = Map.lookup name $ variableDecl st
     lookupArgument name st = do
       let SymbolTable {blockType = btpe} = st
       (MethodSig _ _ args) <- case btpe of
@@ -445,8 +431,8 @@ addVariableDef def = do
   when
     (isJust (lookupLocalVariableFromST nm localST))
     (addSemanticError ("duplicate definition for variable " % stext) nm)
-  let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableSymbols localST)
-      newST = localST {variableSymbols = variableSymbols'}
+  let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableDecl localST)
+      newST = localST {variableDecl = variableSymbols'}
   -- Semantic[4]
   case def of
     (FieldDecl _ _ (Just sz))
@@ -454,6 +440,25 @@ addVariableDef def = do
         addSemanticError ("Invalid size of array " % stext) nm
     _ -> return ()
   updateSymbolTable newST
+
+genSym :: Maybe Name -> Type -> Semantic Variable
+genSym nm tpe = do
+  id <- gets nextSymbolID
+  let sym = case nm of
+        Nothing -> sformat ("@" % stext % "@" % int) symbolPrefix id
+        Just nm' -> sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
+  return $ Variable sym tpe
+
+newVariable :: Maybe Name -> Type -> Semantic Variable
+newVariable nm tpe = do
+  st@SymbolTable {variables = varMap} <- getSymbolTable'
+  var <- genSym nm tpe
+  case nm of
+    (Just nm') -> do
+      let newVarMap = Map.alter (\vars -> Just $ concat (maybeToList vars) ++ [var]) nm' varMap
+      updateSymbolTable st {variables = newVarMap}
+    Nothing -> return ()
+  return var
 
 addImportDef :: ImportDecl -> Semantic ()
 addImportDef def = do
@@ -463,7 +468,7 @@ addImportDef def = do
   let nm = name (def :: ImportDecl)
   when
     (isJust $ Map.lookup (name (def :: ImportDecl)) importTable)
-    (addSemanticError ("duplicate import " % stext)  nm)
+    (addSemanticError ("duplicate import " % stext) nm)
   let importSymbols' = Map.insert (name (def :: ImportDecl)) def importTable
       newST = localST {importSymbols = Just importSymbols'}
   updateSymbolTable newST
@@ -476,7 +481,7 @@ addMethodDef def = do
   let nm = name (def :: MethodSig)
   when
     (isJust $ lookupLocalMethodFromST nm localST)
-    (addSemanticError ("duplicate definition for method " % stext)  nm)
+    (addSemanticError ("duplicate definition for method " % stext) nm)
   let methodSymbols' = Map.insert nm def methodTable
       newST = localST {methodSymbols = Just methodSymbols'}
   updateSymbolTable newST
@@ -520,24 +525,24 @@ checkInt64Literal lit = do
     ( (isNegative && (T.drop 1 lit) <= "9223372036854775808")
         || (not isNegative && lit <= "9223372036854775807")
     )
-    (throwSemanticException ("Int literal "%stext%" is out of bound") lit)
+    (throwSemanticException ("Int literal " % stext % " is out of bound") lit)
   case T.decimal lit of
     Right (n, _) -> return n
-    Left msg -> throwSemanticException ("cannot parse int literal "%string) msg
+    Left msg -> throwSemanticException ("cannot parse int literal " % string) msg
 
 checkBoolLiteral :: Text -> Semantic Bool
 checkBoolLiteral lit
   | lit == "true" = return True
   | lit == "flase" = return False
   | otherwise = do
-    addSemanticError ("error parsing bool literal from string "%stext) lit
+    addSemanticError ("error parsing bool literal from string " % stext) lit
     return True
 
 checkCharLiteral :: Text -> Semantic Char
 checkCharLiteral lit = do
   when
     (T.length lit > 1 || T.null lit)
-    (throwSemanticException ("cannot parse char literal from string "%stext) lit)
+    (throwSemanticException ("cannot parse char literal from string " % stext) lit)
   return $ T.head lit
 
 isInsideLoop :: Semantic Bool
@@ -659,28 +664,36 @@ irgenStatements ((P.WithPos s pos) : xs) = do
   irgenStmt s
   irgenStatements xs
 
--- irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
--- irgenAssign loc (P.AssignExpr op expr) = do
---   loc'@(WithType _ tpe) <- irgenLocation loc
---   expr'@(WithType _ tpe') <- irgenExpr expr
---   -- Semantic[19]
---   when
---     (tpe /= tpe')
---     (addSemanticError $ printf "Assign statement has different types: %s and %s" (show tpe) (show tpe'))
---   let op' = parseAssignOp op
---   -- Semantic[20]
---   when
---     ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
---     (addSemanticError $ printf "Inc or dec assign only works with int type!")
---   return $ Assignment loc' op' (Just expr')
--- irgenAssign loc (P.IncrementExpr op) = do
---   loc'@(WithType _ tpe) <- irgenLocation loc
---   let op' = parseAssignOp op
---   -- Semantic[20]
---   when (tpe /= IntType) (addSemanticError $ printf "Inc or dec operator only works on int type!")
---   return $ Assignment loc' op' Nothing
-
-irgenAssign = _
+irgenAssign :: P.Location -> P.AssignExpr -> Semantic [IRInstructions]
+irgenAssign loc (P.AssignExpr op expr) = do
+  (loc'@(Variable _ tpe), sz') <- irgenLocation loc
+  expr'@(Variable _ tpe') <- irgenExpr expr
+  -- Semantic[19]
+  when
+    (tpe /= tpe')
+    (addSemanticError ("Assign statement has different types: "%string%" and "%string%"") (show tpe) (show tpe'))
+  let op' = parseAssignOp op
+  -- Semantic[20]
+  when
+    ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
+    (addSemanticError "Inc or dec assign only works with int type!")
+  let op'' = case op' of
+               IncAssign -> Just Plus
+               DecAssign -> Just Minus
+               _ -> Nothing
+  let incInstr = case op'' of
+                   Just op -> [Arithmetic loc' op loc' expr']
+                   Nothing -> []
+  let copyInstr = case sz' of
+                    (Just sz) -> [ScalarToArrayCopy loc' expr' sz]
+                    Nothing -> [ScalarCopy loc' expr']
+  return $ incInstr ++ copyInstr
+irgenAssign loc (P.IncrementExpr op) = do
+  loc'@(Variable _ tpe) <- irgenLocation loc
+  let op' = parseAssignOp op
+  -- Semantic[20]
+  when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
+  return $ Assignment loc' op' Nothing
 
 irgenStmt :: P.Statement -> Semantic ()
 irgenStmt (P.AssignStatement loc expr) = do
@@ -749,6 +762,8 @@ irgenStmt (P.AssignStatement loc expr) = do
 --     (addSemanticError "Found continue statement outside for or while block!")
 --   return ContinueStmt
 
+irgenLocation :: P.Location -> Semantic (Variable, Maybe Variable)
+irgenLocation = _
 -- irgenLocation :: P.Location -> Semantic Location
 -- irgenLocation (P.ScalarLocation id) = do
 --   -- Semantic[10] (checked in lookupVariable')
@@ -931,6 +946,8 @@ irgenStmt (P.AssignStatement loc expr) = do
 --     (addSemanticError "Found continue statement outside for or while block!")
 --   return ContinueStmt
 
+irgenExpr :: P.WithPos P.Expr -> Semantic Variable
+irgenExpr = _
 -- {- generate expressions, also do type inference -}
 -- irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)
 -- irgenExpr (P.WithPos (P.LocationExpr loc) pos) = do

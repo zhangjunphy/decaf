@@ -127,10 +127,10 @@ parseAssignOp s = case s of
 -- SSA instructions
 -}
 
-data Variable = Variable { name :: Name, tpe :: Type }
+data Variable = Variable { sym :: Name, name :: Maybe Name, tpe :: Type }
   deriving Show
 
-data IRInstructions
+data IRInstruction
   = Arithmetic {target :: Variable, arithOp :: ArithOp, lhs :: Variable, rhs :: Variable}
   | Relational {target :: Variable, relOp :: RelOp, lhs :: Variable, rhs :: Variable}
   | Condition {target :: Variable, condOp :: CondOp, lhs :: Variable, rhs :: Variable}

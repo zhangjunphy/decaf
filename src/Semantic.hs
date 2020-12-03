@@ -34,7 +34,7 @@ import Data.Int (Int64)
 import Data.List (find)
 import Data.Map (Map)
 import qualified Data.Map as Map
-import Data.Maybe (isJust, isNothing, maybeToList)
+import Data.Maybe (isJust, isNothing, listToMaybe, maybeToList)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -91,7 +91,7 @@ data MethodSig = MethodSig
   deriving (Show, Eq)
 
 data MethodInst = MethodInstr
-  { instr :: [IRInstructions]
+  { instr :: [IRInstruction]
   }
   deriving (Show)
 
@@ -140,8 +140,8 @@ data SemanticState = SemanticState
 -- Semantic errors encountered are recorded by the writer monad (WriterT [SemanticError]).
 -- If a serious problem happened such that the analysis has to be aborted, a SemanticException
 -- is thrown.
-newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT [SemanticError] (Except SemanticException)) a}
-  deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
+newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT ([SemanticError], [IRInstruction]) (Except SemanticException)) a}
+  deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter ([SemanticError], [IRInstruction]), MonadState SemanticState)
 
 runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [(MethodSig, MethodInst)])
 runSemanticAnalysis p =
@@ -149,7 +149,7 @@ runSemanticAnalysis p =
       exceptOrResult = (runExcept $ runWriterT $ runStateT (runSemantic ir) initialSemanticState)
    in case exceptOrResult of
         Left except -> Left $ show except
-        Right ((_, state), errors) -> Right (errors, instrs state)
+        Right ((_, state), (errors, _)) -> Right (errors, instrs state)
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -182,14 +182,24 @@ throwSemanticException m =
         throwError $ SemanticException posn (TL.toStrict $ TLB.toLazyText builder)
     )
 
+-- store instructions
+tellInstr :: [IRInstruction] -> Semantic ()
+tellInstr instrs = tell (mempty, instrs)
+
+addIRInstructions :: [IRInstruction] -> Semantic ()
+addIRInstructions = tellInstr
+
 -- store errors
+tellErrors :: [SemanticError] -> Semantic ()
+tellErrors errors = tell (errors, mempty)
+
 addSemanticError :: Format (Semantic ()) a -> a
 addSemanticError m = do
   runFormat
     m
     ( \builder -> do
         posn <- getPosn
-        tell [SemanticError posn (TL.toStrict $ TLB.toLazyText builder)]
+        tellErrors [SemanticError posn (TL.toStrict $ TLB.toLazyText builder)]
     )
 
 -- get or update position information
@@ -203,7 +213,7 @@ getPosn = do
   SemanticState {currentPosn = posn} <- get
   return posn
 
--- find symbol table for blogal scope
+-- find symbol table for global scope
 getGlobalSymbolTable' :: Semantic SymbolTable
 getGlobalSymbolTable' = do
   state <- get
@@ -354,13 +364,12 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in comments 
 -}
 
 data Location = Location
-  { name :: Name,
-    idx :: Maybe Name,
-    variableDef :: Either Argument FieldDecl
+  { name :: Variable,
+    idx :: Maybe Variable
   }
 
 instance Show Location where
-  show (Location nm idx _) = T.unpack $ sformat ("Location {name=" % stext % ", idx=" % string % "}") nm (show idx)
+  show (Location nm idx) = T.unpack $ sformat ("Location {name=" % string % ", idx=" % string % "}") (show nm) (show idx)
 
 {-
   Helper functions to manipulate symbol tables.
@@ -368,8 +377,8 @@ instance Show Location where
 
 {- Varaible lookup. -}
 
-lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe (Either Argument FieldDecl)
-lookupLocalVariableFromST name st =
+lookupLocalVariableDeclFromST :: Name -> SymbolTable -> Maybe (Either Argument FieldDecl)
+lookupLocalVariableDeclFromST name st =
   let f = lookupLocalFieldDecl name st
       a = lookupArgument name st
    in (Right <$> f) <|> (Left <$> a)
@@ -382,19 +391,31 @@ lookupLocalVariableFromST name st =
         _ -> Nothing
       find (\(Argument nm _) -> nm == name) args
 
-lookupVariable :: Name -> Semantic (Maybe (Either Argument FieldDecl))
-lookupVariable name = do
+lookupVariableDecl :: Name -> Semantic (Maybe (Either Argument FieldDecl))
+lookupVariableDecl name = do
   st <- getSymbolTable
   return $ st >>= lookup name
   where
-    lookup name st' = (lookupLocalVariableFromST name st') <|> (parent st' >>= lookup name)
+    lookup name st' = (lookupLocalVariableDeclFromST name st') <|> (parent st' >>= lookup name)
 
-lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
-lookupVariable' name = do
-  v <- lookupVariable name
+lookupVariableDecl' :: Name -> Semantic (Either Argument FieldDecl)
+lookupVariableDecl' name = do
+  v <- lookupVariableDecl name
   case v of
     Nothing -> throwSemanticException ("Varaible " % stext % " not defined") name
     Just v -> return v
+
+lookupVariable :: Name -> Semantic (Maybe Variable)
+lookupVariable name = do
+  SymbolTable {variables = vars} <- getSymbolTable'
+  return $ Map.lookup name vars >>= listToMaybe
+
+lookupVariable' :: Name -> Semantic Variable
+lookupVariable' name = do
+  var <- lookupVariable name
+  case var of
+    (Just var') -> return var'
+    Nothing -> throwSemanticException ("variable " % stext % " not found") name
 
 {- Method lookup. -}
 
@@ -423,13 +444,12 @@ lookupMethod' name = do
 
 {- Add variables and methods -}
 
-addVariableDef :: FieldDecl -> Semantic ()
-addVariableDef def = do
+addVariableDef :: FieldDecl -> Semantic Variable
+addVariableDef def@(FieldDecl nm tpe _) = do
   localST <- getSymbolTable'
   -- Semantic[1]
-  let nm = name (def :: FieldDecl)
   when
-    (isJust (lookupLocalVariableFromST nm localST))
+    (isJust (lookupLocalVariableDeclFromST nm localST))
     (addSemanticError ("duplicate definition for variable " % stext) nm)
   let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableDecl localST)
       newST = localST {variableDecl = variableSymbols'}
@@ -440,6 +460,7 @@ addVariableDef def = do
         addSemanticError ("Invalid size of array " % stext) nm
     _ -> return ()
   updateSymbolTable newST
+  newVariable (Just nm) tpe
 
 genSym :: Maybe Name -> Type -> Semantic Variable
 genSym nm tpe = do
@@ -447,7 +468,7 @@ genSym nm tpe = do
   let sym = case nm of
         Nothing -> sformat ("@" % stext % "@" % int) symbolPrefix id
         Just nm' -> sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
-  return $ Variable sym tpe
+  return $ Variable sym nm tpe
 
 newVariable :: Maybe Name -> Type -> Semantic Variable
 newVariable nm tpe = do
@@ -455,10 +476,16 @@ newVariable nm tpe = do
   var <- genSym nm tpe
   case nm of
     (Just nm') -> do
-      let newVarMap = Map.alter (\vars -> Just $ concat (maybeToList vars) ++ [var]) nm' varMap
+      let newVarMap = Map.alter (\vars -> Just $ var : concat (maybeToList vars)) nm' varMap
       updateSymbolTable st {variables = newVarMap}
     Nothing -> return ()
   return var
+
+updateVariable :: Variable -> Semantic Variable
+updateVariable (Variable _ name tpe) =
+  case name of
+    Nothing -> throwSemanticException "mutating temporaries!"
+    _ -> newVariable name tpe
 
 addImportDef :: ImportDecl -> Semantic ()
 addImportDef def = do
@@ -664,32 +691,96 @@ irgenStatements ((P.WithPos s pos) : xs) = do
   irgenStmt s
   irgenStatements xs
 
-irgenAssign :: P.Location -> P.AssignExpr -> Semantic [IRInstructions]
+irgenLocationCheck :: P.Location -> Semantic ()
+irgenLocationCheck (P.ScalarLocation id) = do
+  -- Semantic[10] (checked in lookupVariable')
+  def <- lookupVariableDecl' id
+  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  -- Semantic[12]
+  when
+    (isJust sz)
+    (throwSemanticException ("Cannot assign to vector variable " % stext % "") id)
+irgenLocationCheck (P.VectorLocation id expr) = do
+  (Variable _ _ indexTpe) <- irgenExpr expr
+  -- Semantic[10] (checked in lookupVariable')
+  def <- lookupVariableDecl' id
+  --let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
+  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  -- Semantic[12]
+  when (indexTpe /= IntType) (addSemanticError "Index must be of int type!")
+  when
+    (isNothing sz)
+    (addSemanticError ("Cannot access index of scalar variable " % stext % ".") id)
+
+irgenReadLocation :: P.Location -> Semantic (Variable, Maybe Variable)
+irgenReadLocation loc@(P.ScalarLocation id) = do
+  irgenLocationCheck loc
+  var <- lookupVariable' id
+  return (var, Nothing)
+irgenReadLocation loc@(P.VectorLocation id expr) = do
+  irgenLocationCheck loc
+  indexVar@(Variable _ _ indexTpe) <- irgenExpr expr
+  array@(Variable _ _ tpe) <- lookupVariable' id
+  var <- newVariable Nothing tpe
+  addIRInstructions [ArrayToScalarCopy var array indexVar]
+  return (var, Just indexVar)
+
+irgenWriteVariable :: Variable -> Variable -> Maybe Variable -> Semantic ()
+irgenWriteVariable target src Nothing = addIRInstructions [ScalarCopy target src]
+irgenWriteVariable target src (Just index) = addIRInstructions [ScalarToArrayCopy target src index]
+
+-- irgenWriteLocation :: P.Location -> Variable -> Semantic [IRInstruction]
+-- irgenWriteLocation loc@(P.ScalarLocation id) var = do
+--   irgenLocationCheck loc
+--   var' <- lookupVariable' id
+--   return [ScalarCopy var' var]
+-- irgenWriteLocation loc@(P.VectorLocation id expr) var@(Variable _ tpe) = do
+--   irgenLocationCheck loc
+--   indexVar <- irgenExpr expr
+--   array@(Variable _ tpe') <- lookupVariable' id
+--   -- Semantic[19]
+--   when
+--     (tpe /= tpe')
+--     (addSemanticError ("Assign statement has different types: "%string%" and "%string%"")
+--      (show tpe) (show tpe'))
+--   return [ScalarToArrayCopy array var indexVar]
+
+irgenAssign :: P.Location -> P.AssignExpr -> Semantic ()
 irgenAssign loc (P.AssignExpr op expr) = do
-  (loc'@(Variable _ tpe), sz') <- irgenLocation loc
-  expr'@(Variable _ tpe') <- irgenExpr expr
-  -- Semantic[19]
-  when
-    (tpe /= tpe')
-    (addSemanticError ("Assign statement has different types: "%string%" and "%string%"") (show tpe) (show tpe'))
   let op' = parseAssignOp op
+  expr' <- irgenExpr expr
+  (var@(Variable _ _ tpe), index) <- case loc of
+    (P.ScalarLocation id) -> do
+      var <- lookupVariable' id
+      return (var, Nothing)
+    (P.VectorLocation id index) -> do
+      index' <- irgenExpr index
+      var <- lookupVariable' id
+      return (var, Just index')
   -- Semantic[20]
-  when
-    ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
-    (addSemanticError "Inc or dec assign only works with int type!")
-  let op'' = case op' of
-               IncAssign -> Just Plus
-               DecAssign -> Just Minus
-               _ -> Nothing
-  let incInstr = case op'' of
-                   Just op -> [Arithmetic loc' op loc' expr']
-                   Nothing -> []
-  let copyInstr = case sz' of
-                    (Just sz) -> [ScalarToArrayCopy loc' expr' sz]
-                    Nothing -> [ScalarCopy loc' expr']
-  return $ incInstr ++ copyInstr
+  -- when
+  --   ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
+  --   (addSemanticError "Inc or dec assign only works with int type!")
+  let arithOp = case op' of
+        IncAssign -> Just Plus
+        DecAssign -> Just Minus
+        _ -> Nothing
+  src <- case arithOp of
+    Just op -> do
+      (var, sz) <- irgenReadLocation loc
+      arithResult <- newVariable Nothing IntType
+      addIRInstructions [Arithmetic arithResult op var expr']
+      return arithResult
+    Nothing -> return expr'
+  case index of
+    Nothing -> do
+      new <- updateVariable var
+      addIRInstructions [ScalarCopy new src]
+    (Just idx) -> do
+      addIRInstructions [ScalarToArrayCopy var src idx]
+
 irgenAssign loc (P.IncrementExpr op) = do
-  loc'@(Variable _ tpe) <- irgenLocation loc
+  loc'@(Variable _ _ tpe) <- irgenLocation loc
   let op' = parseAssignOp op
   -- Semantic[20]
   when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
@@ -762,8 +853,6 @@ irgenStmt (P.AssignStatement loc expr) = do
 --     (addSemanticError "Found continue statement outside for or while block!")
 --   return ContinueStmt
 
-irgenLocation :: P.Location -> Semantic (Variable, Maybe Variable)
-irgenLocation = _
 -- irgenLocation :: P.Location -> Semantic Location
 -- irgenLocation (P.ScalarLocation id) = do
 --   -- Semantic[10] (checked in lookupVariable')
@@ -948,6 +1037,7 @@ irgenLocation = _
 
 irgenExpr :: P.WithPos P.Expr -> Semantic Variable
 irgenExpr = _
+
 -- {- generate expressions, also do type inference -}
 -- irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)
 -- irgenExpr (P.WithPos (P.LocationExpr loc) pos) = do

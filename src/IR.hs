@@ -127,126 +127,28 @@ parseAssignOp s = case s of
 -- SSA instructions
 -}
 
-data Variable = Variable { sym :: Name, name :: Maybe Name, tpe :: Type }
-  deriving Show
+data Literal = IntLiteral { intVal :: Int64 }
+             | BoolLiteral { boolVal :: Bool }
+             | StringLiteral {stringVal :: Text}
+             deriving (Show)
+
+data Address = Variable { sym :: Name, name :: Name, tpe :: Type }
+             | Constant { lit :: Literal }
+             | Temporal { sym :: Name, tpe :: Type }
+             deriving (Show)
 
 data IRInstruction
-  = Arithmetic {target :: Variable, arithOp :: ArithOp, lhs :: Variable, rhs :: Variable}
-  | Relational {target :: Variable, relOp :: RelOp, lhs :: Variable, rhs :: Variable}
-  | Condition {target :: Variable, condOp :: CondOp, lhs :: Variable, rhs :: Variable}
-  | Equality {target :: Variable, eqOp :: EqOp, lhs :: Variable, rhs :: Variable}
-  | UnaryMinus {target :: Variable, source :: Variable}
-  | Negate {target :: Variable, source :: Variable}
-  | ScalarCopy {target :: Variable, source :: Variable}
-  | ArrayToScalarCopy {target :: Variable, source :: Variable, sourceIndex :: Variable}
-  | ScalarToArrayCopy {target :: Variable, source :: Variable, targetIndex :: Variable}
+  = Arithmetic {target :: Address, arithOp :: ArithOp, lhs :: Address, rhs :: Address}
+  | Relational {target :: Address, relOp :: RelOp, lhs :: Address, rhs :: Address}
+  | Condition {target :: Address, condOp :: CondOp, lhs :: Address, rhs :: Address}
+  | Equality {target :: Address, eqOp :: EqOp, lhs :: Address, rhs :: Address}
+  | UnaryMinus {target :: Address, source :: Address}
+  | Negate {target :: Address, source :: Address}
+  | ScalarCopy {target :: Address, source :: Address}
+  | ArrayToScalarCopy {target :: Address, source :: Address, sourceIndex :: Address}
+  | ScalarToArrayCopy {target :: Address, source :: Address, targetIndex :: Address}
   | UnconditionalJump {label :: Label}
-  | ConditionalJump {pred :: Variable, label :: Label}
-  | ProcedureCall {target :: Variable, method :: Name, params :: [Variable]}
-  | Return {value :: Maybe Variable}
+  | ConditionalJump {pred :: Address, label :: Label}
+  | ProcedureCall {target :: Address, method :: Name, params :: [Address]}
+  | Return {value :: Maybe Address}
   deriving (Show)
-
--- -- auxiliary data types
--- data Location = Location
---   { name :: Name,
---     idx :: Maybe Expr,
---     variableDef :: Either Argument FieldDecl
---   }
-
--- instance Show Location where
---   show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
-
--- data Assignment = Assignment
---   { location :: WithType Location,
---     op :: AssignOp,
---     expr :: Maybe (WithType Expr)
---   }
---   deriving (Show)
-
--- data MethodCall = MethodCall
---   { name :: Name,
---     args :: [WithType Expr]
---   }
---   deriving (Show)
-
--- -- ir nodes
--- data IRRoot = IRRoot
---   { imports :: [ImportDecl],
---     vars :: [FieldDecl],
---     methods :: [MethodDecl]
---   }
---   deriving (Show)
-
--- data ImportDecl = ImportDecl {name :: Name}
---   deriving (Show)
-
--- data FieldDecl = FieldDecl
---   { name :: Name,
---     tpe :: Type,
---     size :: Maybe Int64
---   }
---   deriving (Show)
-
--- data Argument = Argument
---   { name :: Name,
---     tpe :: Type
---   }
---   deriving (Show, Eq)
-
--- data MethodSig = MethodSig
---   { name :: Name,
---     tpe :: (Maybe Type),
---     args :: [Argument]
---   }
---   deriving (Show, Eq)
-
--- data MethodDecl = MethodDecl
---   { sig :: MethodSig,
---     block :: Block
---   }
---   deriving (Show)
-
--- data Statement
---   = AssignStmt {assign :: Assignment}
---   | IfStmt {pred :: WithType Expr, ifBlock :: Block, elseBlock :: Maybe Block}
---   | ForStmt
---       { counter :: Name,
---         initCounter :: WithType Expr,
---         pred :: WithType Expr,
---         update :: Assignment,
---         block :: Block
---       }
---   | WhileStmt {pred :: WithType Expr, block :: Block}
---   | ReturnStmt {expr :: Maybe (WithType Expr)}
---   | MethodCallStmt {methodCall :: MethodCall}
---   | BreakStmt
---   | ContinueStmt
---   deriving (Show)
-
--- data Expr
---   = LocationExpr {location :: Location}
---   | MethodCallExpr {methodCall :: MethodCall}
---   | ExternCallExpr {name :: Name, args :: [WithType Expr]}
---   | IntLiteralExpr {intVal :: Int64}
---   | BoolLiteralExpr {boolVal :: Bool}
---   | CharLiteralExpr {charVal :: Char}
---   | StringLiteralExpr {strVal :: Text}
---   | ArithOpExpr {arithOp :: ArithOp, lhs :: WithType Expr, rhs :: WithType Expr}
---   | RelOpExpr {relOp :: RelOp, lhs :: WithType Expr, rhs :: WithType Expr}
---   | CondOpExpr {condOp :: CondOp, lhs :: WithType Expr, rhs :: WithType Expr}
---   | EqOpExpr {eqOp :: EqOp, lhs :: WithType Expr, rhs :: WithType Expr}
---   | NegOpExpr {negOp :: NegOp, expr :: WithType Expr}
---   | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
---   | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
---   | LengthExpr {name :: Name}
---   deriving (Show)
-
--- data WithType a = WithType {ele :: a, tpe :: Type}
---   deriving (Show)
-
--- data Block = Block
---   { vars :: [FieldDecl],
---     stats :: [Statement],
---     blockID :: ScopeID
---   }
---   deriving (Show)

@@ -24,9 +24,10 @@ module Semantic
 where
 
 import Constants
-import Control.Applicative ((<|>))
+import Control.Applicative
 import Control.Monad.Except
 import Control.Monad.State
+import Control.Monad.Fail
 import Control.Monad.Writer.Lazy
 import Data.Char (ord)
 import Data.Functor ((<&>))
@@ -99,10 +100,10 @@ data MethodInst = MethodInstr
 data SymbolTable = SymbolTable
   { scopeID :: ScopeID,
     parent :: Maybe SymbolTable,
-    variables :: Map Name [Variable],
-    variableDecl :: Map Name FieldDecl,
-    importSymbols :: Maybe (Map Name ImportDecl),
-    methodSymbols :: Maybe (Map Name MethodSig),
+    variableTemporals :: Map Name [Address],
+    variableDecls :: Map Name FieldDecl,
+    imports :: Maybe (Map Name ImportDecl),
+    methods :: Maybe (Map Name MethodSig),
     blockType :: BlockType
   }
 
@@ -143,6 +144,9 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT ([SemanticError], [IRInstruction]) (Except SemanticException)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter ([SemanticError], [IRInstruction]), MonadState SemanticState)
 
+instance MonadFail Semantic where
+  fail s = throwSemanticException ("Unknown error: "%string) s
+
 runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [(MethodSig, MethodInst)])
 runSemanticAnalysis p =
   let ir = irgenRoot p
@@ -157,10 +161,10 @@ initialSemanticState =
         SymbolTable
           { scopeID = globalScopeID,
             parent = Nothing,
-            importSymbols = Just Map.empty,
-            variables = Map.empty,
-            variableDecl = Map.empty,
-            methodSymbols = Just Map.empty,
+            imports = Just Map.empty,
+            variableTemporals  = Map.empty,
+            variableDecls = Map.empty,
+            methods = Just Map.empty,
             blockType = RootBlock
           }
    in SemanticState
@@ -244,19 +248,19 @@ getSymbolTable' = do
 
 getLocalVariables' :: Semantic (Map Name FieldDecl)
 getLocalVariables' = do
-  variableDecl <$> getSymbolTable'
+  variableDecls <$> getSymbolTable'
 
 getLocalImports' :: Semantic (Map Name ImportDecl)
 getLocalImports' = do
   localST <- getSymbolTable'
-  case importSymbols localST of
+  case imports localST of
     Nothing -> throwSemanticException ("No import table for scope " % int) (scopeID localST)
     Just t -> return t
 
 getLocalMethods' :: Semantic (Map Name MethodSig)
 getLocalMethods' = do
   localST <- getSymbolTable'
-  case methodSymbols localST of
+  case methods localST of
     Nothing -> throwSemanticException ("No method table for scope " % int) (scopeID localST)
     Just t -> return t
 
@@ -294,10 +298,10 @@ enterScope blockType = do
         SymbolTable
           { scopeID = nextID,
             parent = parentST,
-            variables = Map.empty,
-            variableDecl = Map.empty,
-            importSymbols = Nothing,
-            methodSymbols = Nothing,
+            variableTemporals = Map.empty,
+            variableDecls = Map.empty,
+            imports = Nothing,
+            methods = Nothing,
             blockType = blockType
           }
   put $
@@ -364,8 +368,8 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in comments 
 -}
 
 data Location = Location
-  { name :: Variable,
-    idx :: Maybe Variable
+  { name :: Address,
+    idx :: Maybe Address
   }
 
 instance Show Location where
@@ -383,7 +387,7 @@ lookupLocalVariableDeclFromST name st =
       a = lookupArgument name st
    in (Right <$> f) <|> (Left <$> a)
   where
-    lookupLocalFieldDecl name st = Map.lookup name $ variableDecl st
+    lookupLocalFieldDecl name st = Map.lookup name $ variableDecls st
     lookupArgument name st = do
       let SymbolTable {blockType = btpe} = st
       (MethodSig _ _ args) <- case btpe of
@@ -405,12 +409,12 @@ lookupVariableDecl' name = do
     Nothing -> throwSemanticException ("Varaible " % stext % " not defined") name
     Just v -> return v
 
-lookupVariable :: Name -> Semantic (Maybe Variable)
+lookupVariable :: Name -> Semantic (Maybe Address)
 lookupVariable name = do
-  SymbolTable {variables = vars} <- getSymbolTable'
+  SymbolTable {variableTemporals = vars} <- getSymbolTable'
   return $ Map.lookup name vars >>= listToMaybe
 
-lookupVariable' :: Name -> Semantic Variable
+lookupVariable' :: Name -> Semantic Address
 lookupVariable' name = do
   var <- lookupVariable name
   case var of
@@ -422,10 +426,10 @@ lookupVariable' name = do
 lookupLocalMethodFromST :: Name -> SymbolTable -> Maybe (Either ImportDecl MethodSig)
 lookupLocalMethodFromST name table =
   let method = do
-        methodTable <- methodSymbols table
+        methodTable <- methods table
         Map.lookup name methodTable
       import' = do
-        importTable <- importSymbols table
+        importTable <- imports table
         Map.lookup name importTable
    in (Right <$> method) <|> (Left <$> import')
 
@@ -444,15 +448,15 @@ lookupMethod' name = do
 
 {- Add variables and methods -}
 
-addVariableDef :: FieldDecl -> Semantic Variable
+addVariableDef :: FieldDecl -> Semantic Address
 addVariableDef def@(FieldDecl nm tpe _) = do
   localST <- getSymbolTable'
   -- Semantic[1]
   when
     (isJust (lookupLocalVariableDeclFromST nm localST))
     (addSemanticError ("duplicate definition for variable " % stext) nm)
-  let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableDecl localST)
-      newST = localST {variableDecl = variableSymbols'}
+  let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableDecls localST)
+      newST = localST {variableDecls = variableSymbols'}
   -- Semantic[4]
   case def of
     (FieldDecl _ _ (Just sz))
@@ -462,30 +466,31 @@ addVariableDef def@(FieldDecl nm tpe _) = do
   updateSymbolTable newST
   newVariable (Just nm) tpe
 
-genSym :: Maybe Name -> Type -> Semantic Variable
+genSym :: Maybe Name -> Type -> Semantic Address
 genSym nm tpe = do
   id <- gets nextSymbolID
-  let sym = case nm of
-        Nothing -> sformat ("@" % stext % "@" % int) symbolPrefix id
-        Just nm' -> sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
-  return $ Variable sym nm tpe
+  case nm of
+    Nothing -> do
+      let sym = sformat ("@" % stext % "@" % int) symbolPrefix id
+      return $ Temporal sym tpe
+    Just nm' -> do
+      let sym = sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
+      return $ Variable sym nm' tpe
 
-newVariable :: Maybe Name -> Type -> Semantic Variable
+newVariable :: Maybe Name -> Type -> Semantic Address
 newVariable nm tpe = do
-  st@SymbolTable {variables = varMap} <- getSymbolTable'
+  st@SymbolTable {variableTemporals = varMap} <- getSymbolTable'
   var <- genSym nm tpe
   case nm of
     (Just nm') -> do
       let newVarMap = Map.alter (\vars -> Just $ var : concat (maybeToList vars)) nm' varMap
-      updateSymbolTable st {variables = newVarMap}
+      updateSymbolTable st {variableTemporals = newVarMap}
     Nothing -> return ()
   return var
 
-updateVariable :: Variable -> Semantic Variable
-updateVariable (Variable _ name tpe) =
-  case name of
-    Nothing -> throwSemanticException "mutating temporaries!"
-    _ -> newVariable name tpe
+updateVariable :: Address -> Semantic Address
+updateVariable (Variable _ name tpe) = newVariable (Just name) tpe
+updateVariable _ = throwSemanticException "mutating temporaries or consts!"
 
 addImportDef :: ImportDecl -> Semantic ()
 addImportDef def = do
@@ -497,7 +502,7 @@ addImportDef def = do
     (isJust $ Map.lookup (name (def :: ImportDecl)) importTable)
     (addSemanticError ("duplicate import " % stext) nm)
   let importSymbols' = Map.insert (name (def :: ImportDecl)) def importTable
-      newST = localST {importSymbols = Just importSymbols'}
+      newST = localST {imports = Just importSymbols'}
   updateSymbolTable newST
 
 addMethodDef :: MethodSig -> Semantic ()
@@ -510,7 +515,7 @@ addMethodDef def = do
     (isJust $ lookupLocalMethodFromST nm localST)
     (addSemanticError ("duplicate definition for method " % stext) nm)
   let methodSymbols' = Map.insert nm def methodTable
-      newST = localST {methodSymbols = Just methodSymbols'}
+      newST = localST {methods = Just methodSymbols'}
   updateSymbolTable newST
 
 {-
@@ -701,7 +706,7 @@ irgenLocationCheck (P.ScalarLocation id) = do
     (isJust sz)
     (throwSemanticException ("Cannot assign to vector variable " % stext % "") id)
 irgenLocationCheck (P.VectorLocation id expr) = do
-  (Variable _ _ indexTpe) <- irgenExpr expr
+  (Temporal _ indexTpe) <- irgenExpr expr
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariableDecl' id
   --let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
@@ -712,7 +717,7 @@ irgenLocationCheck (P.VectorLocation id expr) = do
     (isNothing sz)
     (addSemanticError ("Cannot access index of scalar variable " % stext % ".") id)
 
-irgenReadLocation :: P.Location -> Semantic (Variable, Maybe Variable)
+irgenReadLocation :: P.Location -> Semantic (Address, Maybe Address)
 irgenReadLocation loc@(P.ScalarLocation id) = do
   irgenLocationCheck loc
   var <- lookupVariable' id
@@ -725,7 +730,7 @@ irgenReadLocation loc@(P.VectorLocation id expr) = do
   addIRInstructions [ArrayToScalarCopy var array indexVar]
   return (var, Just indexVar)
 
-irgenWriteVariable :: Variable -> Variable -> Maybe Variable -> Semantic ()
+irgenWriteVariable :: Address -> Address -> Maybe Address -> Semantic ()
 irgenWriteVariable target src Nothing = addIRInstructions [ScalarCopy target src]
 irgenWriteVariable target src (Just index) = addIRInstructions [ScalarToArrayCopy target src index]
 
@@ -780,10 +785,11 @@ irgenAssign loc (P.AssignExpr op expr) = do
       addIRInstructions [ScalarToArrayCopy var src idx]
 
 irgenAssign loc (P.IncrementExpr op) = do
-  loc'@(Variable _ _ tpe) <- irgenLocation loc
+  (loc'@(Variable _ _ tpe), idx) <- irgenReadLocation loc
   let op' = parseAssignOp op
   -- Semantic[20]
   when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
+  addIRInstructions []
   return $ Assignment loc' op' Nothing
 
 irgenStmt :: P.Statement -> Semantic ()
@@ -1035,7 +1041,7 @@ irgenStmt (P.AssignStatement loc expr) = do
 --     (addSemanticError "Found continue statement outside for or while block!")
 --   return ContinueStmt
 
-irgenExpr :: P.WithPos P.Expr -> Semantic Variable
+irgenExpr :: P.WithPos P.Expr -> Semantic Address
 irgenExpr = _
 
 -- {- generate expressions, also do type inference -}

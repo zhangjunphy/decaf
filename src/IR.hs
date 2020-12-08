@@ -137,6 +137,16 @@ data Address = Variable { sym :: Name, name :: Name, tpe :: Type }
              | Temporal { sym :: Name, tpe :: Type }
              deriving (Show)
 
+typeOfLiteral :: Literal -> Type
+typeOfLiteral (IntLiteral _) = IntType
+typeOfLiteral (BoolLiteral _) = IntType
+typeOfLiteral (StringLiteral _) = IntType
+
+typeOf :: Address -> Type
+typeOf (Variable _ _ tpe) = tpe
+typeOf (Constant lit) = typeOfLiteral lit
+typeOf (Temporal _ tpe) = tpe
+
 data IRInstruction
   = Arithmetic {target :: Address, arithOp :: ArithOp, lhs :: Address, rhs :: Address}
   | Relational {target :: Address, relOp :: RelOp, lhs :: Address, rhs :: Address}

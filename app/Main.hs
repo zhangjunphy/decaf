@@ -39,7 +39,6 @@ import System.IO
     stdout,
   )
 import Text.Printf (printf)
-import Text.Show.Pretty
 import Prelude hiding (readFile)
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
@@ -139,6 +138,6 @@ parse configuration input =
         Semantic.runSemanticAnalysis tree
       result = case irAndError of
         Left exception -> Left [exception]
-        Right (_, err, _) | not (null err) -> Left $ show <$> err
-        Right (root, _, _) -> Right $ show root
+        Right (err, _) | not (null err) -> Left $ show <$> err
+        Right (_, sigAndInst) -> Right $ show sigAndInst
   in outputStageResult configuration result

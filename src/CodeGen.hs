@@ -53,20 +53,8 @@ addToText asm = do
   st <- get
   put st {textSeg = textSeg st ++ [asm]}
 
-codegenRoot :: IR.IRRoot -> Codegen ()
-codegenRoot (IR.IRRoot imports globals methods) = do
-  mapM_ codegenGlobalVar globals
-  -- mapM_ codegenMethods methods
-
-codegenGlobalVar :: IR.FieldDecl -> Codegen ()
-codegenGlobalVar (IR.FieldDecl name tpe sz) = do
-  let width = if tpe == IR.BoolType then 1 else 8
-      align = if tpe == IR.BoolType then (1 :: Int) else 8
-      totalSize = case sz of
-        Nothing -> width
-        Just sz' -> sz' * width
-      asm = [sformat (".comm "%stext%", "%int%", "%int%"") name totalSize align]
-  addToText $ Assembly asm
+codegenMethod :: [IR.IRInstruction] -> Codegen ()
+codegenMethod instrs = return ()
 
 -- codegenMethods :: IR.MethodDecl -> Codegen ()
 -- codegenMethods  = _

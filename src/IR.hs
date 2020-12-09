@@ -18,6 +18,8 @@ module IR where
 
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.List (intercalate)
+import Formatting
 
 type Name = Text
 
@@ -35,7 +37,18 @@ data RelOp
   | GreaterThan
   | LessEqual
   | GreaterEqual
-  deriving (Show, Eq)
+  | Equal
+  | NotEqual
+  deriving (Eq)
+
+instance Show RelOp where
+  show op
+    | op == LessThan = "<"
+    | op == GreaterThan = ">"
+    | op == LessEqual = "<="
+    | op == GreaterEqual = ">="
+    | op == Equal = "=="
+    | op == NotEqual = "!="
 
 data ArithOp
   = Plus
@@ -43,17 +56,25 @@ data ArithOp
   | Multiply
   | Division
   | Modulo
-  deriving (Show, Eq)
+  deriving (Eq)
 
-data EqOp
-  = Equal
-  | NotEqual
-  deriving (Show, Eq)
+instance Show ArithOp where
+  show op
+    | op == Plus = "+"
+    | op == Minus = "-"
+    | op == Multiply = "*"
+    | op == Division = "/"
+    | op == Modulo = "%"
 
-data CondOp
+data LogicalOp
   = OR
   | AND
-  deriving (Show, Eq)
+  deriving (Eq)
+
+instance Show LogicalOp where
+  show op
+    | op == OR = "||"
+    | op == AND = "&&"
 
 data NegOp
   = Neg
@@ -97,12 +118,12 @@ parseRelOp op = case op of
   "<=" -> LessEqual
   ">=" -> GreaterEqual
 
-parseEqOp :: Text -> EqOp
+parseEqOp :: Text -> RelOp
 parseEqOp op = case op of
   "==" -> Equal
   "!=" -> NotEqual
 
-parseCondOp :: Text -> CondOp
+parseCondOp :: Text -> LogicalOp
 parseCondOp op = case op of
   "||" -> OR
   "&&" -> AND
@@ -127,15 +148,27 @@ parseAssignOp s = case s of
 -- SSA instructions
 -}
 
-data Literal = IntLiteral { intVal :: Int64 }
-             | BoolLiteral { boolVal :: Bool }
-             | StringLiteral {stringVal :: Text}
-             deriving (Show)
+data Literal
+  = IntLiteral {intVal :: Int64}
+  | BoolLiteral {boolVal :: Bool}
+  | CharLiteral {charVal :: Char}
+  | StringLiteral {stringVal :: Text}
 
-data Address = Variable { sym :: Name, name :: Name, tpe :: Type }
-             | Constant { lit :: Literal }
-             | Temporal { sym :: Name, tpe :: Type }
-             deriving (Show)
+instance Show Literal where
+  show (IntLiteral val) = show val
+  show (BoolLiteral val) = show val
+  show (CharLiteral val) = show val
+  show (StringLiteral val) = show val
+
+data Address
+  = Variable {sym :: Int, name :: Name, tpe :: Type}
+  | Constant {lit :: Literal}
+  | Temporal {sym :: Int, tpe :: Type}
+
+instance Show Address where
+  show (Variable sym name _) = formatToString (stext%"_"%int) name sym
+  show (Constant lit) = show lit
+  show (Temporal sym _) = formatToString ("temp_"%int) sym
 
 typeOfLiteral :: Literal -> Type
 typeOfLiteral (IntLiteral _) = IntType
@@ -150,15 +183,37 @@ typeOf (Temporal _ tpe) = tpe
 data IRInstruction
   = Arithmetic {target :: Address, arithOp :: ArithOp, lhs :: Address, rhs :: Address}
   | Relational {target :: Address, relOp :: RelOp, lhs :: Address, rhs :: Address}
-  | Condition {target :: Address, condOp :: CondOp, lhs :: Address, rhs :: Address}
-  | Equality {target :: Address, eqOp :: EqOp, lhs :: Address, rhs :: Address}
+  | Logical {target :: Address, condOp :: LogicalOp, lhs :: Address, rhs :: Address}
   | UnaryMinus {target :: Address, source :: Address}
-  | Negate {target :: Address, source :: Address}
+  | Negation {target :: Address, source :: Address}
   | ScalarCopy {target :: Address, source :: Address}
   | ArrayToScalarCopy {target :: Address, source :: Address, sourceIndex :: Address}
   | ScalarToArrayCopy {target :: Address, source :: Address, targetIndex :: Address}
   | UnconditionalJump {label :: Label}
   | ConditionalJump {pred :: Address, label :: Label}
-  | ProcedureCall {target :: Address, method :: Name, params :: [Address]}
-  | Return {value :: Maybe Address}
-  deriving (Show)
+  | ProcedureCall {returns :: Maybe Address, method :: Name, params :: [Address]}
+
+instance Show IRInstruction where
+  show (Arithmetic target op lhs rhs) =
+    formatToString (shown%" = "%shown%" "%shown%" "%shown) target lhs op rhs
+  show (Relational target op lhs rhs) =
+    formatToString (shown%" = "%shown%" "%shown%" "%shown) target lhs op rhs
+  show (Logical target op lhs rhs) =
+    formatToString (shown%" = "%shown%" "%shown%" "%shown) target lhs op rhs
+  show (UnaryMinus target src) =
+    formatToString (shown%" = - "%shown) target src
+  show (Negation target src) =
+    formatToString (shown%" = ! "%shown) target src
+  show (ScalarCopy target src) =
+    formatToString (shown%" = "%shown) target src
+  show (ArrayToScalarCopy target source idx) =
+    formatToString (shown%" = "%shown%"["%shown%"]") target source idx
+  show (ScalarToArrayCopy target source idx) =
+    formatToString (shown%"["%shown%"] = "%shown) target idx source
+  show (UnconditionalJump label) =
+    formatToString ("jump "%shown) label
+  show (ConditionalJump pred label) =
+    formatToString ("jumpif "%shown%" "%shown) pred label
+  show (ProcedureCall ret method params) = case ret of
+    Nothing -> formatToString ("call "%shown%" "%string) method (intercalate "," (show <$> params))
+    Just ret' -> formatToString (shown%"= call "%shown%" "%string) ret' method (intercalate "," (show <$> params))

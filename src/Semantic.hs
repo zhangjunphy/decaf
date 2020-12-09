@@ -26,13 +26,13 @@ where
 import Constants
 import Control.Applicative
 import Control.Monad.Except
-import Control.Monad.State
 import Control.Monad.Fail
+import Control.Monad.State
 import Control.Monad.Writer.Lazy
 import Data.Char (ord)
 import Data.Functor ((<&>))
 import Data.Int (Int64)
-import Data.List (find)
+import Data.List (find, intercalate)
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.Maybe (isJust, isNothing, listToMaybe, maybeToList)
@@ -91,11 +91,6 @@ data MethodSig = MethodSig
   }
   deriving (Show, Eq)
 
-data MethodInst = MethodInstr
-  { instr :: [IRInstruction]
-  }
-  deriving (Show)
-
 -- symbol table definitions
 data SymbolTable = SymbolTable
   { scopeID :: ScopeID,
@@ -126,14 +121,21 @@ instance Show SymbolTable where
       (show methods)
       (show tpe)
 
+data MethodInstrs = MethodInstrs
+  { methodSig :: MethodSig,
+    instrs :: [IR.IRInstruction]
+  }
+
+instance Show MethodInstrs where
+  show (MethodInstrs sig instrs) = show sig ++ "\n[\n" ++ (intercalate "\n" (show <$> instrs)) ++ "\n]\n"
+
 data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
     currentScopeID :: ScopeID,
     nextSymbolID :: SymbolID,
     symbolTables :: Map ScopeID SymbolTable,
     currentPosn :: P.Posn,
-    currentInstrs :: [IR.IRInstruction],
-    methodInstrs :: [(MethodSig, [IR.IRInstruction])]
+    currentInstrs :: [IR.IRInstruction]
   }
   deriving (Show)
 
@@ -142,13 +144,13 @@ data SemanticState = SemanticState
 -- Semantic errors encountered are recorded by the writer monad (WriterT [SemanticError]).
 -- If a serious problem happened such that the analysis has to be aborted, a SemanticException
 -- is thrown.
-newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT ([SemanticError], [(MethodSig, [IR.IRInstruction])]) (Except SemanticException)) a}
-  deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter ([SemanticError], [(MethodSig, [IR.IRInstruction])]), MonadState SemanticState)
+newtype Semantic a = Semantic {runSemantic :: StateT SemanticState (WriterT ([SemanticError], [MethodInstrs]) (Except SemanticException)) a}
+  deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter ([SemanticError], [MethodInstrs]), MonadState SemanticState)
 
 instance MonadFail Semantic where
-  fail s = throwSemanticException ("Unknown error: "%string) s
+  fail s = throwSemanticException ("Unknown error: " % string) s
 
-runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [(MethodSig, [IR.IRInstruction])])
+runSemanticAnalysis :: P.Program -> Either String ([SemanticError], [MethodInstrs])
 runSemanticAnalysis p =
   let ir = irgenRoot p
       exceptOrResult = (runExcept $ runWriterT $ runStateT (runSemantic ir) initialSemanticState)
@@ -163,7 +165,7 @@ initialSemanticState =
           { scopeID = globalScopeID,
             parent = Nothing,
             imports = Just Map.empty,
-            variableTemporals  = Map.empty,
+            variableTemporals = Map.empty,
             variableDecls = Map.empty,
             methods = Just Map.empty,
             blockType = RootBlock
@@ -174,15 +176,14 @@ initialSemanticState =
           nextSymbolID = 0,
           symbolTables = Map.fromList [(globalScopeID, globalST)],
           currentPosn = P.Posn {row = 0, col = 0},
-          currentInstrs = [],
-          methodInstrs = []
+          currentInstrs = []
         }
 
 -- writer monad manipulation
 tellErrors :: [SemanticError] -> Semantic ()
 tellErrors errors = tell (errors, mempty)
 
-tellInstrs :: [(MethodSig, [IR.IRInstruction])] -> Semantic ()
+tellInstrs :: [MethodInstrs] -> Semantic ()
 tellInstrs instrs = tell (mempty, instrs)
 
 -- throw exception
@@ -218,12 +219,12 @@ getPosn = do
 -- manipulate instructions
 addInstructions :: [IRInstruction] -> Semantic ()
 addInstructions instrs = do
-  modify $ \s -> s{currentInstrs = currentInstrs s ++ instrs }
+  modify $ \s -> s {currentInstrs = currentInstrs s ++ instrs}
 
 offloadInstructions :: Semantic [IRInstruction]
 offloadInstructions = do
   instrs <- gets currentInstrs
-  modify $ \s -> s{currentInstrs = []}
+  modify $ \s -> s {currentInstrs = []}
   return instrs
 
 -- find symbol table for global scope
@@ -419,7 +420,7 @@ lookupVariableDecl' name = do
     Just v -> return v
 
 lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe Address
-lookupLocalVariableFromST name SymbolTable{variableTemporals = vars} =
+lookupLocalVariableFromST name SymbolTable {variableTemporals = vars} =
   Map.lookup name vars >>= listToMaybe
 
 lookupLocalVariable :: Name -> Semantic (Maybe Address)
@@ -496,13 +497,12 @@ addVariableDef def@(FieldDecl nm tpe _) = do
 genSym :: Maybe Name -> Type -> Semantic Address
 genSym nm tpe = do
   id <- gets nextSymbolID
+  modify $ \s -> s{nextSymbolID = id + 1}
   case nm of
     Nothing -> do
-      let sym = sformat ("@" % stext % "@" % int) symbolPrefix id
-      return $ Temporal sym tpe
+      return $ Temporal id tpe
     Just nm' -> do
-      let sym = sformat ("@" % stext % "@" % stext % "@" % int) symbolPrefix nm' id
-      return $ Variable sym nm' tpe
+      return $ Variable id nm' tpe
 
 newVariable :: Maybe Name -> Type -> Semantic Address
 newVariable nm tpe = do
@@ -544,7 +544,7 @@ addMethodDef def instrs = do
   let methodSymbols' = Map.insert nm def methodTable
       newST = localST {methods = Just methodSymbols'}
   updateSymbolTable newST
-  tellInstrs [(def, instrs)]
+  tellInstrs [MethodInstrs def instrs]
 
 {-
   Helper methods to do semantic checks.
@@ -789,16 +789,27 @@ irgenAssign loc (P.AssignExpr op expr) = do
       addInstructions [ScalarCopy new src]
     (Just idx) -> do
       addInstructions [ScalarToArrayCopy var src idx]
-
 irgenAssign loc (P.IncrementExpr op) = do
-  (loc'@(Variable _ _ tpe), idx) <- irgenReadScalarFromLocation loc
+  let id = P.locationId loc
+  original <- lookupVariable' id
+  (var, idx) <- irgenReadScalarFromLocation loc
+  let tpe = typeOf var
   let op' = parseAssignOp op
   let arithOp = case op' of
         PlusPlus -> Plus
         MinusMinus -> Minus
   when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
-  newArray <- updateVariable loc'
-  addInstructions [Arithmetic newArray arithOp loc' (Constant $ IntLiteral 1)]
+  case idx of
+    Nothing -> do
+      newVar <- updateVariable original
+      addInstructions [Arithmetic newVar arithOp var (Constant $ IntLiteral 1)]
+    Just idx' -> do
+      newArray <- updateVariable original
+      temp <- newVariable Nothing tpe
+      addInstructions
+        [ Arithmetic temp arithOp var (Constant $ IntLiteral 1),
+          ScalarToArrayCopy newArray temp idx'
+        ]
 
 irgenStmt :: P.Statement -> Semantic ()
 irgenStmt (P.AssignStatement loc expr) = do
@@ -810,11 +821,18 @@ irgenExpr (P.WithPos (P.LocationExpr loc) posn) = do
   updatePosn posn
   (var, _) <- irgenReadScalarFromLocation loc
   return var
-
 irgenExpr (P.WithPos (P.IntLiteralExpr i) posn) = do
   updatePosn posn
   literalVal <- checkInt64Literal i
   return $ Constant $ IntLiteral literalVal
+irgenExpr (P.WithPos (P.CharLiteralExpr c) posn) = do
+  updatePosn posn
+  charVal <- checkCharLiteral c
+  return $ Constant $ CharLiteral charVal
+irgenExpr (P.WithPos (P.BoolLiteralExpr c) posn) = do
+  updatePosn posn
+  boolVal <- checkBoolLiteral c
+  return $ Constant $ BoolLiteral boolVal
 
 -- irgenStmt (P.MethodCallStatement method) = do
 --   method' <- irgenMethod method

@@ -186,6 +186,7 @@ data IRInstruction
   | Logical {target :: Address, condOp :: LogicalOp, lhs :: Address, rhs :: Address}
   | UnaryMinus {target :: Address, source :: Address}
   | Negation {target :: Address, source :: Address}
+  | ArrayLength {target :: Address, source :: Address}
   | ScalarCopy {target :: Address, source :: Address}
   | ArrayToScalarCopy {target :: Address, source :: Address, sourceIndex :: Address}
   | ScalarToArrayCopy {target :: Address, source :: Address, targetIndex :: Address}

@@ -497,7 +497,7 @@ addVariableDef def@(FieldDecl nm tpe _) = do
 genSym :: Maybe Name -> Type -> Semantic Address
 genSym nm tpe = do
   id <- gets nextSymbolID
-  modify $ \s -> s{nextSymbolID = id + 1}
+  modify $ \s -> s {nextSymbolID = id + 1}
   case nm of
     Nothing -> do
       return $ Temporal id tpe
@@ -811,10 +811,32 @@ irgenAssign loc (P.IncrementExpr op) = do
           ScalarToArrayCopy newArray temp idx'
         ]
 
+irgenArgs :: [P.ImportArg] -> Semantic [Address]
+irgenArgs args = sequence $ genArg <$> args
+  where
+    genArg arg =
+      case arg of
+        P.ExprImportArg expr ->
+          irgenExpr expr
+        P.StringImportArg str ->
+          genStringLiteral str
+    genStringLiteral (P.WithPos str posn) = do
+      updatePosn posn
+      return $ Constant $ StringLiteral str
+
+irgenMethodCall :: P.MethodCall -> Semantic (Maybe Address)
+irgenMethodCall (P.MethodCall name args) = do
+  methodDef <- lookupMethod' name
+  let retType = either (const $ Just IntType) (\(MethodSig _ tpe _) -> tpe) methodDef
+  retVar <- sequence $ retType <&> \tpe -> newVariable Nothing tpe
+  args' <- irgenArgs args
+  addInstructions [ProcedureCall retVar name args']
+  return retVar
+
 irgenStmt :: P.Statement -> Semantic ()
-irgenStmt (P.AssignStatement loc expr) = do
-  assign <- irgenAssign loc expr
-  return ()
+irgenStmt (P.AssignStatement loc expr) = irgenAssign loc expr
+irgenStmt (P.MethodCallStatement call) = void $ irgenMethodCall call
+irgenStmt (P.IfStatement pred ifBlock) = _
 
 irgenExpr :: P.WithPos P.Expr -> Semantic Address
 irgenExpr (P.WithPos (P.LocationExpr loc) posn) = do
@@ -833,6 +855,73 @@ irgenExpr (P.WithPos (P.BoolLiteralExpr c) posn) = do
   updatePosn posn
   boolVal <- checkBoolLiteral c
   return $ Constant $ BoolLiteral boolVal
+irgenExpr (P.WithPos (P.LenExpr id) posn) = do
+  updatePosn posn
+  array <- lookupVariable' id
+  var <- newVariable Nothing IntType
+  addInstructions [ArrayLength var array]
+  return var
+irgenExpr (P.WithPos (P.ArithOpExpr op l r) posn) = do
+  updatePosn posn
+  let op' = parseArithOp op
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  var <- newVariable Nothing IntType
+  addInstructions [Arithmetic var op' l' r']
+  return var
+irgenExpr (P.WithPos (P.RelOpExpr op l r) posn) = do
+  updatePosn posn
+  let op' = parseRelOp op
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  var <- newVariable Nothing BoolType
+  addInstructions [Relational var op' l' r']
+  return var
+irgenExpr (P.WithPos (P.EqOpExpr op l r) posn) = do
+  updatePosn posn
+  let op' = parseEqOp op
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  var <- newVariable Nothing BoolType
+  addInstructions [Relational var op' l' r']
+  return var
+irgenExpr (P.WithPos (P.CondOpExpr op l r) posn) = do
+  updatePosn posn
+  let op' = parseCondOp op
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  var <- newVariable Nothing BoolType
+  addInstructions [Logical var op' l' r']
+  return var
+irgenExpr (P.WithPos (P.NegativeExpr src) posn) = do
+  updatePosn posn
+  src' <- irgenExpr src
+  var <- newVariable Nothing IntType
+  addInstructions [UnaryMinus var src']
+  return var
+irgenExpr (P.WithPos (P.NegateExpr src) posn) = do
+  updatePosn posn
+  src' <- irgenExpr src
+  var <- newVariable Nothing BoolType
+  addInstructions [Negation var src']
+  return var
+irgenExpr (P.WithPos (P.ParenExpr enclosed) posn) = do
+  updatePosn posn
+  irgenExpr enclosed
+irgenExpr (P.WithPos (P.ChoiceExpr pred l r) posn) = do
+  updatePosn posn
+  pred' <- irgenExpr pred
+  l' <- irgenExpr l
+  r' <- irgenExpr r
+  var <- newVariable Nothing (typeOf l')
+  addInstructions []
+  _
+irgenExpr (P.WithPos (P.MethodCallExpr call) posn) = do
+  updatePosn posn
+  retVar <- irgenMethodCall call
+  case retVar of
+    Nothing -> throwSemanticException "void method cannot be used in expressions!"
+    Just var -> return var
 
 -- irgenStmt (P.MethodCallStatement method) = do
 --   method' <- irgenMethod method

@@ -193,6 +193,7 @@ data IRInstruction
   | UnconditionalJump {label :: Label}
   | ConditionalJump {pred :: Address, label :: Label}
   | ProcedureCall {returns :: Maybe Address, method :: Name, params :: [Address]}
+  | Phi {target :: Address, lhs :: Address, rhs :: Address}
 
 instance Show IRInstruction where
   show (Arithmetic target op lhs rhs) =

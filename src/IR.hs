@@ -194,6 +194,7 @@ data IRInstruction
   | ConditionalJump {pred :: Address, label :: Label}
   | ProcedureCall {returns :: Maybe Address, method :: Name, params :: [Address]}
   | Phi {target :: Address, lhs :: Address, rhs :: Address}
+  | LabelInstr {label :: Label} -- TODO: maybe we should not put label in instrs
 
 instance Show IRInstruction where
   show (Arithmetic target op lhs rhs) =

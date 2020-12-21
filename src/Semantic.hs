@@ -504,6 +504,11 @@ genSym nm tpe = do
     Just nm' -> do
       return $ Variable id nm' tpe
 
+newLabel :: Semantic Label
+newLabel = do
+  id <- gets nextSymbolID
+  return $ sformat ("label@"%int) id
+
 newVariable :: Maybe Name -> Type -> Semantic Address
 newVariable nm tpe = do
   st@SymbolTable {variableTemporals = varMap} <- getSymbolTable'
@@ -841,13 +846,24 @@ irgenStmt (P.AssignStatement loc expr) = irgenAssign loc expr
 irgenStmt (P.MethodCallStatement call) = void $ irgenMethodCall call
 irgenStmt (P.IfStatement pred ifBlock) = do
   pred' <- irgenExpr pred
-  mutations <- irgenBlock ifBlock
+  lb <- newLabel
+  le <- newLabel
+  addInstructions [ConditionalJump pred' lb]
+  addInstructions [UnconditionalJump le]
+  mutations <- irgenBlock lb le ifBlock
   sequence_ $ mutations <&> \(_, original, var) -> do
         newVar <- updateVariable original
         addInstructions [Phi newVar original var]
 
-irgenBlock :: P.Block -> Semantic [(Name, Address, Address)]
-irgenBlock = _
+irgenBlock :: Label -> Label -> P.Block -> Semantic [(Name, Address, Address)]
+irgenBlock labelStart labelEnd (P.Block fields statements) = do
+  addInstructions [LabelInstr labelStart]
+  irgenFieldDecls fields
+  sequence_ $ statements <&> \(P.WithPos stmt posn) -> do
+    updatePosn posn
+    irgenStmt stmt
+  addInstructions [LabelInstr labelEnd]
+  return []
 
 irgenExpr :: P.WithPos P.Expr -> Semantic Address
 irgenExpr (P.WithPos (P.LocationExpr loc) posn) = do

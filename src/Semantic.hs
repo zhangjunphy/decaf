@@ -40,7 +40,7 @@ import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import IR
 import qualified Parser as P
-import Text.Printf (printf)
+import Formatting
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -52,7 +52,7 @@ import Text.Printf (printf)
 data SemanticError = SemanticError P.Posn Text
 
 instance Show SemanticError where
-  show (SemanticError (P.Posn row col) msg) = printf "[%d:%d] %s" row col msg
+  show (SemanticError (P.Posn row col) msg) = formatToString ("["%int%":"%int%"] "%stext) row col msg
 
 -- exceptions during semantic analysis
 -- difference from SemanticError:
@@ -60,7 +60,7 @@ instance Show SemanticError where
 data SemanticException = SemanticException P.Posn Text
 
 instance Show SemanticException where
-  show (SemanticException (P.Posn row col) msg) = printf "[%d:%d] %s" row col msg
+  show (SemanticException (P.Posn row col) msg) = formatToString ("["%int%":"%int%"] "%stext) row col msg
 
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
   deriving (Show, Eq)
@@ -77,10 +77,9 @@ data SymbolTable = SymbolTable
 
 instance Show SymbolTable where
   show (SymbolTable sid p imports variables methods tpe) =
-    printf
-      "SymbolTable {scopeID=%d, parent=%s, importSymbols=%s, variableSymbols=%s, methodSymbols=%s, blockType=%s}"
+    formatToString ("SymbolTable {scopeID="%int%", parent="%shown%", imports="%shown%", variables="%shown%", methods="%shown%", tpe="%shown)
       sid
-      (show $ scopeID <$> p)
+      (scopeID <$> p)
       (show imports)
       (show variables)
       (show methods)
@@ -107,7 +106,7 @@ runSemanticAnalysis p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
-        Left (SemanticException (P.Posn row col) msg) -> Left $ printf "(%d:%d) %s" row col $ msg
+        Left (SemanticException (P.Posn row col) msg) -> Left $ formatToString ("["%int%":"%int%"] "%stext) row col msg
         Right a -> Right (a, errors, state)
 
 initialSemanticState :: SemanticState
@@ -129,15 +128,15 @@ initialSemanticState =
         }
 
 -- throw exception or store errors
-throwSemanticException :: String -> Semantic a
+throwSemanticException :: Text -> Semantic a
 throwSemanticException msg = do
   posn <- getPosn
-  throwError $ SemanticException posn $ T.pack msg
+  throwError $ SemanticException posn msg
 
-addSemanticError :: String -> Semantic ()
+addSemanticError :: Text -> Semantic ()
 addSemanticError msg = do
   posn <- getPosn
-  tell [SemanticError posn $ T.pack msg]
+  tell [SemanticError posn msg]
 
 -- get or update position information
 updatePosn :: P.Posn -> Semantic ()
@@ -176,8 +175,7 @@ getSymbolTable' = do
   t <- getSymbolTable
   case t of
     Nothing ->
-      throwSemanticException $
-        printf "No symble table found for current scope %d" scopeID
+      throwSemanticException $ sformat ("No symble table found for current scope "%int) scopeID
     Just table -> return table
 
 getLocalVariables' :: Semantic (Map Name FieldDecl)
@@ -188,14 +186,14 @@ getLocalImports' :: Semantic (Map Name ImportDecl)
 getLocalImports' = do
   localST <- getSymbolTable'
   case importSymbols localST of
-    Nothing -> throwSemanticException $ printf "No import table for scope %d" $ scopeID localST
+    Nothing -> throwSemanticException $ sformat ("No import table for scope "%int) $ scopeID localST
     Just t -> return t
 
 getLocalMethods' :: Semantic (Map Name MethodDecl)
 getLocalMethods' = do
   localST <- getSymbolTable'
   case methodSymbols localST of
-    Nothing -> throwSemanticException $ printf "No method table for scope %d" $ scopeID localST
+    Nothing -> throwSemanticException $ sformat ("No method table for scope "%int) $ scopeID localST
     Just t -> return t
 
 updateSymbolTable :: SymbolTable -> Semantic ()
@@ -252,7 +250,7 @@ exitScope = do
   case localST of
     Nothing ->
       throwSemanticException $
-        printf "No symbol table is associated with scope(%d)!" $ currentScopeID state
+        sformat ("No symbol table is associated with scope("%int%")!") $ currentScopeID state
     Just table ->
       case parent table of
         Nothing ->
@@ -326,7 +324,7 @@ lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
   v <- lookupVariable name
   case v of
-    Nothing -> throwSemanticException $ printf "Varaible %s not defined" name
+    Nothing -> throwSemanticException $ sformat ("Varaible "%stext%" not defined") name
     Just v -> return v
 
 {- Method lookup. -}
@@ -351,7 +349,7 @@ lookupMethod' :: Name -> Semantic (Either ImportDecl MethodDecl)
 lookupMethod' name = do
   m <- lookupMethod name
   case m of
-    Nothing -> throwSemanticException $ printf "Method %s not found" name
+    Nothing -> throwSemanticException $ sformat ("Method "%stext%" not found") name
     Just m' -> return m'
 
 {- Add variables and methods -}
@@ -363,14 +361,14 @@ addVariableDef def = do
   let nm = name (def :: FieldDecl)
   when
     (isJust (lookupLocalVariableFromST nm localST))
-    (addSemanticError $ printf "duplicate definition for variable %s" $ nm)
+    (addSemanticError $ sformat ("duplicate definition for variable "%stext) $ nm)
   let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableSymbols localST)
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
   case def of
     (FieldDecl _ _ (Just sz))
       | sz < 0 ->
-        addSemanticError $ printf "Invalid size of array %s" $ nm
+        addSemanticError $ sformat ("Invalid size of array "%stext) nm
     _ -> return ()
   updateSymbolTable newST
 
@@ -382,7 +380,7 @@ addImportDef def = do
   let nm = name (def :: ImportDecl)
   when
     (isJust $ Map.lookup (name (def :: ImportDecl)) importTable)
-    (addSemanticError $ printf "duplicate import %s" $ nm)
+    (addSemanticError $ sformat ("duplicate import "%stext) nm)
   let importSymbols' = Map.insert (name (def :: ImportDecl)) def importTable
       newST = localST {importSymbols = Just importSymbols'}
   updateSymbolTable newST
@@ -395,7 +393,7 @@ addMethodDef def = do
   let nm = name (sig def :: MethodSig)
   when
     (isJust $ lookupLocalMethodFromST nm localST)
-    (addSemanticError $ printf "duplicate definition for method %s" $ nm)
+    (addSemanticError $ sformat ("duplicate definition for method "%stext) nm)
   let methodSymbols' = Map.insert nm def methodTable
       newST = localST {methodSymbols = Just methodSymbols'}
   updateSymbolTable newST
@@ -409,20 +407,18 @@ checkReturnType :: Maybe (WithType Expr) -> Semantic ()
 checkReturnType Nothing = do
   (MethodSig method tpe _) <- getMethodSignature'
   case tpe of
-    Just t -> addSemanticError $ printf "Method %s expects return type of %s!" method (show t)
+    Just t -> addSemanticError $ sformat ("Method "%stext%" expects return type of "%shown%"!") method t
     _ -> return ()
 checkReturnType (Just (WithType _ tpe')) = do
   (MethodSig method tpe _) <- getMethodSignature'
   case tpe of
-    Nothing -> addSemanticError $ printf "Method %s expects no return value!" method
+    Nothing -> addSemanticError $ sformat ("Method "%stext%" expects no return value!") method
     t
       | t /= tpe ->
         addSemanticError $
-          printf
-            "Method %s expects return type of %v, but got %v instead."
-            method
-            (show tpe)
-            (show tpe')
+          sformat
+            ("Method "%stext%" expects return type of "%shown%", but got "%shown%" instead.")
+            method tpe tpe'
     _ -> return ()
 
 -- | Check if content of lit is a valid int64.
@@ -443,21 +439,21 @@ checkInt64Literal lit = do
   --   $ printf "Int literal %s is out of bound" lit
   case T.decimal lit of
     Right (n, _) -> return n
-    Left msg -> throwSemanticException $ printf "cannot parse int literal %s" msg
+    Left msg -> throwSemanticException $ sformat ("cannot parse int literal "%string) msg
 
 checkBoolLiteral :: Text -> Semantic Bool
 checkBoolLiteral lit
   | lit == "true" = return True
   | lit == "flase" = return False
   | otherwise = do
-    addSemanticError $ printf "error parsing bool literal from string %s" lit
+    addSemanticError $ sformat ("error parsing bool literal from string "%stext) lit
     return True
 
 checkCharLiteral :: Text -> Semantic Char
 checkCharLiteral lit = do
   when
     (T.length lit > 1 || T.null lit)
-    (throwSemanticException $ printf "cannot parse char literal from string %s" lit)
+    (throwSemanticException $ sformat ("cannot parse char literal from string "%stext) lit)
   return $ T.head lit
 
 isInsideLoop :: Semantic Bool
@@ -503,9 +499,8 @@ irgenRoot (P.Program imports fields methods) = do
       Nothing -> return ()
       Just tpe ->
         addSemanticError $
-          printf
-            "Method \"main\" should have return type of void, got %s instead."
-            (show tpe)
+          sformat
+            ("Method \"main\" should have return type of void, got "%shown%" instead.") tpe
     checkMainArgsType args =
       unless
         (null args)
@@ -598,7 +593,7 @@ irgenLocation (P.VectorLocation id expr) = do
   case sz of
     Nothing -> do
       addSemanticError $
-        printf "Cannot access index of scalar variable %s." id
+        sformat ("Cannot access index of scalar variable "%stext%".") id
       return $ WithType (Location id Nothing def) tpe
     Just _ -> return $ WithType (Location id (Just expr') def) tpe
 
@@ -609,18 +604,18 @@ irgenAssign loc (P.AssignExpr op expr) = do
   -- Semantic[19]
   when
     (tpe /= tpe')
-    (addSemanticError $ printf "Assign statement has different types: %s and %s" (show tpe) (show tpe'))
+    (addSemanticError $ sformat ("Assign statement has different types: "%shown%" and "%shown%"") tpe tpe')
   let op' = parseAssignOp op
   -- Semantic[20]
   when
     ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
-    (addSemanticError $ printf "Inc or dec assign only works with int type!")
+    (addSemanticError "Inc or dec assign only works with int type!")
   return $ Assignment loc' op' (Just expr')
 irgenAssign loc (P.IncrementExpr op) = do
   loc'@(WithType _ tpe) <- irgenLocation loc
   let op' = parseAssignOp op
   -- Semantic[20]
-  when (tpe /= IntType) (addSemanticError $ printf "Inc or dec operator only works on int type!")
+  when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
   return $ Assignment loc' op' Nothing
 
 irgenStatements :: [P.WithPos P.Statement] -> Semantic [Statement]
@@ -644,7 +639,7 @@ irgenMethod (P.MethodCall method args') = do
         (Just (MethodSig name _ formal)) | name == method -> do
           checkCallingSemantics formal argsWithType
           return $ MethodCall method argsWithType
-        _ -> throwSemanticException $ printf "method %s not declared!" method
+        _ -> throwSemanticException $ sformat ("method "%stext%" not declared!") method
     Just decl -> case decl of
       Left _ -> return $ MethodCall method argsWithType
       Right m -> do
@@ -659,8 +654,8 @@ irgenMethod (P.MethodCall method args') = do
       unless
         (length formal == length args)
         ( addSemanticError $
-            printf
-              "Calling %s with wrong number of args. Required: %d, supplied: %d."
+            sformat
+              ("Calling "%stext%" with wrong number of args. Required: "%int%", supplied: "%int%".")
               method
               (length formal)
               (length args)
@@ -670,10 +665,10 @@ irgenMethod (P.MethodCall method args') = do
        in unless
             (null mismatch)
             ( addSemanticError $
-                printf
-                  "Calling %s with wrong type of args: %s"
+                sformat
+                  ("Calling "%stext%" with wrong type of args: "%shown)
                   method
-                  (show mismatch)
+                  mismatch
             )
     arrayOrStringTypePred (WithType _ tpe) = case tpe of
       ArrayType _ -> True
@@ -684,8 +679,8 @@ irgenMethod (P.MethodCall method args') = do
        in unless
             (null arrayArgs)
             ( addSemanticError $
-                printf
-                  "Argument of array or string type can not be used for method %s"
+                sformat
+                  ("Argument of array or string type can not be used for method "%stext)
                   method
             )
     checkCallingSemantics formal args = do
@@ -706,7 +701,7 @@ irgenStmt (P.IfStatement expr block) = do
   -- Semantic[14]
   when
     (tpe /= BoolType)
-    (addSemanticError $ printf "The pred of if statment must have type bool, but got %s instead!" (show tpe))
+    (addSemanticError $ sformat ("The pred of if statment must have type bool, but got "%shown%" instead!") tpe)
   return $ IfStmt expr' ifBlock Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
   ifBlock' <- irgenBlock IfBlock ifBlock
@@ -715,7 +710,7 @@ irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
   -- Semantic[14]
   when
     (tpe /= BoolType)
-    (addSemanticError $ printf "The pred of if statment must have type bool, but got %s instead!" (show tpe))
+    (addSemanticError $ sformat ("The pred of if statment must have type bool, but got "%shown%" instead!") tpe)
   return $ IfStmt expr' ifBlock' (Just elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
   block' <- irgenBlock ForBlock block
@@ -724,7 +719,7 @@ irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr
   -- Semantic[14]
   when
     (tpe /= BoolType)
-    (addSemanticError $ printf "The pred of for statment must have type bool, but got %s instead!" (show tpe))
+    (addSemanticError $ sformat ("The pred of for statment must have type bool, but got "%shown%" instead!") tpe)
   assign <- irgenAssign loc expr
   return $ ForStmt counter counterExpr' predExpr' assign block'
 irgenStmt (P.WhileStatement expr block) = do
@@ -733,7 +728,7 @@ irgenStmt (P.WhileStatement expr block) = do
   -- Semantic[14]
   when
     (tpe /= BoolType)
-    (addSemanticError $ printf "The pred of while statment must have type bool, but got %s instead!" (show tpe))
+    (addSemanticError $ sformat ("The pred of while statment must have type bool, but got "%shown%" instead!") tpe)
   return $ WhileStmt expr' block'
 irgenStmt (P.ReturnExprStatement expr) = do
   expr' <- irgenExpr expr
@@ -777,11 +772,11 @@ irgenExpr (P.WithPos (P.MethodCallExpr method@(P.MethodCall name _)) pos) = do
         -- Semantic[6]
         Nothing ->
           throwSemanticException $
-            printf "Method %s cannot be used in expressions as it returns nothing!" name
+            sformat ("Method "%stext%" cannot be used in expressions as it returns nothing!") name
         Just tpe' -> return $ WithType (MethodCallExpr method') tpe'
 irgenExpr (P.WithPos (P.IntLiteralExpr i) pos) = do
   updatePosn pos
-  literalVal <- checkInt64Literal $ i
+  literalVal <- checkInt64Literal i
   return $ WithType (IntLiteralExpr literalVal) IntType
 irgenExpr (P.WithPos (P.BoolLiteralExpr b) pos) = do
   updatePosn pos
@@ -796,11 +791,11 @@ irgenExpr (P.WithPos (P.LenExpr id) pos) = do
   def <- lookupVariable' id
   -- Semantic[13]
   case def of
-    Left (Argument nm _) -> addSemanticError $ printf "len cannot operate on argument %s!" nm
+    Left (Argument nm _) -> addSemanticError $ sformat ("len cannot operate on argument "%stext%"!") nm
     Right (FieldDecl nm _ sz) ->
       when
         (isNothing sz)
-        (addSemanticError $ printf "len cannot operate on scalar variable %s!" nm)
+        (addSemanticError $ sformat ("len cannot operate on scalar variable "%stext%"!") nm)
   return $ WithType (LengthExpr id) IntType
 irgenExpr (P.WithPos (P.ArithOpExpr op l r) pos) = do
   updatePosn pos

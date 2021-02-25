@@ -25,10 +25,8 @@ dependencies:
 - split ==0.2.*
 - transformers ==0.5.*
 - containers >=0.4
-- pretty-show
 - mtl
 - bytestring ==0.10.*
-- utf8-string ==1.0.*
 - text ==1.2.*
 - formatting ==6.3.*
 
@@ -37,8 +35,8 @@ library:
     - src
 
   build-tools:
-    - alex >=3.0.2
-    - happy
+    - alex ==3.2.*
+    - happy ==1.19.*
 
 executables:
   decafc:

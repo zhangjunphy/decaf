@@ -18,11 +18,7 @@ import Data.Int (Int64)
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer
-import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B
-import qualified Data.ByteString.Lazy.UTF8 as B
 import Data.Text (Text)
-import qualified Data.ByteString.Builder as B
 import qualified Data.Text as T
 import Data.Map (Map)
 import qualified Data.Map as Map

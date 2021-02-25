@@ -16,9 +16,10 @@ module CLI (generateUsage, getConfiguration) where
 import           Control.Applicative   ((<$>))
 import           Control.Monad         (foldM)
 import           Data.List.Split       (wordsBy)
+import Data.Text (Text)
 import           System.Console.GetOpt
 import           System.Environment    (getArgs, getProgName)
-import           Text.Printf           (printf)
+import Formatting
 
 import           Configuration
 import           Configuration.Types
@@ -52,7 +53,7 @@ message. -}
 
 generateSummary :: IO String
 generateSummary =
-  printf "%s [options] <filename>"
+  formatToString (string%" [options] <filename>")
          <$> getProgName
 
 options :: [OptDescr FlagAction]
@@ -104,7 +105,7 @@ readStage :: String -> Either String CompilerStage
 readStage stageString =
   case reads stageString of
     [(stage, "")] -> Right stage
-    _             -> Left $ printf "unknown stage `%s'\n" stageString
+    _             -> Left $ formatToString ("unknown stage `"%string%"'\n") stageString
 
 readOptimizationSpec :: String -> Either String OptimizationSpecification
 readOptimizationSpec optString =

@@ -24,6 +24,7 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as B
 import Data.Functor ((<&>))
 import Data.List
+import Data.Text (Text)
 import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Scanner
@@ -39,7 +40,6 @@ import System.IO
     stdout,
   )
 import Text.Printf (printf)
-import Text.Show.Pretty
 import Prelude hiding (readFile)
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
@@ -140,5 +140,5 @@ parse configuration input =
       result = case irAndError of
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err
-        Right (root, _, _) -> Right $ ppShow root
+        Right (root, _, _) -> Right $ show root
   in outputStageResult configuration result

@@ -30,6 +30,7 @@ dependencies:
 - bytestring ==0.10.*
 - utf8-string ==1.0.*
 - text ==1.2.*
+- formatting ==6.3.*
 
 library:
   source-dirs:

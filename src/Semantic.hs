@@ -65,35 +65,6 @@ instance Show SemanticException where
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
   deriving (Show, Eq)
 
-data ImportDecl = ImportDecl {name :: Name}
-  deriving (Show)
-
-data FieldDecl = FieldDecl
-  { name :: Name,
-    tpe :: Type,
-    size :: Maybe Int64
-  }
-  deriving (Show)
-
-data Argument = Argument
-  { name :: Name,
-    tpe :: Type
-  }
-  deriving (Show, Eq)
-
-data MethodSig = MethodSig
-  { name :: Name,
-    tpe :: Maybe Type,
-    args :: [Argument]
-  }
-  deriving (Show, Eq)
-
-data MethodDecl = MethodDecl
-  { sig :: MethodSig,
-    instr :: SSAInstructions
-  }
-  deriving (Show)
-
 -- symbol table definitions
 data SymbolTable = SymbolTable
   { scopeID :: ScopeID,

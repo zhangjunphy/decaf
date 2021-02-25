@@ -193,7 +193,7 @@ data IRInstruction
   | UnconditionalJump {label :: Label}
   | ConditionalJump {pred :: Address, label :: Label}
   | ProcedureCall {returns :: Maybe Address, method :: Name, params :: [Address]}
-  | Phi {target :: Address, lhs :: Address, rhs :: Address}
+  | Phi {target :: Address, var1 :: (Address, Label), var2:: (Address, Label)}
   | LabelInstr {label :: Label} -- TODO: maybe we should not put label in instrs
 
 instance Show IRInstruction where

@@ -65,7 +65,7 @@ data SemanticException = SemanticException P.Posn Text
 instance Show SemanticException where
   show (SemanticException (P.Posn row col) msg) = formatToString ("[" % int % ":" % int % "] " % stext) row col msg
 
-data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
+data BlockType = RootBlock | IfBlock | ElseBlock | ForBlock | WhileBlock | MethodBlock MethodSig
   deriving (Show, Eq)
 
 data ImportDecl = ImportDecl {name :: Name}
@@ -507,7 +507,7 @@ genSym nm tpe = do
 newLabel :: Semantic Label
 newLabel = do
   id <- gets nextSymbolID
-  return $ sformat ("label@"%int) id
+  return $ sformat ("label@" % int) id
 
 newVariable :: Maybe Name -> Type -> Semantic Address
 newVariable nm tpe = do
@@ -851,19 +851,21 @@ irgenStmt (P.IfStatement pred ifBlock) = do
   addInstructions [ConditionalJump pred' lb]
   addInstructions [UnconditionalJump le]
   mutations <- irgenBlock lb le ifBlock
-  sequence_ $ mutations <&> \(_, original, var) -> do
-        newVar <- updateVariable original
-        addInstructions [Phi newVar original var]
+  sequence_ $
+    mutations <&> \(_, original, var) -> do
+      newVar <- updateVariable original
+      addInstructions [Phi newVar (original, le) (var, lb)]
 
 irgenBlock :: Label -> Label -> P.Block -> Semantic [(Name, Address, Address)]
 irgenBlock labelStart labelEnd (P.Block fields statements) = do
   addInstructions [LabelInstr labelStart]
   irgenFieldDecls fields
-  sequence_ $ statements <&> \(P.WithPos stmt posn) -> do
-    updatePosn posn
-    irgenStmt stmt
+  sequence_ $
+    statements <&> \(P.WithPos stmt posn) -> do
+      updatePosn posn
+      irgenStmt stmt
   addInstructions [LabelInstr labelEnd]
-  return []
+  return _
 
 irgenExpr :: P.WithPos P.Expr -> Semantic Address
 irgenExpr (P.WithPos (P.LocationExpr loc) posn) = do

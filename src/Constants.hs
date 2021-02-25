@@ -23,8 +23,5 @@ globalScopeID = 0
 mainMethodName :: Text
 mainMethodName = "main"
 
-rootScopeName :: Text
-rootScopeName = "root"
-
 symbolPrefix :: Text
 symbolPrefix = "sym"

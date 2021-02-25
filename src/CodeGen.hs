@@ -24,7 +24,15 @@ import Data.Map (Map)
 import qualified Data.Map as Map
 import qualified IR
 import Semantic
-import Text.Printf (printf)
+
+data BasicBlock = BacisBlock
+  { name :: Text,
+    stmts :: [IR.Statement]
+  }
+
+data CFG = CFG
+  { basicBlocks :: [BasicBlock]
+  }
 
 newtype Codegen a = Codegen {runCodegen :: ExceptT CodegenException (WriterT [Assembly] (State CodegenState)) a}
   deriving (Functor, Applicative, Monad, MonadError CodegenException, MonadWriter [Assembly], MonadState CodegenState)

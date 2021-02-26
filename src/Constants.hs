@@ -13,15 +13,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Constants
-  ( globalScopeID
-  , mainMethodName
-  )
 where
 
 import Data.Text (Text)
 
 globalScopeID :: Int
 globalScopeID = 0
+
+topLevelLabel :: Text
+topLevelLabel = "root"
 
 mainMethodName :: Text
 mainMethodName = "main"

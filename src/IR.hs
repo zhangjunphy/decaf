@@ -22,8 +22,6 @@ import Text.Printf (printf)
 
 type Name = Text
 
-type Label = Text
-
 type Index = Int64
 
 type ScopeID = Int
@@ -197,6 +195,7 @@ data Statement
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
+  | VarDeclStmt {field :: FieldDecl}
   deriving (Show)
 
 data Expr

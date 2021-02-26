@@ -18,7 +18,6 @@
 module Semantic
   ( runSemanticAnalysis,
     SymbolTable (..),
-    SemanticState (..),
     ScopeID,
   )
 where

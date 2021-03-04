@@ -19,6 +19,7 @@ module Semantic
   ( runSemanticAnalysis,
     SymbolTable (..),
     ScopeID,
+    BlockType (..),
   )
 where
 

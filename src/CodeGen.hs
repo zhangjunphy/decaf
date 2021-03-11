@@ -33,15 +33,18 @@ import Semantic
 type Label = Text
 
 data Condition
-  = None
+  = Always
   | Pred {pred :: IR.Expr}
+  | Comp {pred :: IR.Expr}
   deriving (Show)
 
-data CFGNode = CFGNode
-  { label :: Label,
-    scopeID :: ScopeID,
-    stmts :: [IR.Statement]
-  }
+data CFGNode
+  = CFGNode
+      { label :: Label,
+        scopeID :: ScopeID,
+        stmts :: [IR.Statement]
+      }
+  | DummyNode Int
   deriving (Show)
 
 data CFGEdge = CFGEdge
@@ -63,11 +66,12 @@ data CFGState = CFGState
   { sid :: ScopeID,
     statements :: [IR.Statement],
     getCFG :: CFG,
-    nodeID :: Int
+    nodeID :: Int,
+    dummyNodeID :: Int
   }
 
 newtype CFGExcept = CFGExcept Text
-  deriving Show
+  deriving (Show)
 
 newtype CFGMonad a = CFGMonad {runCFGMonad :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a}
   deriving (Functor, Applicative, Monad, MonadError CFGExcept, MonadReader CFGContext, MonadState CFGState)
@@ -86,20 +90,26 @@ getStatements = gets statements
 incNodeID :: CFGMonad ()
 incNodeID = do
   id <- gets nodeID
-  modify $ \s -> s{nodeID = id + 1}
+  modify $ \s -> s {nodeID = id + 1}
 
 addNode :: CFGNode -> CFGMonad ()
 addNode node = do
   cfg <- gets getCFG
   let nodes = getNodes cfg
-  modify $ \s -> s{getCFG = cfg{getNodes = nodes ++ [node]}}
+  modify $ \s -> s {getCFG = cfg {getNodes = nodes ++ [node]}}
+
+addDummyNode :: CFGMonad CFGNode
+addDummyNode = do
+  dummyID <- gets dummyNodeID
+  modify $ \s -> s { dummyNodeID = dummyID + 1 }
+  return (DummyNode dummyID)
 
 addEdge :: Condition -> CFGNode -> CFGNode -> CFGMonad ()
 addEdge cond src target = do
   cfg <- gets getCFG
   let edges = getEdges cfg
       new = CFGEdge src target cond
-  modify $ \s -> s{getCFG = cfg{getEdges = edges ++ [new]}}
+  modify $ \s -> s {getCFG = cfg {getEdges = edges ++ [new]}}
 
 lookupSymT :: ScopeID -> CFGMonad (Maybe SymbolTable)
 lookupSymT sid = do
@@ -111,7 +121,7 @@ lookupSymT' sid = do
   symT <- lookupSymT sid
   case symT of
     (Just t) -> return t
-    _ -> throwExcept $ sformat ("Symbole table not found for "%int) sid
+    _ -> throwExcept $ sformat ("Symbole table not found for " % int) sid
 
 lookupCurrentSymT' :: CFGMonad SymbolTable
 lookupCurrentSymT' = do
@@ -124,9 +134,9 @@ generateBlockLabel = do
   nodeID <- gets nodeID
   sid <- gets sid
   let tpe = blockType symT
-  return $ sformat (stext%"_"%int%"_"%int) (blockType2Text tpe) sid nodeID
+  return $ sformat (stext % "_" % int % "_" % int) (blockType2Text tpe) sid nodeID
   where
-    blockType2Text (MethodBlock (IR.MethodSig name _ _)) = sformat ("func_"%stext) name
+    blockType2Text (MethodBlock (IR.MethodSig name _ _)) = sformat ("func_" % stext) name
     blockType2Text RootBlock = "root"
     blockType2Text IfBlock = "if"
     blockType2Text ForBlock = "for"
@@ -147,20 +157,40 @@ constructCFG (IR.IRRoot imports decls methods) = do
   where
     allocations = decls <&> IR.VarDeclStmt
 
-constructMethod :: IR.MethodDecl -> CFGMonad ()
+constructMethod :: IR.MethodDecl -> CFGMonad CFGNode
 constructMethod (IR.MethodDecl sig block@(IR.Block fieldDecls statements sid)) = do
   forM_ fieldDecls (putStatement . IR.VarDeclStmt)
   forM_ statements constructStatement
+  _
 
-constructBlock :: IR.Block -> CFGMonad ()
+constructBlock :: IR.Block -> CFGMonad CFGNode
 constructBlock (IR.Block fieldDecls statements sid) = do
   forM_ fieldDecls (putStatement . IR.VarDeclStmt)
   forM_ statements constructStatement
+  inNode <- addDummyNode
+  outNode <- addDummyNode
+  _
 
-constructStatement :: IR.Statement -> CFGMonad ()
+constructStatement :: IR.Statement -> CFGMonad (Maybe (CFGNode, CFGNode))
 constructStatement stm@(IR.ForStmt nm exp1 exp2 assign block) = _
 constructStatement stm@(IR.WhileStmt expr block) = _
-constructStatement stm@(IR.IfStmt pred ifBlock elseBlock) = do
+constructStatement stm@(IR.IfStmt (IR.WithType pred _) ifBlock elseBlock) = do
   prev <- buildNode
-  _
-constructStatement stm = putStatement stm
+  ifNode <- constructBlock ifBlock
+  elseNode <- mapM constructBlock elseBlock
+  inNode <- addDummyNode
+  outNode <- addDummyNode
+  case elseNode of
+    Nothing -> do
+      addEdge (Pred pred) inNode ifNode
+      addEdge (Comp pred) inNode outNode
+      addEdge Always ifNode outNode
+    (Just node) -> do
+      addEdge (Pred pred) inNode ifNode
+      addEdge (Comp pred) inNode node
+      addEdge Always ifNode outNode
+      addEdge Always node outNode
+  return $ Just (inNode, outNode)
+constructStatement stm = do
+  putStatement stm
+  return Nothing

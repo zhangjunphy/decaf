@@ -101,7 +101,7 @@ addNode node = do
 addDummyNode :: CFGMonad CFGNode
 addDummyNode = do
   dummyID <- gets dummyNodeID
-  modify $ \s -> s { dummyNodeID = dummyID + 1 }
+  modify $ \s -> s {dummyNodeID = dummyID + 1}
   return (DummyNode dummyID)
 
 addEdge :: Condition -> CFGNode -> CFGNode -> CFGMonad ()
@@ -110,6 +110,14 @@ addEdge cond src target = do
   let edges = getEdges cfg
       new = CFGEdge src target cond
   modify $ \s -> s {getCFG = cfg {getEdges = edges ++ [new]}}
+
+addSelect :: IR.Expr -> CFGNode -> CFGNode -> CFGNode -> CFGMonad ()
+addSelect pred src true false = do
+  addEdge (Pred pred) src true
+  addEdge (Comp pred) src false
+
+addAlways :: CFGNode -> CFGNode -> CFGMonad ()
+addAlways = addEdge Always
 
 lookupSymT :: ScopeID -> CFGMonad (Maybe SymbolTable)
 lookupSymT sid = do
@@ -163,7 +171,7 @@ constructMethod (IR.MethodDecl sig block@(IR.Block fieldDecls statements sid)) =
   forM_ statements constructStatement
   _
 
-constructBlock :: IR.Block -> CFGMonad CFGNode
+constructBlock :: IR.Block -> CFGMonad (CFGNode, CFGNode)
 constructBlock (IR.Block fieldDecls statements sid) = do
   forM_ fieldDecls (putStatement . IR.VarDeclStmt)
   forM_ statements constructStatement
@@ -172,24 +180,35 @@ constructBlock (IR.Block fieldDecls statements sid) = do
   _
 
 constructStatement :: IR.Statement -> CFGMonad (Maybe (CFGNode, CFGNode))
-constructStatement stm@(IR.ForStmt nm exp1 exp2 assign block) = _
-constructStatement stm@(IR.WhileStmt expr block) = _
+constructStatement
+  stm@( IR.ForStmt
+          nm
+          (IR.WithType init _)
+          (IR.WithType pred _)
+          (IR.Assignment (IR.WithType loc _) op expr)
+          block
+        ) = do
+  _
+constructStatement stm@(IR.WhileStmt (IR.WithType pred _) block) = do
+  (bodyIn, bodyOut) <- constructBlock block
+  inNode <- addDummyNode
+  outNode <- addDummyNode
+  addSelect pred inNode bodyIn outNode
+  addAlways bodyOut inNode
+  return $ Just (inNode, outNode)
 constructStatement stm@(IR.IfStmt (IR.WithType pred _) ifBlock elseBlock) = do
-  prev <- buildNode
-  ifNode <- constructBlock ifBlock
+  (ifIn, ifOut) <- constructBlock ifBlock
   elseNode <- mapM constructBlock elseBlock
   inNode <- addDummyNode
   outNode <- addDummyNode
   case elseNode of
     Nothing -> do
-      addEdge (Pred pred) inNode ifNode
-      addEdge (Comp pred) inNode outNode
-      addEdge Always ifNode outNode
-    (Just node) -> do
-      addEdge (Pred pred) inNode ifNode
-      addEdge (Comp pred) inNode node
-      addEdge Always ifNode outNode
-      addEdge Always node outNode
+      addSelect pred inNode ifIn outNode
+      addAlways ifOut outNode
+    (Just (elseIn, elseOut)) -> do
+      addSelect pred inNode ifIn elseIn
+      addAlways ifOut outNode
+      addAlways elseOut outNode
   return $ Just (inNode, outNode)
 constructStatement stm = do
   putStatement stm

@@ -169,7 +169,7 @@ data Argument = Argument
 
 data MethodSig = MethodSig
   { name :: Name,
-    tpe :: (Maybe Type),
+    tpe :: Maybe Type,
     args :: [Argument]
   }
   deriving (Show, Eq)

@@ -28,7 +28,7 @@ dependencies:
 - mtl
 - bytestring ==0.10.*
 - text ==1.2.*
-- formatting ==6.3.*
+- formatting ==7.1.*
 
 library:
   source-dirs:
@@ -36,7 +36,7 @@ library:
 
   build-tools:
     - alex ==3.2.*
-    - happy ==1.19.*
+    - happy ==1.20.*
 
 executables:
   decafc:

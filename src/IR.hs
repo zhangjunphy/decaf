@@ -195,7 +195,7 @@ data Statement
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
-  | VarDeclStmt {field :: FieldDecl}
+  | VarDeclStmt {field :: FieldDecl} -- TODO: Decide if we are going to use this.
   deriving (Show)
 
 data Expr
@@ -221,7 +221,7 @@ data WithType a = WithType {ele :: a, tpe :: Type}
 
 data Block = Block
   { vars :: [FieldDecl],
-    stats :: [Statement],
+    stmts :: [Statement],
     blockID :: ScopeID
   }
   deriving (Show)

@@ -1,4 +1,4 @@
--- IR -- Decaf Intermidiate code
+-- IR -- Higher level IR close to AST
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -76,7 +76,7 @@ data Type
   = IntType
   | BoolType
   | StringType
-  | ArrayType Type
+  | ArrayType Type Int64
   deriving (Show, Eq)
 
 parseArithOp :: Text -> ArithOp

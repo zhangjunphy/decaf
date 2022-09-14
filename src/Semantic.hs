@@ -102,13 +102,13 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticAnalysis :: P.Program -> Either String (IRRoot, [SemanticError], SemanticState)
+runSemanticAnalysis :: P.Program -> Either String (IRRoot, [SemanticError], Map ScopeID SymbolTable)
 runSemanticAnalysis p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
         Left (SemanticException (P.Posn row col) msg) -> Left $ formatToString ("[" % int % ":" % int % "] " % stext) row col msg
-        Right a -> Right (a, errors, state)
+        Right a -> Right (a, errors, symbolTables state)
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -585,7 +585,7 @@ irgenLocation (P.ScalarLocation id) = do
   -- Semantic[12]
   case sz of
     Nothing -> return $ WithType (Location id Nothing def) tpe
-    Just _ -> return $ WithType (Location id Nothing def) (ArrayType tpe)
+    Just v -> return $ WithType (Location id Nothing def) (ArrayType tpe v)
 irgenLocation (P.VectorLocation id expr) = do
   (WithType expr' indexTpe) <- irgenExpr expr
   -- Semantic[10] (checked in lookupVariable')
@@ -675,7 +675,7 @@ irgenMethod (P.MethodCall method args') = do
                   mismatch
             )
     arrayOrStringTypePred (WithType _ tpe) = case tpe of
-      ArrayType _ -> True
+      ArrayType _ _ -> True
       StringType -> True
       _ -> False
     checkForArrayArg args =

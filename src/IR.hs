@@ -127,6 +127,10 @@ data Location = Location
     variableDef :: Either Argument FieldDecl
   }
 
+typeOfDef :: Either Argument FieldDecl -> Type
+typeOfDef (Left (Argument _ tpe)) = tpe
+typeOfDef (Right (FieldDecl _ tpe)) = tpe
+
 instance Show Location where
   show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
 
@@ -156,8 +160,7 @@ data ImportDecl = ImportDecl {name :: Name}
 
 data FieldDecl = FieldDecl
   { name :: Name,
-    tpe :: Type,
-    size :: Maybe Int64
+    tpe :: Type
   }
   deriving (Show)
 

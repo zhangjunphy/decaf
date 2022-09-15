@@ -20,6 +20,8 @@ module Semantic
     SymbolTable (..),
     ScopeID,
     BlockType (..),
+    lookupLocalVariableFromST,
+    lookupLocalMethodFromST,
   )
 where
 
@@ -367,7 +369,7 @@ addVariableDef def = do
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
   case def of
-    (FieldDecl _ _ (Just sz))
+    (FieldDecl _ (ArrayType _ sz))
       | sz < 0 ->
         addSemanticError $ sformat ("Invalid size of array " % stext) nm
     _ -> return ()
@@ -538,11 +540,11 @@ irgenFieldDecls ((P.WithPos decl pos) : rest) = do
       elems <&> \e -> case e of
         (P.WithPos (P.ScalarField id) pos) -> do
           updatePosn pos
-          return $ FieldDecl id (irgenType tpe) Nothing
+          return $ FieldDecl id (irgenType tpe)
         (P.WithPos (P.VectorField id size) pos) -> do
           updatePosn pos
           sz <- checkInt64Literal size
-          return $ FieldDecl id (irgenType tpe) (Just sz)
+          return $ FieldDecl id (irgenType tpe)
     addVariables [] = return []
     addVariables (v : vs) = do
       addVariableDef v
@@ -580,8 +582,15 @@ irgenLocation :: P.Location -> Semantic (WithType Location)
 irgenLocation (P.ScalarLocation id) = do
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariable' id
-  let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
-  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe') -> tpe') def
+  let sz =
+        either
+          (const Nothing)
+          ( \(FieldDecl _ tpe) -> case tpe of
+              (ArrayType _ sz') -> Just sz'
+              _ -> Nothing
+          )
+          def
   -- Semantic[12]
   case sz of
     Nothing -> return $ WithType (Location id Nothing def) tpe
@@ -590,8 +599,15 @@ irgenLocation (P.VectorLocation id expr) = do
   (WithType expr' indexTpe) <- irgenExpr expr
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariable' id
-  let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe' _) -> tpe') def
-  let sz = either (const Nothing) (\(FieldDecl _ _ sz') -> sz') def
+  let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe') -> tpe') def
+  let sz =
+        either
+          (const Nothing)
+          ( \(FieldDecl _ tpe) -> case tpe of
+              (ArrayType _ sz') -> Just sz'
+              _ -> Nothing
+          )
+          def
   -- Semantic[12]
   when (indexTpe /= IntType) (addSemanticError "Index must be of int type!")
   case sz of
@@ -796,10 +812,8 @@ irgenExpr (P.WithPos (P.LenExpr id) pos) = do
   -- Semantic[13]
   case def of
     Left (Argument nm _) -> addSemanticError $ sformat ("len cannot operate on argument " % stext % "!") nm
-    Right (FieldDecl nm _ sz) ->
-      when
-        (isNothing sz)
-        (addSemanticError $ sformat ("len cannot operate on scalar variable " % stext % "!") nm)
+    Right (FieldDecl nm (ArrayType _ _)) -> return ()
+    Right (FieldDecl nm _) -> addSemanticError $ sformat ("len cannot operate on scalar variable " % stext % "!") nm
   return $ WithType (LengthExpr id) IntType
 irgenExpr (P.WithPos (P.ArithOpExpr op l r) pos) = do
   updatePosn pos

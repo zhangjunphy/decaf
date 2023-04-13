@@ -15,6 +15,8 @@
 
 module SSA where
 
+{-
+
 import Constants
 import Control.Applicative ((<|>))
 import Control.Monad.Except
@@ -41,7 +43,7 @@ data Type
   | PtrType Type
   | ArrayType Type Int64
   | VoidType
-  deriving (Show)
+  deriving (Show, Eq)
 
 isIntegerType :: Type -> Bool
 isIntegerType Int64Type = True
@@ -81,13 +83,6 @@ typeOfOpd :: Operand -> Type
 typeOfOpd (ImmVal (Int64Imm _)) = Int64Type
 typeOfOpd (ImmVal (Int8Imm _)) = Int8Type
 typeOfOpd (Var (Identifier _ tpe)) = tpe
-
-data Block = Block
-  { label :: BlockLabel,
-    arguments :: [Identifier],
-    operations :: [Operation]
-  }
-  deriving (Show)
 
 data BinaryOperator
   = Add
@@ -145,7 +140,7 @@ data Operation
       }
   | CallOperation
       { method :: MethodID,
-        ret :: Maybe Identifier,
+        ret :: Identifier,
         args :: [Operand]
       }
   | Return
@@ -166,11 +161,17 @@ data Operation
       }
   deriving (Show)
 
+data Block = Block
+  { label :: BlockLabel,
+    arguments :: [Identifier],
+    operations :: [Operation]
+  }
+  deriving (Show)
+
 data Method = Method
   { name :: Text,
     retType :: Type,
-    params :: [Identifier],
-    body :: [Operation]
+    params :: [Identifier]
   }
   deriving (Show)
 
@@ -269,14 +270,6 @@ assocSymbolAndIdentifier nm id = do
 addOperation :: Operation -> SSAGen ()
 addOperation op = tell [op]
 
-generateBlock :: [(IR.Name, Identifier)] -> IR.Block -> SSAGen ()
-generateBlock envVars block@(IR.Block fileds stmts scope) = do
-  parentScope <- gets scopeID
-  modify' (\s -> s {scopeID = scope})
-  forM_ envVars (uncurry assocSymbolAndIdentifier)
-  mapM_ generateStmt stmts
-  modify' (\s -> s {scopeID = parentScope})
-
 isGlobalScope :: IR.ScopeID -> Bool
 isGlobalScope scope = scope == globalScopeID
 
@@ -309,24 +302,24 @@ int64Imm val = do
 boolImm :: Bool -> SSAGen Identifier
 boolImm val = do
   id <- genIdentifier Int8Type
-  int8 <- if val then 1 else 0
+  let int8 = if val then 1 else 0
   addOperation $ BinaryOperation id Add (ImmVal $ Int8Imm int8, ImmVal $ Int8Imm 0)
   return id
 
 charImm :: Char -> SSAGen Identifier
 charImm val = do
   id <- genIdentifier Int8Type
-  addOperation $ BinaryOperation id Add (ImmVal $ Int8Imm $ fromIntegral val, ImmVal $ Int8Imm 0)
+  addOperation $ BinaryOperation id Add (ImmVal $ Int8Imm $ fromIntegral $ ord val, ImmVal $ Int8Imm 0)
   return id
 
 stringLit :: Text -> SSAGen Identifier
 stringLit s = do
-  id' <- alloc Int8Type $ fromIntegral length s
+  id' <- alloc Int8Type $ fromIntegral $ Text.length s
   let chars = Text.foldl' (\l c -> l ++ [c]) [] s
   mapM_
     ( \(idx, char) -> do
         ptr <- ptrAdd id' (ImmVal $ Int64Imm $ fromIntegral idx)
-        store ptr $ ImmVal $ Int8Imm $ fromIntegral char
+        store ptr $ ImmVal $ Int8Imm $ fromIntegral $ ord char
     )
     $ zip [1 .. length chars] chars
   return id'
@@ -368,9 +361,9 @@ mul l r = do
   addOperation $ BinaryOperation id Mul (l, r)
   return id
 
-call :: MethodID -> [Operand] -> Maybe Type -> SSAGen (Maybe Identifier)
+call :: MethodID -> [Operand] -> Type -> SSAGen Identifier
 call method args tpe = do
-  id <- mapM genIdentifier tpe
+  id <- genIdentifier tpe
   addOperation $ CallOperation method id args
   return id
 
@@ -382,7 +375,7 @@ generatePtrLoad ptr@(Identifier i (PtrType t)) = do
 generatePtrLoad id = throw $ sformat ("Loading non pointer type " % string) (show id)
 
 arrayLocToPtr :: IR.Location -> SSAGen Identifier
-arrayLocToPtr (IR.Location nm (Just sz) def) = do 
+arrayLocToPtr (IR.Location nm (Just sz) def) = do
   ptr <- readSymbol nm
   (_, def) <- lookupVariable' nm
   let tp = either (\(IR.Argument _ tpe) -> tpe) (\(IR.FieldDecl _ tpe) -> tpe) def
@@ -408,7 +401,7 @@ writeLoc (IR.Location nm Nothing def) v@(Identifier _ tpe) = do
   if isGlobalScope scope
     then store id (Var v)
     else assocSymbolAndIdentifier nm v
-writeLoc loc@(IR.Location nm (Just _) def) v = do 
+writeLoc loc@(IR.Location nm (Just _) def) v = do
   ptr <- arrayLocToPtr loc
   store ptr (Var v)
 
@@ -423,8 +416,8 @@ generateExpr (IR.MethodCallExpr (IR.MethodCall nm args)) = do
       _ -> throw $ sformat ("Method " % stext % " with no return val cannot be used in expression.") nm
   ids' <- mapM (\(IR.WithType e _) -> generateExpr e) args
   args' <- mapM (return . Var) ids'
-  (Just ret) <- call (methodID methodScope nm) args' (Just retType)
-  return ret
+  call (methodID methodScope nm) args' retType
+
 generateExpr (IR.ExternCallExpr _ _) = throw "External function call not supported yet!"
 generateExpr (IR.IntLiteralExpr lit) = int64Imm lit
 generateExpr (IR.BoolLiteralExpr lit) = boolImm lit
@@ -464,29 +457,38 @@ generateExpr (IR.LengthExpr nm) = do
   int64Imm sz
 
 generateStmt :: IR.Statement -> SSAGen ()
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.EqlAssign (Just (IR.WithType expr _)))) = do 
+generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.EqlAssign (Just (IR.WithType expr _)))) = do
   v' <- generateExpr expr
   writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.PlusPlus Nothing)) = do 
+generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.PlusPlus Nothing)) = do
   v <- readSymbol nm
   v' <- binOp Add (Var v) (ImmVal $ Int64Imm 1)
   writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.MinusMinus Nothing)) = do 
+generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.MinusMinus Nothing)) = do
   v <- readSymbol nm
   v' <- binOp Minus (Var v) (ImmVal $ Int64Imm 1)
   writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.IncAssign (Just (IR.WithType expr _)))) = do 
+generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.IncAssign (Just (IR.WithType expr _)))) = do
   v <- readSymbol nm
   inc <- generateExpr expr
   v' <- binOp Add (Var v) (Var inc)
   writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.DecAssign (Just (IR.WithType expr _)))) = do 
+generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.DecAssign (Just (IR.WithType expr _)))) = do
   v <- readSymbol nm
   inc <- generateExpr expr
   v' <- binOp Minus (Var v) (Var inc)
   writeLoc loc v'
 generateStmt (IR.AssignStmt _) = throw "Invalid assign statement!"
 generateStmt (IR.IfStmt (IR.WithType pred _) thenBlock elseBlock) = do
+  _
+
+generateBlock :: [(IR.Name, Identifier)] -> IR.Block -> SSAGen Block
+generateBlock envVars block@(IR.Block fileds stmts scope) = do
+  parentScope <- gets scopeID
+  modify' (\s -> s {scopeID = scope})
+  forM_ envVars (uncurry assocSymbolAndIdentifier)
+  mapM_ generateStmt stmts
+  modify' (\s -> s {scopeID = parentScope})
   _
 
 methodParams :: IR.MethodSig -> SSAGen [(IR.Name, Identifier)]
@@ -498,12 +500,14 @@ methodParams sig@(IR.MethodSig _ _ args) =
       id <- genIdentifier tpe'
       return $ l ++ [(nm, id)]
 
-generateMethod :: IR.MethodDecl -> SSAGen Method
-generateMethod md@(IR.MethodDecl sig@(IR.MethodSig nm tpe args) block) = do
-  let retType = maybe VoidType convertIRType tpe
-  params <- methodParams sig
-  body <- generateBlock params block
-  return $ Method nm retType (snd <$> params) body
+-- generateMethod :: IR.MethodDecl -> SSAGen Method
+-- generateMethod md@(IR.MethodDecl sig@(IR.MethodSig nm tpe args) block) = do
+--   let retType = maybe VoidType convertIRType tpe
+--   params <- methodParams sig
+--   body <- generateBlock params block
+--   return $ Method nm retType (snd <$> params) body
 
 --generateSSA :: IR.IRRoot -> Map IR.ScopeID SE.SymbolTable -> SSAForm
 --generateSSA ir st = _
+
+-}

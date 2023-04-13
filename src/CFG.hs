@@ -22,22 +22,22 @@ import Control.Monad.Writer
 import Data.Map (Map)
 import Data.Text (Text)
 import qualified Graph as G
-import qualified IR
+import qualified AST
 import qualified Semantic as SE
 
 type Label = Text
 
 data Condition
-  = Pred {pred :: IR.Expr}
+  = Pred {pred :: AST.Expr}
   | Complement
   deriving (Show)
 
 data CFGContext = CFGContext
-  { symbolTables :: Map IR.ScopeID SE.SymbolTable
+  { symbolTables :: Map AST.ScopeID SE.SymbolTable
   }
 
 data CFGNodeData
-  = StatementNode IR.Statement
+  = StatementNode AST.Statement
 
 data CFGEdgeData
   = SeqEdge
@@ -45,7 +45,7 @@ data CFGEdgeData
 
 data CFGState = CFGState
   { cfg :: G.Graph CFGNodeData CFGEdgeData,
-    sid :: IR.ScopeID
+    sid :: AST.ScopeID
   }
 
 newtype CFGExcept = CFGExcept Text

@@ -1,4 +1,4 @@
--- IR -- Higher level IR close to AST
+-- AST -- Abstract Syntax Tree
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -14,7 +14,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module IR where
+module AST where
 
 import Data.Int (Int64)
 import Data.Text (Text)
@@ -147,8 +147,8 @@ data MethodCall = MethodCall
   }
   deriving (Show)
 
--- ir nodes
-data IRRoot = IRRoot
+-- AST nodes
+data ASTRoot = ASTRoot
   { imports :: [ImportDecl],
     vars :: [FieldDecl],
     methods :: [MethodDecl]

@@ -41,7 +41,7 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
 import Formatting
-import IR
+import AST 
 import qualified Parser as P
 
 ---------------------------------------
@@ -104,7 +104,7 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticAnalysis :: P.Program -> Either String (IRRoot, [SemanticError], Map ScopeID SymbolTable)
+runSemanticAnalysis :: P.Program -> Either String (ASTRoot, [SemanticError], Map ScopeID SymbolTable)
 runSemanticAnalysis p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
@@ -262,7 +262,7 @@ exitScope = do
           put $ state {currentScopeID = scopeID p}
 
 ----------------------------------------------------------------------
--- Convert the parser tree into an IR tree
+-- Convert the parser tree into an AST
 -- Generate symbol tables at the same time.
 -- Also detects semantic errors.
 ----------------------------------------------------------------------
@@ -474,7 +474,7 @@ isInsideLoop = do
   Methods to generate ir piece by piece.
 -}
 
-irgenRoot :: P.Program -> Semantic IRRoot
+irgenRoot :: P.Program -> Semantic ASTRoot
 irgenRoot (P.Program imports fields methods) = do
   imports' <- irgenImports imports
   variables' <- irgenFieldDecls fields
@@ -492,7 +492,7 @@ irgenRoot (P.Program imports fields methods) = do
       checkMainRetType retType
       checkMainArgsType args
     Nothing -> return ()
-  return $ IRRoot imports' variables' methods'
+  return $ ASTRoot imports' variables' methods'
   where
     checkMainExist main =
       case main of

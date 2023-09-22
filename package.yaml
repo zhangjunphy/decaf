@@ -26,16 +26,16 @@ dependencies:
 - transformers ==0.5.*
 - containers >=0.4
 - mtl
-- bytestring ==0.10.*
-- text ==1.2.*
-- formatting ==7.1.*
+- bytestring ==0.11.*
+- text ==2.0.*
+- formatting ==7.2.*
 
 library:
   source-dirs:
     - src
 
   build-tools:
-    - alex ==3.2.*
+    - alex ==3.3.*
     - happy ==1.20.*
 
 executables:

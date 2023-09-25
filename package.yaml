@@ -29,6 +29,8 @@ dependencies:
 - bytestring ==0.11.*
 - text ==2.0.*
 - formatting ==7.2.*
+- lens ==5.2.*
+- generic-lens ==2.2.*
 
 library:
   source-dirs:

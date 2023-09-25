@@ -1,4 +1,4 @@
--- AST -- Abstract Syntax Tree
+-- AST -- AST after type checking and clean up
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -9,12 +9,17 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 module AST where
+
+import GHC.Generics (Generic)
 
 import Data.Int (Int64)
 import Data.Text (Text)
@@ -139,13 +144,13 @@ data Assignment = Assignment
     op :: AssignOp,
     expr :: Maybe (WithType Expr)
   }
-  deriving (Show)
+  deriving (Generic, Show)
 
 data MethodCall = MethodCall
   { name :: Name,
     args :: [WithType Expr]
   }
-  deriving (Show)
+  deriving (Generic, Show)
 
 -- AST nodes
 data ASTRoot = ASTRoot
@@ -153,35 +158,35 @@ data ASTRoot = ASTRoot
     vars :: [FieldDecl],
     methods :: [MethodDecl]
   }
-  deriving (Show)
+  deriving (Generic, Show)
 
 data ImportDecl = ImportDecl {name :: Name}
-  deriving (Show)
+  deriving (Generic, Show)
 
 data FieldDecl = FieldDecl
   { name :: Name,
     tpe :: Type
   }
-  deriving (Show)
+  deriving (Generic, Show)
 
 data Argument = Argument
   { name :: Name,
     tpe :: Type
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
 
 data MethodSig = MethodSig
   { name :: Name,
     tpe :: Maybe Type,
     args :: [Argument]
   }
-  deriving (Show, Eq)
+  deriving (Generic, Show, Eq)
 
 data MethodDecl = MethodDecl
   { sig :: MethodSig,
     block :: Block
   }
-  deriving (Show)
+  deriving (Generic, Show)
 
 data Statement
   = AssignStmt {assign :: Assignment}
@@ -199,7 +204,7 @@ data Statement
   | BreakStmt
   | ContinueStmt
   | VarDeclStmt {field :: FieldDecl} -- TODO: Decide if we are going to use this.
-  deriving (Show)
+  deriving (Generic, Show)
 
 data Expr
   = LocationExpr {location :: Location}
@@ -217,14 +222,14 @@ data Expr
   | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
   | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
   | LengthExpr {name :: Name}
-  deriving (Show)
+  deriving (Generic, Show)
 
 data WithType a = WithType {ele :: a, tpe :: Type}
-  deriving (Show)
+  deriving (Generic, Show)
 
 data Block = Block
   { vars :: [FieldDecl],
     stmts :: [Statement],
     blockID :: ScopeID
   }
-  deriving (Show)
+  deriving (Generic, Show)

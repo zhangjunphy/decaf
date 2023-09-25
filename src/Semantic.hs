@@ -14,6 +14,7 @@
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedLabels #-}
 
 module Semantic
   ( runSemanticAnalysis,
@@ -26,6 +27,10 @@ module Semantic
 where
 
 import Constants
+import Formatting
+import AST 
+import qualified Parser as P
+
 import Control.Applicative ((<|>))
 import Control.Monad.Except
 import Control.Monad.State
@@ -40,9 +45,9 @@ import Data.Maybe (isJust, isNothing)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
-import Formatting
-import AST 
-import qualified Parser as P
+
+import Control.Lens (view)
+import Data.Generics.Labels ()
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -361,11 +366,11 @@ addVariableDef :: FieldDecl -> Semantic ()
 addVariableDef def = do
   localST <- getSymbolTable'
   -- Semantic[1]
-  let nm = name (def :: FieldDecl)
+  let nm = view #name def
   when
     (isJust (lookupLocalVariableFromST nm localST))
     (addSemanticError $ sformat ("duplicate definition for variable " % stext) $ nm)
-  let variableSymbols' = Map.insert (name (def :: FieldDecl)) def (variableSymbols localST)
+  let variableSymbols' = Map.insert (view #name (def :: FieldDecl)) def (variableSymbols localST)
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
   case def of
@@ -380,11 +385,11 @@ addImportDef def = do
   localST <- getSymbolTable'
   importTable <- getLocalImports'
   -- Semantic[1]
-  let nm = name (def :: ImportDecl)
+  let nm = view #name def
   when
-    (isJust $ Map.lookup (name (def :: ImportDecl)) importTable)
+    (isJust $ Map.lookup (view #name (def :: ImportDecl)) importTable)
     (addSemanticError $ sformat ("duplicate import " % stext) nm)
-  let importSymbols' = Map.insert (name (def :: ImportDecl)) def importTable
+  let importSymbols' = Map.insert (view #name (def :: ImportDecl)) def importTable
       newST = localST {importSymbols = Just importSymbols'}
   updateSymbolTable newST
 
@@ -393,7 +398,7 @@ addMethodDef def = do
   localST <- getSymbolTable'
   methodTable <- getLocalMethods'
   -- Semantic[1]
-  let nm = name (sig def :: MethodSig)
+  let nm = view #name (view #sig def)
   when
     (isJust $ lookupLocalMethodFromST nm localST)
     (addSemanticError $ sformat ("duplicate definition for method " % stext) nm)
@@ -487,7 +492,7 @@ irgenRoot (P.Program imports fields methods) = do
         methodSyms <- methodSymbols globalTable
         Map.lookup mainMethodName methodSyms
   mainDecl <- checkMainExist main
-  case mainDecl >>= Just . sig of
+  case mainDecl >>= Just . view #sig of
     Just (MethodSig _ retType args) -> do
       checkMainRetType retType
       checkMainArgsType args
@@ -663,7 +668,7 @@ irgenMethod (P.MethodCall method args') = do
     Just decl -> case decl of
       Left _ -> return $ MethodCall method argsWithType
       Right m -> do
-        let formal = args (sig m :: MethodSig)
+        let formal = view #args (view #sig m :: MethodSig)
         -- Semantic[5] and Semantic[7]
         checkCallingSemantics formal argsWithType
         return $ MethodCall method argsWithType
@@ -695,7 +700,7 @@ irgenMethod (P.MethodCall method args') = do
       StringType -> True
       _ -> False
     checkForArrayArg args =
-      let arrayArgs = map ele $ filter arrayOrStringTypePred args
+      let arrayArgs = map (view #ele) $ filter arrayOrStringTypePred args
        in unless
             (null arrayArgs)
             ( addSemanticError $

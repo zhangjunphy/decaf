@@ -29,18 +29,16 @@ module Parser ( parse
               , ImportArg(..)
               , CounterUpdate(..)
               , Expr(..)
-              , Posn(..)
-              , WithPos(..)
               ) where
 
 import Scanner ( Token(..)
                , Alex(..)
-               , AlexPosn(..)
                , runAlex
                , alexMonadScan
-               , getLexerPosn
-               , AlexState(..)
+               , getLexerRange
                )
+
+import SourceLoc as SL
 
 import Text.Printf (printf)
 import Data.Text (Text)
@@ -129,47 +127,47 @@ Program : ImportDecls FieldDecls MethodDecls                { Program (reverse $
 
 ImportDecls : {- empty -}                                   { [] }
             | ImportDecls ImportDecl                        { $2 : $1 }
-ImportDecl : import id ';'                                  {% insertPosn$ ImportDecl $2 }
+ImportDecl : import id ';'                                  {% insertRange$ ImportDecl $2 }
 
 FieldDecls : {- empty -}                                    { [] }
            | FieldDecls FieldDecl                           { $2 : $1 }
-FieldDecl : int FieldList ';'                               {% insertPosn $ FieldDecl IntType (reverse $2) }
-          | bool FieldList ';'                              {% insertPosn $ FieldDecl BoolType (reverse $2) }
+FieldDecl : int FieldList ';'                               {% insertRange $ FieldDecl IntType (reverse $2) }
+          | bool FieldList ';'                              {% insertRange $ FieldDecl BoolType (reverse $2) }
 
 FieldList : FieldElem                                       { [$1] }
           | FieldList ',' FieldElem                         { $3 : $1 }
-FieldElem : id                                              {% insertPosn $ ScalarField $1 }
-          | id '[' intLiteral ']'                           {% insertPosn $ VectorField $1 $3 }
+FieldElem : id                                              {% insertRange $ ScalarField $1 }
+          | id '[' intLiteral ']'                           {% insertRange $ VectorField $1 $3 }
 
 MethodDecls : {- empty -}                                   { [] }
             | MethodDecl MethodDecls                        { $1 : $2 }
-MethodDecl : int id '(' ArgumentList ')' Block              {% insertPosn $ MethodDecl $2 (Just IntType) (reverse $4) $6 }
-           | bool id '(' ArgumentList ')' Block             {% insertPosn $ MethodDecl $2 (Just BoolType) (reverse $4) $6 }
-           | void id '(' ArgumentList ')' Block             {% insertPosn $ MethodDecl $2 Nothing (reverse $4) $6 }
-           | int id '(' ')' Block                           {% insertPosn $ MethodDecl $2 (Just IntType) [] $5 }
-           | bool id '(' ')' Block                          {% insertPosn $ MethodDecl $2 (Just BoolType) [] $5 }
-           | void id '(' ')' Block                          {% insertPosn $ MethodDecl $2 Nothing [] $5 }
+MethodDecl : int id '(' ArgumentList ')' Block              {% insertRange $ MethodDecl $2 (Just IntType) (reverse $4) $6 }
+           | bool id '(' ArgumentList ')' Block             {% insertRange $ MethodDecl $2 (Just BoolType) (reverse $4) $6 }
+           | void id '(' ArgumentList ')' Block             {% insertRange $ MethodDecl $2 Nothing (reverse $4) $6 }
+           | int id '(' ')' Block                           {% insertRange $ MethodDecl $2 (Just IntType) [] $5 }
+           | bool id '(' ')' Block                          {% insertRange $ MethodDecl $2 (Just BoolType) [] $5 }
+           | void id '(' ')' Block                          {% insertRange $ MethodDecl $2 Nothing [] $5 }
 
 ArgumentList : Argument                                     { [$1] }
              | ArgumentList ',' Argument                    { $3 : $1 }
-Argument : int id                                           {% insertPosn $ Argument $2 IntType }
-         | bool id                                          {% insertPosn $ Argument $2 BoolType }
+Argument : int id                                           {% insertRange $ Argument $2 IntType }
+         | bool id                                          {% insertRange $ Argument $2 BoolType }
 
 Block : '{' FieldDecls Statements '}'                       { Block $2 (reverse $3) }
 
 Statements : {- empty -}                                    { [] }
            | Statements Statement                           { $2 : $1 }
 
-Statement : Location AssignExpr ';'                         {% insertPosn $ AssignStatement $1 $2 }
-          | MethodCall ';'                                  {% insertPosn $ MethodCallStatement $1 }
-          | if '(' Expr ')' Block                           {% insertPosn $ IfStatement $3 $5 }
-          | if '(' Expr ')' Block else Block                {% insertPosn $ IfElseStatement $3 $5 $7 }
-          | for '(' id '=' Expr ';' Expr ';' CounterUpdate ')' Block    {% insertPosn $ ForStatement $3 $5 $7 $9 $11 }
-          | while '(' Expr ')' Block                        {% insertPosn $ WhileStatement $3 $5 }
-          | return ';'                                      {% insertPosn $ ReturnVoidStatement }
-          | return Expr ';'                                 {% insertPosn $ ReturnExprStatement $2 }
-          | break ';'                                       {% insertPosn $ BreakStatement }
-          | continue ';'                                    {% insertPosn $ ContinueStatement }
+Statement : Location AssignExpr ';'                         {% insertRange $ AssignStatement $1 $2 }
+          | MethodCall ';'                                  {% insertRange $ MethodCallStatement $1 }
+          | if '(' Expr ')' Block                           {% insertRange $ IfStatement $3 $5 }
+          | if '(' Expr ')' Block else Block                {% insertRange $ IfElseStatement $3 $5 $7 }
+          | for '(' id '=' Expr ';' Expr ';' CounterUpdate ')' Block    {% insertRange $ ForStatement $3 $5 $7 $9 $11 }
+          | while '(' Expr ')' Block                        {% insertRange $ WhileStatement $3 $5 }
+          | return ';'                                      {% insertRange $ ReturnVoidStatement }
+          | return Expr ';'                                 {% insertRange $ ReturnExprStatement $2 }
+          | break ';'                                       {% insertRange $ BreakStatement }
+          | continue ';'                                    {% insertRange $ ContinueStatement }
 
 CounterUpdate : Location AssignExpr                         { CounterUpdate $1 $2 }
 
@@ -185,40 +183,37 @@ AssignOp : '='                                              { "=" }
 MethodCall : id '(' ImportArgs ')'                          { MethodCall $1 (reverse $3) }
            | id '(' ')'                                     { MethodCall $1 [] }
 
-ImportArgs : ImportArg                                      { [$1] }
+ImportArgs : ImportArg                                      {[$1] }
            | ImportArgs ',' ImportArg                       { $3 : $1 }
 
-ImportArg : Expr                                            { ExprImportArg $1 }
-          | stringLiteral                                   {% do
-                                                                pos <- getPosn
-                                                                return $ StringImportArg $ WithPos $1 pos
-                                                            }
+ImportArg : Expr                                            {% insertRange $ ExprImportArg $1 }
+          | stringLiteral                                   {% insertRange $ StringImportArg $1 }
 
 Expr : Expr1                                                { $1 }
-     | Expr1 '?' Expr1 '\:' Expr                            {% insertPosn $ ChoiceExpr $1 $3 $5 }
+     | Expr1 '?' Expr1 '\:' Expr                            {% insertRange $ ChoiceExpr $1 $3 $5 }
 
-Expr1 : Location                                            {% insertPosn $ LocationExpr $1 }
-      | MethodCall                                          {% insertPosn $ MethodCallExpr $1 }
-      | intLiteral                                          {% insertPosn $ IntLiteralExpr $1 }
-      | charLiteral                                         {% insertPosn $ CharLiteralExpr $1 }
-      | boolLiteral                                         {% insertPosn $ BoolLiteralExpr $1 }
-      | len '(' id ')'                                      {% insertPosn $ LenExpr $3 }
-      | Expr1 '+' Expr1                                     {% insertPosn $ ArithOpExpr "+" $1 $3 }
-      | Expr1 '-' Expr1                                     {% insertPosn $ ArithOpExpr "-" $1 $3 }
-      | Expr1 '*' Expr1                                     {% insertPosn $ ArithOpExpr "*" $1 $3 }
-      | Expr1 '/' Expr1                                     {% insertPosn $ ArithOpExpr "/" $1 $3 }
-      | Expr1 '%' Expr1                                     {% insertPosn $ ArithOpExpr "%" $1 $3 }
-      | Expr1 '<' Expr1                                     {% insertPosn $ RelOpExpr "<" $1 $3 }
-      | Expr1 '<=' Expr1                                    {% insertPosn $ RelOpExpr "<=" $1 $3 }
-      | Expr1 '>' Expr1                                     {% insertPosn $ RelOpExpr ">" $1 $3 }
-      | Expr1 '>=' Expr1                                    {% insertPosn $ RelOpExpr ">=" $1 $3 }
-      | Expr1 '==' Expr1                                    {% insertPosn $ EqOpExpr "==" $1 $3 }
-      | Expr1 '!=' Expr1                                    {% insertPosn $ EqOpExpr "!=" $1 $3 }
-      | Expr1 '&&' Expr1                                    {% insertPosn $ CondOpExpr "&&" $1 $3 }
-      | Expr1 '||' Expr1                                    {% insertPosn $ CondOpExpr "||" $1 $3 }
-      | '-' Expr1 %prec NEG                                 {% insertPosn $ NegativeExpr $2 }
-      | '!' Expr1                                           {% insertPosn $ NegateExpr $2 }
-      | '(' Expr1 ')'                                       {% insertPosn $ ParenExpr $2 }
+Expr1 : Location                                            {% insertRange $ LocationExpr $1 }
+      | MethodCall                                          {% insertRange $ MethodCallExpr $1 }
+      | intLiteral                                          {% insertRange $ IntLiteralExpr $1 }
+      | charLiteral                                         {% insertRange $ CharLiteralExpr $1 }
+      | boolLiteral                                         {% insertRange $ BoolLiteralExpr $1 }
+      | len '(' id ')'                                      {% insertRange $ LenExpr $3 }
+      | Expr1 '+' Expr1                                     {% insertRange $ ArithOpExpr "+" $1 $3 }
+      | Expr1 '-' Expr1                                     {% insertRange $ ArithOpExpr "-" $1 $3 }
+      | Expr1 '*' Expr1                                     {% insertRange $ ArithOpExpr "*" $1 $3 }
+      | Expr1 '/' Expr1                                     {% insertRange $ ArithOpExpr "/" $1 $3 }
+      | Expr1 '%' Expr1                                     {% insertRange $ ArithOpExpr "%" $1 $3 }
+      | Expr1 '<' Expr1                                     {% insertRange $ RelOpExpr "<" $1 $3 }
+      | Expr1 '<=' Expr1                                    {% insertRange $ RelOpExpr "<=" $1 $3 }
+      | Expr1 '>' Expr1                                     {% insertRange $ RelOpExpr ">" $1 $3 }
+      | Expr1 '>=' Expr1                                    {% insertRange $ RelOpExpr ">=" $1 $3 }
+      | Expr1 '==' Expr1                                    {% insertRange $ EqOpExpr "==" $1 $3 }
+      | Expr1 '!=' Expr1                                    {% insertRange $ EqOpExpr "!=" $1 $3 }
+      | Expr1 '&&' Expr1                                    {% insertRange $ CondOpExpr "&&" $1 $3 }
+      | Expr1 '||' Expr1                                    {% insertRange $ CondOpExpr "||" $1 $3 }
+      | '-' Expr1 %prec NEG                                 {% insertRange $ NegativeExpr $2 }
+      | '!' Expr1                                           {% insertRange $ NegateExpr $2 }
+      | '(' Expr1 ')'                                       {% insertRange $ ParenExpr $2 }
 
 ----------------------------------- Haskell -----------------------------------
 {
@@ -228,33 +223,30 @@ lexerwrap s = do
   token <- alexMonadScan
   s token
 
-getPosn :: Alex Posn
-getPosn = do
-  (AlexPn _ row col) <- getLexerPosn
-  return $ Posn row col
+insertRange :: a -> Alex (SL.Located a)
+insertRange a = do
+  range <- getLexerRange
+  return $ SL.LocatedAt range a
 
-insertPosn :: a -> Alex (WithPos a)
-insertPosn a = do
-  pos <- getPosn
-  return WithPos{unPos=a, getPos=pos}
+withRange :: (SL.Range -> a) -> Alex a
+withRange f = do
+  range <- getLexerRange
+  return $ f range
 
 data Posn = Posn { row :: Int
                  , col :: Int
                  } deriving (Show, Eq, Ord)
 
-data WithPos a = WithPos { unPos :: a, getPos :: Posn }
-                 deriving (Show)
-
-data Program = Program { importDecls :: [WithPos ImportDecl]
-                       , fieldDecls :: [WithPos FieldDecl]
-                       , methodDecls :: [WithPos MethodDecl]
+data Program = Program { importDecls :: [SL.Located ImportDecl]
+                       , fieldDecls :: [SL.Located FieldDecl]
+                       , methodDecls :: [SL.Located MethodDecl]
                        } deriving (Show)
 
 data ImportDecl = ImportDecl { importId :: Text }
                   deriving (Show)
 
 data FieldDecl = FieldDecl { fieldType :: Type
-                           , elems:: [WithPos FieldElem]
+                           , elems:: [SL.Located FieldElem]
                            } deriving (Show)
 
 data FieldElem = ScalarField { fieldId :: Text }
@@ -266,7 +258,7 @@ data Type = IntType | BoolType
 
 data MethodDecl = MethodDecl { methodId :: Text
                              , returnType :: Maybe Type
-                             , arguments :: [WithPos Argument]
+                             , arguments :: [SL.Located Argument]
                              , block :: Block
                              } deriving (Show)
 
@@ -274,37 +266,37 @@ data Argument = Argument { argumentId :: Text
                          , argumentType :: Type
                          } deriving (Show)
 
-data Block = Block { blockFieldDecls :: [WithPos FieldDecl]
-                   , blockStatements :: [WithPos Statement]
+data Block = Block { blockFieldDecls :: [SL.Located FieldDecl]
+                   , blockStatements :: [SL.Located Statement]
                    } deriving (Show)
 
 data Statement = AssignStatement { assignLocation :: Location, assignExpr :: AssignExpr }
                | MethodCallStatement { methodCallStatement :: MethodCall }
-               | IfStatement { ifExpr :: WithPos Expr, ifBlock :: Block }
-               | IfElseStatement { ifExpr :: WithPos Expr, ifBlock :: Block, elseBlock :: Block}
-               | ForStatement { counterId :: Text, counterExpr :: WithPos Expr, forPredExpr :: WithPos Expr,
+               | IfStatement { ifExpr :: SL.Located Expr, ifBlock :: Block }
+               | IfElseStatement { ifExpr :: SL.Located Expr, ifBlock :: Block, elseBlock :: Block}
+               | ForStatement { counterId :: Text, counterExpr :: SL.Located Expr, forPredExpr :: SL.Located Expr,
                                 counterUpdate :: CounterUpdate, forBlock :: Block }
-               | WhileStatement { whileExpr :: WithPos Expr, whileBlock :: Block }
+               | WhileStatement { whileExpr :: SL.Located Expr, whileBlock :: Block }
                | ReturnVoidStatement
-               | ReturnExprStatement { returnExpr :: WithPos Expr }
+               | ReturnExprStatement { returnExpr :: SL.Located Expr }
                | BreakStatement
                | ContinueStatement
                | ErrorStatement
                  deriving (Show)
 
 data Location = ScalarLocation { locationId :: Text }
-              | VectorLocation { locationId :: Text, arrayIndexExpr :: WithPos Expr }
+              | VectorLocation { locationId :: Text, arrayIndexExpr :: SL.Located Expr }
                 deriving (Show)
 
-data AssignExpr = AssignExpr { assignOp :: Text, assignSourceExpr:: WithPos Expr }
+data AssignExpr = AssignExpr { assignOp :: Text, assignSourceExpr:: SL.Located Expr }
                 | IncrementExpr { incrementOp :: Text }
                   deriving (Show)
 
-data MethodCall = MethodCall { methodName :: Text, importArguments :: [ImportArg] }
+data MethodCall = MethodCall { methodName :: Text, importArguments :: [SL.Located ImportArg] }
                   deriving (Show)
 
-data ImportArg = ExprImportArg { argumentExpr :: WithPos Expr }
-               | StringImportArg { argumentString :: WithPos Text }
+data ImportArg = ExprImportArg { argumentExpr :: SL.Located Expr }
+               | StringImportArg { argumentString :: Text }
                  deriving (Show)
 
 data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: AssignExpr }
@@ -316,14 +308,14 @@ data Expr = LocationExpr { location :: Location }
           | CharLiteralExpr { charLiteral :: Text }
           | BoolLiteralExpr { boolLiteral :: Text }
           | LenExpr { lenId :: Text }
-          | ArithOpExpr { arithOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | RelOpExpr { relOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | EqOpExpr { eqOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | CondOpExpr { condOp :: Text, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
-          | NegativeExpr { negativeExpr :: WithPos Expr }
-          | NegateExpr { negateExpr :: WithPos Expr }
-          | ParenExpr { parenExpr :: WithPos Expr }
-          | ChoiceExpr { choicePredExpr :: WithPos Expr, lExpr :: WithPos Expr, rExpr :: WithPos Expr }
+          | ArithOpExpr { arithOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+          | RelOpExpr { relOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+          | EqOpExpr { eqOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+          | CondOpExpr { condOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+          | NegativeExpr { negativeExpr :: SL.Located Expr }
+          | NegateExpr { negateExpr :: SL.Located Expr }
+          | ParenExpr { parenExpr :: SL.Located Expr }
+          | ChoiceExpr { choicePredExpr :: SL.Located Expr, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
           deriving (Show)
 
 parse :: ByteString -> Either String Program
@@ -331,6 +323,6 @@ parse input = runAlex input parseInternal
 
 parseError :: Token -> Alex a
 parseError tok = do
-  (AlexPn _ line col) <- getLexerPosn
+  (SL.Range (SL.Posn _ line col) _) <- getLexerRange
   Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" line col (show tok)
 }

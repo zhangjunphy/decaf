@@ -25,6 +25,8 @@ import Data.Int (Int64)
 import Data.Text (Text)
 import Text.Printf (printf)
 
+import qualified SourceLoc as SL
+
 type Name = Text
 
 type Index = Int64
@@ -142,21 +144,21 @@ instance Show Location where
 data Assignment = Assignment
   { location :: WithType Location,
     op :: AssignOp,
-    expr :: Maybe (WithType Expr)
+    expr :: Maybe (SL.Located (WithType Expr))
   }
   deriving (Generic, Show)
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [WithType Expr]
+    args :: [SL.Located (WithType Expr)]
   }
   deriving (Generic, Show)
 
 -- AST nodes
 data ASTRoot = ASTRoot
-  { imports :: [ImportDecl],
-    vars :: [FieldDecl],
-    methods :: [MethodDecl]
+  { imports :: [SL.Located ImportDecl],
+    vars :: [SL.Located FieldDecl],
+    methods :: [SL.Located MethodDecl]
   }
   deriving (Generic, Show)
 
@@ -173,14 +175,14 @@ data Argument = Argument
   { name :: Name,
     tpe :: Type
   }
-  deriving (Generic, Show, Eq)
+  deriving (Generic, Show)
 
 data MethodSig = MethodSig
   { name :: Name,
     tpe :: Maybe Type,
-    args :: [Argument]
+    args :: [SL.Located Argument]
   }
-  deriving (Generic, Show, Eq)
+  deriving (Generic, Show)
 
 data MethodDecl = MethodDecl
   { sig :: MethodSig,
@@ -190,16 +192,16 @@ data MethodDecl = MethodDecl
 
 data Statement
   = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: WithType Expr, ifBlock :: Block, elseBlock :: Maybe Block}
+  | IfStmt {pred :: SL.Located (WithType Expr), ifBlock :: Block, elseBlock :: Maybe Block}
   | ForStmt
       { counter :: Name,
-        initCounter :: WithType Expr,
-        pred :: WithType Expr,
+        initCounter :: SL.Located (WithType Expr),
+        pred :: SL.Located (WithType Expr),
         update :: Assignment,
         block :: Block
       }
-  | WhileStmt {pred :: WithType Expr, block :: Block}
-  | ReturnStmt {expr :: Maybe (WithType Expr)}
+  | WhileStmt {pred :: SL.Located (WithType Expr), block :: Block}
+  | ReturnStmt {expr :: Maybe (SL.Located (WithType Expr))}
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
@@ -209,18 +211,18 @@ data Statement
 data Expr
   = LocationExpr {location :: Location}
   | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [WithType Expr]}
+  | ExternCallExpr {name :: Name, args :: [WithType (SL.Located Expr)]}
   | IntLiteralExpr {intVal :: Int64}
   | BoolLiteralExpr {boolVal :: Bool}
   | CharLiteralExpr {charVal :: Char}
   | StringLiteralExpr {strVal :: Text}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | RelOpExpr {relOp :: RelOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | CondOpExpr {condOp :: CondOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | EqOpExpr {eqOp :: EqOp, lhs :: WithType Expr, rhs :: WithType Expr}
-  | NegOpExpr {negOp :: NegOp, expr :: WithType Expr}
-  | NotOpExpr {notOp :: NotOp, expr :: WithType Expr}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: WithType Expr, expr2 :: WithType Expr, expr3 :: WithType Expr}
+  | ArithOpExpr {arithOp :: ArithOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
+  | RelOpExpr {relOp :: RelOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
+  | CondOpExpr {condOp :: CondOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
+  | EqOpExpr {eqOp :: EqOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
+  | NegOpExpr {negOp :: NegOp, expr :: SL.Located (WithType Expr)}
+  | NotOpExpr {notOp :: NotOp, expr :: SL.Located (WithType Expr)}
+  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: SL.Located (WithType Expr), expr2 :: SL.Located (WithType Expr), expr3 :: SL.Located (WithType Expr)}
   | LengthExpr {name :: Name}
   deriving (Generic, Show)
 
@@ -228,8 +230,8 @@ data WithType a = WithType {ele :: a, tpe :: Type}
   deriving (Generic, Show)
 
 data Block = Block
-  { vars :: [FieldDecl],
-    stmts :: [Statement],
+  { vars :: [SL.Located FieldDecl],
+    stmts :: [SL.Located Statement],
     blockID :: ScopeID
   }
   deriving (Generic, Show)

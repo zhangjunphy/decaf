@@ -30,11 +30,13 @@ import Constants
 import Formatting
 import AST 
 import qualified Parser as P
+import qualified SourceLoc as SL
 
 import Control.Applicative ((<|>))
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer.Lazy
+
 import Data.Char (ord)
 import Data.Functor ((<&>))
 import Data.Int (Int64)
@@ -56,20 +58,20 @@ import Data.Generics.Labels ()
 -- semantic errors
 -- these errors are produced during semantic analysis,
 -- we try to detect as many as we can in a single pass
-data SemanticError = SemanticError P.Posn Text
+data SemanticError = SemanticError SL.Range Text
 
 instance Show SemanticError where
-  show (SemanticError (P.Posn row col) msg) = formatToString ("[" % int % ":" % int % "] " % stext) row col msg
+  show (SemanticError range msg) = formatToString (shown % ": " % stext) range msg
 
 -- exceptions during semantic analysis
 -- difference from SemanticError:
 -- whenever an exception is raised, the analysis procedure will be aborted.
-data SemanticException = SemanticException P.Posn Text
+data SemanticException = SemanticException SL.Range Text
 
 instance Show SemanticException where
-  show (SemanticException (P.Posn row col) msg) = formatToString ("[" % int % ":" % int % "] " % stext) row col msg
+  show (SemanticException range msg) = formatToString (shown % " " % stext) range msg
 
-data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock MethodSig
+data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock
   deriving (Show, Eq)
 
 -- symbol table definitions
@@ -79,11 +81,12 @@ data SymbolTable = SymbolTable
     importSymbols :: Maybe (Map Name ImportDecl),
     variableSymbols :: Map Name FieldDecl,
     methodSymbols :: Maybe (Map Name MethodDecl),
-    blockType :: BlockType
+    blockType :: BlockType,
+    methodSig :: Maybe MethodSig
   }
 
 instance Show SymbolTable where
-  show (SymbolTable sid p imports variables methods tpe) =
+  show (SymbolTable sid p imports variables methods tpe _) =
     formatToString
       ("SymbolTable {scopeID=" % int % ", parent=" % shown % ", imports=" % shown % ", variables=" % shown % ", methods=" % shown % ", tpe=" % shown)
       sid
@@ -97,7 +100,7 @@ data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
     currentScopeID :: ScopeID,
     symbolTables :: Map ScopeID SymbolTable,
-    currentPosn :: P.Posn
+    currentRange :: SL.Range
   }
   deriving (Show)
 
@@ -114,7 +117,7 @@ runSemanticAnalysis p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
-        Left (SemanticException (P.Posn row col) msg) -> Left $ formatToString ("[" % int % ":" % int % "] " % stext) row col msg
+        Left except -> Left $ show except
         Right a -> Right (a, errors, symbolTables state)
 
 initialSemanticState :: SemanticState
@@ -126,38 +129,34 @@ initialSemanticState =
             importSymbols = Just Map.empty,
             variableSymbols = Map.empty,
             methodSymbols = Just Map.empty,
-            blockType = RootBlock
+            blockType = RootBlock,
+            methodSig = Nothing
           }
    in SemanticState
         { nextScopeID = globalScopeID + 1,
           currentScopeID = globalScopeID,
           symbolTables = Map.fromList [(globalScopeID, globalST)],
-          currentPosn = P.Posn {row = 0, col = 0}
+          currentRange = SL.Range (SL.Posn 0 0 0) (SL.Posn 0 0 0)
         }
+
+updateCurrentRange :: SL.Range -> Semantic ()
+updateCurrentRange range = modify (\s -> s{currentRange = range})
+
+getCurrentRange :: Semantic SL.Range
+getCurrentRange = gets currentRange
 
 -- throw exception or store errors
 throwSemanticException :: Text -> Semantic a
 throwSemanticException msg = do
-  posn <- getPosn
-  throwError $ SemanticException posn msg
+  range <- getCurrentRange
+  throwError $ SemanticException range msg
 
 addSemanticError :: Text -> Semantic ()
 addSemanticError msg = do
-  posn <- getPosn
-  tell [SemanticError posn msg]
+  range <- getCurrentRange
+  tell [SemanticError range msg]
 
--- get or update position information
-updatePosn :: P.Posn -> Semantic ()
-updatePosn posn = do
-  st <- get
-  put st {currentPosn = posn}
-
-getPosn :: Semantic P.Posn
-getPosn = do
-  SemanticState {currentPosn = posn} <- get
-  return posn
-
--- find symbol table for blogal scope
+-- find symbol table for global scope
 getGlobalSymbolTable' :: Semantic SymbolTable
 getGlobalSymbolTable' = do
   state <- get
@@ -211,16 +210,13 @@ updateSymbolTable t = do
   getSymbolTable'
   put $ state {symbolTables = Map.insert (currentScopeID state) t (symbolTables state)}
 
-getMethodSignatureFromST :: SymbolTable -> Maybe MethodSig
-getMethodSignatureFromST (SymbolTable _ _ _ _ _ RootBlock) = Nothing
-getMethodSignatureFromST (SymbolTable _ _ _ _ _ (MethodBlock sig)) = Just sig
-getMethodSignatureFromST (SymbolTable _ (Just parent) _ _ _ _) = getMethodSignatureFromST parent
-getMethodSignatureFromST _ = Nothing
-
 getMethodSignature :: Semantic (Maybe MethodSig)
-getMethodSignature = do
-  st <- getSymbolTable
-  return $ st >>= getMethodSignatureFromST
+getMethodSignature = do lookup <$> getSymbolTable'
+  where 
+    lookup :: SymbolTable -> Maybe MethodSig
+    lookup SymbolTable{blockType=RootBlock} = Nothing
+    lookup SymbolTable{blockType=MethodBlock, methodSig=sig} = sig
+    lookup SymbolTable{parent=Just p} = lookup p
 
 getMethodSignature' :: Semantic MethodSig
 getMethodSignature' = do
@@ -229,8 +225,8 @@ getMethodSignature' = do
     Nothing -> throwSemanticException "Cannot find signature for current function!"
     Just s -> return s
 
-enterScope :: BlockType -> Semantic ScopeID
-enterScope blockType = do
+enterScope :: BlockType -> Maybe MethodSig -> Semantic ScopeID
+enterScope blockType sig = do
   state <- get
   parentST <- getSymbolTable
   let nextID = nextScopeID state
@@ -241,7 +237,8 @@ enterScope blockType = do
             variableSymbols = Map.empty,
             importSymbols = Nothing,
             methodSymbols = Nothing,
-            blockType = blockType
+            blockType = blockType,
+            methodSig = sig
           }
   put $
     state
@@ -307,26 +304,26 @@ Semantic rules to be checked, this will be referenced as Semantic[n]in comments 
 
 {- Varaible lookup. -}
 
-lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe (Either Argument FieldDecl)
-lookupLocalVariableFromST name st =
+lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe MethodSig -> Maybe (Either Argument FieldDecl)
+lookupLocalVariableFromST name st sig =
   let f = lookupLocalFieldDecl name st
       a = lookupArgument name st
    in (Right <$> f) <|> (Left <$> a)
   where
     lookupLocalFieldDecl name st = Map.lookup name $ variableSymbols st
     lookupArgument name st = do
-      let SymbolTable {blockType = btpe} = st
-      (MethodSig _ _ args) <- case btpe of
-        (MethodBlock sig') -> Just sig'
-        _ -> Nothing
-      find (\(Argument nm _) -> nm == name) args
+      (MethodSig _ _ args) <- sig
+      SL.LocatedAt _ arg <- find (\(SL.LocatedAt _ (Argument nm _)) -> nm == name) args
+      return arg
 
 lookupVariable :: Name -> Semantic (Maybe (Either Argument FieldDecl))
 lookupVariable name = do
   st <- getSymbolTable
-  return $ st >>= lookup name
+  sig <- getMethodSignature
+  return $ st >>= lookup name sig
   where
-    lookup name st' = (lookupLocalVariableFromST name st') <|> (parent st' >>= lookup name)
+    lookup name sig st' = (lookupLocalVariableFromST name st' sig)
+      <|> (parent st' >>= lookup name sig)
 
 lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
@@ -365,11 +362,12 @@ lookupMethod' name = do
 addVariableDef :: FieldDecl -> Semantic ()
 addVariableDef def = do
   localST <- getSymbolTable'
+  sig <- getMethodSignature
   -- Semantic[1]
   let nm = view #name def
   when
-    (isJust (lookupLocalVariableFromST nm localST))
-    (addSemanticError $ sformat ("duplicate definition for variable " % stext) $ nm)
+    (isJust (lookupLocalVariableFromST nm localST sig))
+    (addSemanticError $ sformat ("duplicate definition for variable " % stext) nm)
   let variableSymbols' = Map.insert (view #name (def :: FieldDecl)) def (variableSymbols localST)
       newST = localST {variableSymbols = variableSymbols'}
   -- Semantic[4]
@@ -521,62 +519,61 @@ irgenType :: P.Type -> Type
 irgenType P.IntType = IntType
 irgenType P.BoolType = BoolType
 
-irgenImports :: [P.WithPos P.ImportDecl] -> Semantic [ImportDecl]
+irgenImports :: [SL.Located P.ImportDecl] -> Semantic [SL.Located ImportDecl]
 irgenImports [] = return []
-irgenImports ((P.WithPos (P.ImportDecl id) pos) : rest) = do
-  updatePosn pos
+irgenImports ((SL.LocatedAt range (P.ImportDecl id)) : rest) = do
   let importSymbol = ImportDecl id
   addImportDef importSymbol
   -- TODO: This kind of recursions potentially lead to stack overflows.
   -- For now it should do the job. Will try to fix in the future.
   rest' <- irgenImports rest
-  return $ importSymbol : rest'
+  return $ SL.LocatedAt range importSymbol : rest'
 
-irgenFieldDecls :: [P.WithPos P.FieldDecl] -> Semantic [FieldDecl]
+irgenFieldDecls :: [SL.Located P.FieldDecl] -> Semantic [SL.Located FieldDecl]
 irgenFieldDecls [] = return []
-irgenFieldDecls ((P.WithPos decl pos) : rest) = do
-  updatePosn pos
+irgenFieldDecls ((SL.LocatedAt pos decl) : rest) = do
   fields <- sequence $ convertFieldDecl decl
-  vars <- addVariables fields
+  vars <- addVariables fields 
   rest' <- irgenFieldDecls rest
   return (vars ++ rest')
   where
     convertFieldDecl (P.FieldDecl tpe elems) =
       elems <&> \e -> case e of
-        (P.WithPos (P.ScalarField id) pos) -> do
-          updatePosn pos
-          return $ FieldDecl id (irgenType tpe)
-        (P.WithPos (P.VectorField id size) pos) -> do
-          updatePosn pos
+        (SL.LocatedAt range (P.ScalarField id)) -> do
+          updateCurrentRange range
+          return $ SL.LocatedAt pos $ FieldDecl id (irgenType tpe)
+        (SL.LocatedAt range (P.VectorField id size)) -> do
+          updateCurrentRange pos
           sz <- checkInt64Literal size
-          return $ FieldDecl id (irgenType tpe)
+          return $ SL.LocatedAt pos $ FieldDecl id (irgenType tpe)
     addVariables [] = return []
     addVariables (v : vs) = do
-      addVariableDef v
+      addVariableDef $ SL.unLocate v
       vs' <- addVariables vs
       return (v : vs')
 
-irgenMethodDecls :: [P.WithPos P.MethodDecl] -> Semantic [MethodDecl]
+irgenMethodDecls :: [SL.Located P.MethodDecl] -> Semantic [SL.Located MethodDecl]
 irgenMethodDecls [] = return []
-irgenMethodDecls ((P.WithPos decl pos) : rest) = do
-  updatePosn pos
+irgenMethodDecls ((SL.LocatedAt range decl) : rest) = do
+  updateCurrentRange range
   method <- convertMethodDecl decl
   -- Semantic[8] and Semantic[9]
   -- checkMethod method
   addMethodDef method
   rest' <- irgenMethodDecls rest
-  return (method : rest')
+  return (SL.LocatedAt range method : rest')
   where
     convertMethodDecl (P.MethodDecl id returnType arguments block) = do
       let sig = MethodSig id (irgenType <$> returnType) args
-      block <- irgenBlock (MethodBlock sig) block
+      block <- irgenBlock MethodBlock (Just sig) block
       return $ MethodDecl sig block
       where
-        args = arguments <&> \(P.WithPos (P.Argument id tpe) _) -> Argument id (irgenType tpe)
+        args = arguments <&> \(SL.LocatedAt range (P.Argument id tpe)) ->
+           SL.LocatedAt range $ Argument id (irgenType tpe)
 
-irgenBlock :: BlockType -> P.Block -> Semantic Block
-irgenBlock blockType (P.Block fieldDecls statements) = do
-  nextID <- enterScope blockType
+irgenBlock :: BlockType -> Maybe MethodSig -> P.Block -> Semantic Block
+irgenBlock blockType sig (P.Block fieldDecls statements) = do
+  nextID <- enterScope blockType sig
   fields <- irgenFieldDecls fieldDecls
   stmts <- irgenStatements statements
   let block = Block fields stmts nextID
@@ -601,7 +598,7 @@ irgenLocation (P.ScalarLocation id) = do
     Nothing -> return $ WithType (Location id Nothing def) tpe
     Just v -> return $ WithType (Location id Nothing def) (ArrayType tpe v)
 irgenLocation (P.VectorLocation id expr) = do
-  (WithType expr' indexTpe) <- irgenExpr expr
+  (SL.LocatedAt _ (WithType expr' indexTpe)) <- irgenExpr expr
   -- Semantic[10] (checked in lookupVariable')
   def <- lookupVariable' id
   let tpe = either (\(Argument _ tpe') -> tpe') (\(FieldDecl _ tpe') -> tpe') def
@@ -625,7 +622,7 @@ irgenLocation (P.VectorLocation id expr) = do
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
 irgenAssign loc (P.AssignExpr op expr) = do
   loc'@(WithType _ tpe) <- irgenLocation loc
-  expr'@(WithType _ tpe') <- irgenExpr expr
+  expr'@(SL.LocatedAt _(WithType _ tpe')) <- irgenExpr expr
   -- Semantic[19]
   when
     (tpe /= tpe')
@@ -643,34 +640,34 @@ irgenAssign loc (P.IncrementExpr op) = do
   when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
   return $ Assignment loc' op' Nothing
 
-irgenStatements :: [P.WithPos P.Statement] -> Semantic [Statement]
+irgenStatements :: [SL.Located P.Statement] -> Semantic [SL.Located Statement]
 irgenStatements [] = return []
-irgenStatements ((P.WithPos s pos) : xs) = do
-  updatePosn pos
+irgenStatements ((SL.LocatedAt range s) : xs) = do
+  updateCurrentRange range
   s' <- irgenStmt s
   xs' <- irgenStatements xs
-  return (s' : xs')
+  return (SL.LocatedAt range s' : xs')
 
 irgenMethod :: P.MethodCall -> Semantic MethodCall
 irgenMethod (P.MethodCall method args') = do
   -- Semantic[2] and Semantic[11]
   decl' <- lookupMethod method
-  argsWithType <- sequenceA $ irgenImportArg <$> args'
+  argsWithType <- traverse irgenImportArg args'
   case decl' of
     Nothing -> do
       currentMethod <- getMethodSignature
       case currentMethod of
         -- Recursive method calling itself
         (Just (MethodSig name _ formal)) | name == method -> do
-          checkCallingSemantics formal argsWithType
+          checkCallingSemantics (SL.unLocate <$> formal) (SL.unLocate <$> argsWithType)
           return $ MethodCall method argsWithType
         _ -> throwSemanticException $ sformat ("method " % stext % " not declared!") method
     Just decl -> case decl of
       Left _ -> return $ MethodCall method argsWithType
       Right m -> do
-        let formal = view #args (view #sig m :: MethodSig)
+        let formal = SL.unLocate <$> view #args (view #sig m :: MethodSig)
         -- Semantic[5] and Semantic[7]
-        checkCallingSemantics formal argsWithType
+        checkCallingSemantics formal (SL.unLocate <$> argsWithType)
         return $ MethodCall method argsWithType
   where
     matchPred (Argument _ tpe, WithType _ tpe') = tpe == tpe'
@@ -721,26 +718,26 @@ irgenStmt (P.MethodCallStatement method) = do
   method' <- irgenMethod method
   return $ MethodCallStmt method'
 irgenStmt (P.IfStatement expr block) = do
-  ifBlock <- irgenBlock IfBlock block
-  expr'@(WithType _ tpe) <- irgenExpr expr
+  ifBlock <- irgenBlock IfBlock Nothing block
+  expr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr expr
   -- Semantic[14]
   when
     (tpe /= BoolType)
     (addSemanticError $ sformat ("The pred of if statment must have type bool, but got " % shown % " instead!") tpe)
   return $ IfStmt expr' ifBlock Nothing
 irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
-  ifBlock' <- irgenBlock IfBlock ifBlock
-  elseBlock' <- irgenBlock IfBlock elseBlock
-  expr'@(WithType _ tpe) <- irgenExpr expr
+  ifBlock' <- irgenBlock IfBlock Nothing ifBlock
+  elseBlock' <- irgenBlock IfBlock Nothing elseBlock
+  expr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr expr
   -- Semantic[14]
   when
     (tpe /= BoolType)
     (addSemanticError $ sformat ("The pred of if statment must have type bool, but got " % shown % " instead!") tpe)
   return $ IfStmt expr' ifBlock' (Just elseBlock')
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
-  block' <- irgenBlock ForBlock block
+  block' <- irgenBlock ForBlock Nothing block
   counterExpr' <- irgenExpr counterExpr
-  predExpr'@(WithType _ tpe) <- irgenExpr predExpr
+  predExpr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr predExpr
   -- Semantic[14]
   when
     (tpe /= BoolType)
@@ -748,8 +745,8 @@ irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr
   assign <- irgenAssign loc expr
   return $ ForStmt counter counterExpr' predExpr' assign block'
 irgenStmt (P.WhileStatement expr block) = do
-  block' <- irgenBlock WhileBlock block
-  expr'@(WithType _ tpe) <- irgenExpr expr
+  block' <- irgenBlock WhileBlock Nothing block
+  expr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr expr
   -- Semantic[14]
   when
     (tpe /= BoolType)
@@ -758,7 +755,7 @@ irgenStmt (P.WhileStatement expr block) = do
 irgenStmt (P.ReturnExprStatement expr) = do
   expr' <- irgenExpr expr
   -- Semantic[8] and Semantic[9]
-  checkReturnType $ Just expr'
+  checkReturnType $ Just $ SL.unLocate expr'
   return $ ReturnStmt $ Just expr'
 irgenStmt P.ReturnVoidStatement = do
   -- Semantic[8] and Semantic[9]
@@ -780,103 +777,103 @@ irgenStmt P.ContinueStatement = do
   return ContinueStmt
 
 {- generate expressions, also do type inference -}
-irgenExpr :: P.WithPos P.Expr -> Semantic (WithType Expr)
-irgenExpr (P.WithPos (P.LocationExpr loc) pos) = do
-  updatePosn pos
+irgenExpr :: SL.Located P.Expr -> Semantic (SL.Located (WithType Expr))
+irgenExpr (SL.LocatedAt range (P.LocationExpr loc)) = do
+  updateCurrentRange range
   (WithType loc' tpe) <- irgenLocation loc
-  return $ WithType (LocationExpr loc') tpe
-irgenExpr (P.WithPos (P.MethodCallExpr method@(P.MethodCall name _)) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (LocationExpr loc') tpe
+irgenExpr (SL.LocatedAt range (P.MethodCallExpr method@(P.MethodCall name _))) = do
+  updateCurrentRange range
   method' <- irgenMethod method
   m <- lookupMethod' name
   case m of
     -- treat import methods as always return int
-    Left _ -> return $ WithType (MethodCallExpr method') IntType
+    Left _ -> return $ SL.LocatedAt range $ WithType (MethodCallExpr method') IntType
     Right (MethodDecl (MethodSig _ tpe _) _) -> do
       case tpe of
         -- Semantic[6]
         Nothing ->
           throwSemanticException $
             sformat ("Method " % stext % " cannot be used in expressions as it returns nothing!") name
-        Just tpe' -> return $ WithType (MethodCallExpr method') tpe'
-irgenExpr (P.WithPos (P.IntLiteralExpr i) pos) = do
-  updatePosn pos
+        Just tpe' -> return $ SL.LocatedAt range $ WithType (MethodCallExpr method') tpe'
+irgenExpr (SL.LocatedAt range (P.IntLiteralExpr i)) = do
+  updateCurrentRange range
   literalVal <- checkInt64Literal i
-  return $ WithType (IntLiteralExpr literalVal) IntType
-irgenExpr (P.WithPos (P.BoolLiteralExpr b) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (IntLiteralExpr literalVal) IntType
+irgenExpr (SL.LocatedAt range (P.BoolLiteralExpr b)) = do
+  updateCurrentRange range
   lit <- checkBoolLiteral b
-  return $ WithType (BoolLiteralExpr lit) BoolType
-irgenExpr (P.WithPos (P.CharLiteralExpr c) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (BoolLiteralExpr lit) BoolType
+irgenExpr (SL.LocatedAt range (P.CharLiteralExpr c)) = do
+  updateCurrentRange range
   lit <- checkCharLiteral c
-  return $ WithType (CharLiteralExpr lit) IntType
-irgenExpr (P.WithPos (P.LenExpr id) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (CharLiteralExpr lit) IntType
+irgenExpr (SL.LocatedAt range (P.LenExpr id)) = do
+  updateCurrentRange range
   def <- lookupVariable' id
   -- Semantic[13]
   case def of
     Left (Argument nm _) -> addSemanticError $ sformat ("len cannot operate on argument " % stext % "!") nm
     Right (FieldDecl nm (ArrayType _ _)) -> return ()
     Right (FieldDecl nm _) -> addSemanticError $ sformat ("len cannot operate on scalar variable " % stext % "!") nm
-  return $ WithType (LengthExpr id) IntType
-irgenExpr (P.WithPos (P.ArithOpExpr op l r) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (LengthExpr id) IntType
+irgenExpr (SL.LocatedAt range (P.ArithOpExpr op l r)) = do
+  updateCurrentRange range
   -- Semantic[16]
-  l'@(WithType _ ltp) <- irgenExpr l
-  r'@(WithType _ rtp) <- irgenExpr r
+  l'@(SL.LocatedAt _ (WithType _ ltp)) <- irgenExpr l
+  r'@(SL.LocatedAt _ (WithType _ rtp)) <- irgenExpr r
   when
     (ltp /= IntType || rtp /= IntType)
     (addSemanticError "There can only be integer values in arithmetic expressions.")
-  return $ WithType (ArithOpExpr (parseArithOp op) l' r') IntType
-irgenExpr (P.WithPos (P.RelOpExpr op l r) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (ArithOpExpr (parseArithOp op) l' r') IntType
+irgenExpr (SL.LocatedAt range (P.RelOpExpr op l r)) = do
+  updateCurrentRange range
   -- Semantic[16]
-  l'@(WithType _ ltp) <- irgenExpr l
-  r'@(WithType _ rtp) <- irgenExpr r
+  l'@(SL.LocatedAt _ (WithType _ ltp)) <- irgenExpr l
+  r'@(SL.LocatedAt _ (WithType _ rtp)) <- irgenExpr r
   when
     (ltp /= IntType || rtp /= IntType)
     (addSemanticError "There can only be integer values in relational expressions.")
-  return $ WithType (RelOpExpr (parseRelOp op) l' r') IntType
-irgenExpr (P.WithPos (P.EqOpExpr op l r) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (RelOpExpr (parseRelOp op) l' r') IntType
+irgenExpr (SL.LocatedAt range (P.EqOpExpr op l r)) = do
+  updateCurrentRange range
   -- Semantic[17]
-  l'@(WithType _ ltp) <- irgenExpr l
-  r'@(WithType _ rtp) <- irgenExpr r
+  l'@(SL.LocatedAt _ (WithType _ ltp)) <- irgenExpr l
+  r'@(SL.LocatedAt _ (WithType _ rtp)) <- irgenExpr r
   when
     ((ltp, rtp) /= (IntType, IntType) && (ltp, rtp) /= (BoolType, BoolType))
     (addSemanticError "Can only check equality of expressions with the SAME type!")
-  return $ WithType (EqOpExpr (parseEqOp op) l' r') BoolType
-irgenExpr (P.WithPos (P.CondOpExpr op l r) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range $ WithType (EqOpExpr (parseEqOp op) l' r') BoolType
+irgenExpr (SL.LocatedAt range (P.CondOpExpr op l r)) = do
+  updateCurrentRange range
   -- Semantic[18]
-  l'@(WithType _ ltp) <- irgenExpr l
-  r'@(WithType _ rtp) <- irgenExpr r
+  l'@(SL.LocatedAt _ (WithType _ ltp)) <- irgenExpr l
+  r'@(SL.LocatedAt _ (WithType _ rtp)) <- irgenExpr r
   when
     (ltp /= BoolType || rtp /= BoolType)
     (addSemanticError "Conditional ops only accept booleans!")
-  return $ WithType (CondOpExpr (parseCondOp op) l' r') BoolType
-irgenExpr (P.WithPos (P.NegativeExpr expr) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range  $ WithType (CondOpExpr (parseCondOp op) l' r') BoolType
+irgenExpr (SL.LocatedAt range (P.NegativeExpr expr)) = do
+  updateCurrentRange range
   -- Semantic[16]
-  expr'@(WithType _ tpe) <- irgenExpr expr
+  expr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr expr
   when
     (tpe /= IntType)
     (addSemanticError "Operator \"-\" only accepts integers!")
-  return $ WithType (NegOpExpr Neg expr') IntType
-irgenExpr (P.WithPos (P.NegateExpr expr) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range  $ WithType (NegOpExpr Neg expr') IntType
+irgenExpr (SL.LocatedAt range (P.NegateExpr expr)) = do
+  updateCurrentRange range
   -- Semantic[18]
-  expr'@(WithType _ tpe) <- irgenExpr expr
+  expr'@(SL.LocatedAt _ (WithType _ tpe)) <- irgenExpr expr
   when
     (tpe /= BoolType)
     (addSemanticError "Operator \"!\" only accepts integers!")
-  return $ WithType (NotOpExpr Not expr') BoolType
-irgenExpr (P.WithPos (P.ChoiceExpr pred l r) pos) = do
-  updatePosn pos
-  pred'@(WithType _ ptp) <- irgenExpr pred
-  l'@(WithType _ ltp) <- irgenExpr l
-  r'@(WithType _ rtp) <- irgenExpr r
+  return $ SL.LocatedAt range  $ WithType (NotOpExpr Not expr') BoolType
+irgenExpr (SL.LocatedAt range (P.ChoiceExpr pred l r)) = do
+  updateCurrentRange range
+  pred'@(SL.LocatedAt _ (WithType _ ptp)) <- irgenExpr pred
+  l'@(SL.LocatedAt _ (WithType _ ltp)) <- irgenExpr l
+  r'@(SL.LocatedAt _ (WithType _ rtp)) <- irgenExpr r
   -- Semantic[15]
   when
     (ptp /= BoolType)
@@ -884,13 +881,13 @@ irgenExpr (P.WithPos (P.ChoiceExpr pred l r) pos) = do
   when
     (ltp /= rtp)
     (addSemanticError "Alternatives of choice op should have same type!")
-  return $ WithType (ChoiceOpExpr Choice pred' l' r') ltp
-irgenExpr (P.WithPos (P.ParenExpr expr) pos) = do
-  updatePosn pos
+  return $ SL.LocatedAt range  $ WithType (ChoiceOpExpr Choice pred' l' r') ltp
+irgenExpr (SL.LocatedAt range (P.ParenExpr expr)) = do
+  updateCurrentRange range
   irgenExpr expr
 
-irgenImportArg :: P.ImportArg -> Semantic (WithType Expr)
-irgenImportArg (P.ExprImportArg expr) = irgenExpr expr
-irgenImportArg (P.StringImportArg (P.WithPos arg pos)) = do
-  updatePosn pos
-  return $ WithType (StringLiteralExpr arg) StringType
+irgenImportArg :: SL.Located P.ImportArg -> Semantic (SL.Located (WithType Expr))
+irgenImportArg (SL.LocatedAt range (P.ExprImportArg expr)) = irgenExpr expr
+irgenImportArg (SL.LocatedAt range (P.StringImportArg arg)) = do
+  updateCurrentRange range
+  return $ SL.LocatedAt range $ WithType (StringLiteralExpr arg) StringType

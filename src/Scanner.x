@@ -16,14 +16,14 @@
 
 module Scanner ( Token(..)
                , Alex(..)
-               , AlexPosn(..)
                , scan
                , formatTokenOrError
                , alexMonadScan
                , runAlex
-               , getLexerPosn
-               , AlexState(..)
+               , getLexerRange
                ) where
+
+import qualified SourceLoc as SL
 
 import Data.Maybe
 import Data.List.Split
@@ -32,10 +32,11 @@ import Data.Word (Word8)
 import Control.Monad.State
 
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as C8
 import Data.Text (Text)
-import qualified Data.Text.Encoding as E
+import qualified Data.Text as Text
+import qualified Data.Text.Encoding as Enc
 }
 
 %wrapper "monadUserState-bytestring"
@@ -133,7 +134,7 @@ tokens :-
   <0>                     \;                         { plainToken Semicolon }
   <0>                     \,                         { plainToken Comma }
   <0>                     \!                         { plainToken Negate }
-  <0>                     $invalid                   { scannerError $ \s -> B.concat ["invalid character: ", s] }
+  <0>                     $invalid                   { scannerError $ \s -> BS.concat ["invalid character: ", s] }
 
 
 ----------------------------- Representing tokens -----------------------------
@@ -206,14 +207,14 @@ data AlexPosn = AlexPn !Int  -- absolute character offset
 type AlexInput = (AlexPosn,   -- current position,
                   Char,       -- previous char
                   ByteString.ByteString -- current input string
-                  Int64)      -- What is this?
+                  Int64)      -- bytes consumed so far
 
 data AlexState = AlexState {
         alex_pos :: !AlexPosn,  -- position at current input location
         alex_inp :: ByteString.ByteString, -- the current input
         alex_chr :: !Char,      -- the character before the input
-        alex_scd :: !Int        -- the current startcode
-      , alex_ust :: AlexUserState -- AlexUserState will be defined in the user program
+        alex_scd :: !Int,       -- the current startcode
+        alex_ust :: AlexUserState -- AlexUserState will be defined in the user program
     }
 
 newtype Alex a = Alex { unAlex :: AlexState
@@ -274,8 +275,12 @@ getLexerCharState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCharStat
 setLexerCharState :: Bool -> Alex ()
 setLexerCharState state = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCharState=state} }, ())
 
-getLexerPosn :: Alex AlexPosn
-getLexerPosn = Alex $ \s@AlexState{alex_pos = pos} -> Right (s, pos)
+getLexerRange :: Alex SL.Range
+getLexerRange = Alex $ \s@AlexState{alex_pos=start@(AlexPn offset row col),alex_inp=inp} ->
+  let stop@(AlexPn offsetS rowS colS) = Text.foldl' alexMove start $ Enc.decodeUtf8 $ BS.toStrict inp
+      start' = SL.Posn offset row col
+      stop' = SL.Posn offsetS rowS colS
+  in Right (s, SL.Range start' stop')
 
 ----- Scanning functions ------
 
@@ -287,8 +292,8 @@ plainToken tok _ _ =
 
 stringToken :: (Text -> Token) -> Action
 stringToken tok (_, _, str, _) len =
-    let tokenContent = B.take len str in
-    return $ tok $ E.decodeUtf8 $ B.toStrict tokenContent
+    let tokenContent = BS.take len str in
+    return $ tok $ Enc.decodeUtf8 $ BS.toStrict tokenContent
 
 enterComment :: Action
 enterComment inp len =
@@ -314,7 +319,7 @@ exitString ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerStringState False
        alexSetStartCode 0
-       return (StringLiteral $ E.decodeUtf8 $ B.toStrict $ B.reverse value)
+       return (StringLiteral $ Enc.decodeUtf8 $ BS.toStrict $ BS.reverse value)
 
 addToString :: Char -> Action
 addToString c inp len =
@@ -336,12 +341,12 @@ exitChar ((AlexPn _ lineNo columnNo), _, _, _) len =
     do value <- getLexerStringValue
        setLexerCharState False
        alexSetStartCode 0
-       return (CharLiteral $ E.decodeUtf8 $ B.toStrict value)
+       return (CharLiteral $ Enc.decodeUtf8 $ BS.toStrict value)
 
 addToChar :: Char -> Action
 addToChar c inp len =
     do value <- getLexerStringValue
-       if (B.length value > 0)
+       if (BS.length value > 0)
           then scannerError (\_ -> "character literal not closed") inp len
           else do setLexerStringValue $ C8.pack [c]
                   skip inp len
@@ -351,8 +356,8 @@ addCurrentToChar inp@(_, _, str, _) len = addToChar (C8.head str) inp len
 
 scannerError :: (ByteString -> ByteString) -> Action
 scannerError fn ((AlexPn _ lineNo columnNo), _, str, _) len =
-    let content = B.take len str
-    in return (Error $ E.decodeUtf8 $ B.toStrict $ fn content)
+    let content = BS.take len str
+    in return (Error $ Enc.decodeUtf8 $ BS.toStrict $ fn content)
 
 
 ---------------------------- Scanner entry point -----------------------------
@@ -372,11 +377,11 @@ catchErrors (Alex al) =
                        | (lexerCommentDepth ust > 0) -> Right (s, error "comment not closed at EOF")
                        | otherwise -> Right(s, tok)
 
-scan :: ByteString -> [(Either String (AlexPosn, Token))]
+scan :: ByteString -> [(Either String (SL.Range, Token))]
 scan str =
     let loop = do
           tokOrError <- catchErrors alexMonadScan
-          pos <- getLexerPosn
+          pos <- getLexerRange
           case tokOrError of
               (Error m) ->
                   do toks <- loop
@@ -390,9 +395,9 @@ scan str =
          Left m -> [Left m]
          Right toks -> toks
 
-formatTokenOrError :: Either String (AlexPosn, Token) -> Either String String
+formatTokenOrError :: Either String (SL.Range, Token) -> Either String String
 formatTokenOrError (Left err) = Left err
-formatTokenOrError (Right ((AlexPn _ line col), tok))
+formatTokenOrError (Right ((SL.Range (SL.Posn _ line col) _), tok))
     = Right $ unwords [ show $ line
                       , show $ tok
                       ]

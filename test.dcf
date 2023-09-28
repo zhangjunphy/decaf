@@ -2,6 +2,5 @@ import a;
 int a[3];
 bool b;
 void main() {
-b = 1;
 a = b ? 1 : 3;
 }

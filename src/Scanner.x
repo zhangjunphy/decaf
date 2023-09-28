@@ -20,7 +20,6 @@ module Scanner ( Token(..)
                , formatTokenOrError
                , alexMonadScan
                , runAlex
-               , getLexerRange
                ) where
 
 import qualified SourceLoc as SL
@@ -248,8 +247,14 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   , inputLines = []
                                   }
 
-alexEOF :: Alex Token
-alexEOF = Alex $ \s@AlexState{alex_pos=pos} -> Right(s, EOF)
+posnFromAlex :: AlexPosn -> SL.Posn
+posnFromAlex (AlexPn offset row col) = SL.Posn offset row col
+
+locatedAt :: AlexPosn -> AlexPosn -> a -> SL.Located a
+locatedAt start stop = SL.LocatedAt (SL.Range (posnFromAlex start) (posnFromAlex stop))
+
+alexEOF :: Alex (SL.Located Token)
+alexEOF = Alex $ \s@AlexState{alex_pos=pos} -> Right(s, locatedAt pos pos EOF)
 
 getLexerCommentDepth :: Alex Int
 getLexerCommentDepth = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCommentDepth ust)
@@ -275,25 +280,23 @@ getLexerCharState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCharStat
 setLexerCharState :: Bool -> Alex ()
 setLexerCharState state = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCharState=state} }, ())
 
-getLexerRange :: Alex SL.Range
-getLexerRange = Alex $ \s@AlexState{alex_pos=start@(AlexPn offset row col),alex_inp=inp} ->
-  let stop@(AlexPn offsetS rowS colS) = Text.foldl' alexMove start $ Enc.decodeUtf8 $ BS.toStrict inp
-      start' = SL.Posn offset row col
-      stop' = SL.Posn offsetS rowS colS
-  in Right (s, SL.Range start' stop')
+getTokenStop :: AlexPosn -> ByteString -> AlexPosn
+getTokenStop posn inp = Text.foldl' alexMove posn $ Enc.decodeUtf8 $ BS.toStrict inp
 
 ----- Scanning functions ------
 
-type Action = AlexInput -> Int64 -> Alex Token
-
-plainToken :: Token -> Action
-plainToken tok _ _ =
-    return tok
+type Action = AlexInput -> Int64 -> Alex (SL.Located Token)
 
 stringToken :: (Text -> Token) -> Action
-stringToken tok (_, _, str, _) len =
-    let tokenContent = BS.take len str in
-    return $ tok $ Enc.decodeUtf8 $ BS.toStrict tokenContent
+stringToken tok (start, _, inp, _) len =
+  let content = BS.take len inp
+      stop = getTokenStop start content
+  in return $ locatedAt start stop $ tok $ Enc.decodeUtf8 $ BS.toStrict content
+
+plainToken :: Token -> Action
+plainToken tok (start, _, inp, _) len =
+  let stop = getTokenStop start $ BS.take len inp
+  in return $ locatedAt start stop tok
 
 enterComment :: Action
 enterComment inp len =
@@ -315,11 +318,11 @@ enterString inp len =
        skip inp len
 
 exitString :: Action
-exitString ((AlexPn _ lineNo columnNo), _, _, _) len =
+exitString (pos, _, _, _) len =
     do value <- getLexerStringValue
        setLexerStringState False
        alexSetStartCode 0
-       return (StringLiteral $ Enc.decodeUtf8 $ BS.toStrict $ BS.reverse value)
+       return $ locatedAt pos pos (StringLiteral $ Enc.decodeUtf8 $ BS.toStrict $ BS.reverse value)
 
 addToString :: Char -> Action
 addToString c inp len =
@@ -337,11 +340,11 @@ enterChar inp len =
        skip inp len
 
 exitChar :: Action
-exitChar ((AlexPn _ lineNo columnNo), _, _, _) len =
+exitChar (pos, _, _, _) len =
     do value <- getLexerStringValue
        setLexerCharState False
        alexSetStartCode 0
-       return (CharLiteral $ Enc.decodeUtf8 $ BS.toStrict value)
+       return $ locatedAt pos pos (CharLiteral $ Enc.decodeUtf8 $ BS.toStrict value)
 
 addToChar :: Char -> Action
 addToChar c inp len =
@@ -355,49 +358,49 @@ addCurrentToChar :: Action
 addCurrentToChar inp@(_, _, str, _) len = addToChar (C8.head str) inp len
 
 scannerError :: (ByteString -> ByteString) -> Action
-scannerError fn ((AlexPn _ lineNo columnNo), _, str, _) len =
-    let content = BS.take len str
-    in return (Error $ Enc.decodeUtf8 $ BS.toStrict $ fn content)
+scannerError fn (start, _, inp, _) len =
+    let content = BS.take len inp
+        stop = getTokenStop start content
+    in return $ locatedAt start stop (Error $ Enc.decodeUtf8 $ BS.toStrict $ fn content)
 
 
 ---------------------------- Scanner entry point -----------------------------
 
 -- Produce error tokens for later use
-catchErrors :: Alex Token -> Alex Token
+catchErrors :: Alex (SL.Located Token) -> Alex (SL.Located Token)
 catchErrors (Alex al) =
     Alex (\s -> case al s of
-                  Right (s'@AlexState{alex_ust=ust}, EOF) -> eofCheck s' EOF
+                  Right (s'@AlexState{alex_ust=ust}, t@(SL.LocatedAt _ EOF)) -> eofCheck s' t
                   Right (s', x) -> Right (s', x)
                   Left message -> Left message)
-    where eofCheck s@AlexState{alex_pos=pos, alex_ust=ust} tok =
+    where eofCheck s@AlexState{alex_ust=ust} tok@(SL.LocatedAt loc _) =
               let error message = Error message
               in case ust of
-                   val | (lexerStringState ust) -> Right (s, error "string not closed at EOF")
-                       | (lexerCharState ust) -> Right (s, error "char not closed at EOF")
-                       | (lexerCommentDepth ust > 0) -> Right (s, error "comment not closed at EOF")
+                   val | (lexerStringState ust) -> Right (s, SL.LocatedAt loc $ error "string not closed at EOF")
+                       | (lexerCharState ust) -> Right (s, SL.LocatedAt loc $ error "char not closed at EOF")
+                       | (lexerCommentDepth ust > 0) -> Right (s, SL.LocatedAt loc $ error "comment not closed at EOF")
                        | otherwise -> Right(s, tok)
 
-scan :: ByteString -> [(Either String (SL.Range, Token))]
+scan :: ByteString -> [(Either String (SL.Located Token))]
 scan str =
     let loop = do
           tokOrError <- catchErrors alexMonadScan
-          pos <- getLexerRange
           case tokOrError of
-              (Error m) ->
+              t@(SL.LocatedAt _ (Error m)) ->
                   do toks <- loop
-                     return ((Right (pos, Error m)) : toks)
-              tok ->
+                     return ((Right t) : toks)
+              t@(SL.LocatedAt _ tok)->
                   if (tok == EOF)
                   then return []
                   else do toks <- loop
-                          return ((Right (pos, tok)) : toks)
+                          return ((Right t) : toks)
     in case runAlex str loop of
          Left m -> [Left m]
          Right toks -> toks
 
-formatTokenOrError :: Either String (SL.Range, Token) -> Either String String
+formatTokenOrError :: Either String (SL.Located Token) -> Either String String
 formatTokenOrError (Left err) = Left err
-formatTokenOrError (Right ((SL.Range (SL.Posn _ line col) _), tok))
+formatTokenOrError (Right (SL.LocatedAt (SL.Range (SL.Posn _ line _) _) tok))
     = Right $ unwords [ show $ line
                       , show $ tok
                       ]

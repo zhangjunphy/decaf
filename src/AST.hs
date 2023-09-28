@@ -142,15 +142,15 @@ instance Show Location where
   show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
 
 data Assignment = Assignment
-  { location :: WithType Location,
+  { location :: Typed Location,
     op :: AssignOp,
-    expr :: Maybe (SL.Located (WithType Expr))
+    expr :: Maybe (SL.Located (Typed Expr))
   }
   deriving (Generic, Show)
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [SL.Located (WithType Expr)]
+    args :: [SL.Located (Typed Expr)]
   }
   deriving (Generic, Show)
 
@@ -192,16 +192,16 @@ data MethodDecl = MethodDecl
 
 data Statement
   = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: SL.Located (WithType Expr), ifBlock :: Block, elseBlock :: Maybe Block}
+  | IfStmt {pred :: SL.Located (Typed Expr), ifBlock :: Block, elseBlock :: Maybe Block}
   | ForStmt
       { counter :: Name,
-        initCounter :: SL.Located (WithType Expr),
-        pred :: SL.Located (WithType Expr),
+        initCounter :: SL.Located (Typed Expr),
+        pred :: SL.Located (Typed Expr),
         update :: Assignment,
         block :: Block
       }
-  | WhileStmt {pred :: SL.Located (WithType Expr), block :: Block}
-  | ReturnStmt {expr :: Maybe (SL.Located (WithType Expr))}
+  | WhileStmt {pred :: SL.Located (Typed Expr), block :: Block}
+  | ReturnStmt {expr :: Maybe (SL.Located (Typed Expr))}
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
@@ -211,22 +211,22 @@ data Statement
 data Expr
   = LocationExpr {location :: Location}
   | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [WithType (SL.Located Expr)]}
+  | ExternCallExpr {name :: Name, args :: [SL.Located (Typed Expr)]}
   | IntLiteralExpr {intVal :: Int64}
   | BoolLiteralExpr {boolVal :: Bool}
   | CharLiteralExpr {charVal :: Char}
   | StringLiteralExpr {strVal :: Text}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
-  | RelOpExpr {relOp :: RelOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
-  | CondOpExpr {condOp :: CondOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
-  | EqOpExpr {eqOp :: EqOp, lhs :: SL.Located (WithType Expr), rhs :: SL.Located (WithType Expr)}
-  | NegOpExpr {negOp :: NegOp, expr :: SL.Located (WithType Expr)}
-  | NotOpExpr {notOp :: NotOp, expr :: SL.Located (WithType Expr)}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: SL.Located (WithType Expr), expr2 :: SL.Located (WithType Expr), expr3 :: SL.Located (WithType Expr)}
+  | ArithOpExpr {arithOp :: ArithOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
+  | RelOpExpr {relOp :: RelOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
+  | CondOpExpr {condOp :: CondOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
+  | EqOpExpr {eqOp :: EqOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
+  | NegOpExpr {negOp :: NegOp, expr :: SL.Located (Typed Expr)}
+  | NotOpExpr {notOp :: NotOp, expr :: SL.Located (Typed Expr)}
+  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: SL.Located (Typed Expr), expr2 :: SL.Located (Typed Expr), expr3 :: SL.Located (Typed Expr)}
   | LengthExpr {name :: Name}
   deriving (Generic, Show)
 
-data WithType a = WithType {ele :: a, tpe :: Type}
+data Typed a = Typed {ele :: a, tpe :: Type}
   deriving (Generic, Show)
 
 data Block = Block

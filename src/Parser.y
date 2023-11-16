@@ -161,14 +161,14 @@ Statement : Location AssignExpr ';'                         { SL.LocatedAt (unio
           | MethodCall ';'                                  { SL.LocatedAt (unionOf $1 $2) $ MethodCallStatement (unLoc $1) }
           | if '(' Expr ')' Block                           { SL.LocatedAt (unionOf $1 $5) $ IfStatement $3 (unLoc $5) }
           | if '(' Expr ')' Block else Block                { SL.LocatedAt (unionOf $1 $7) $ IfElseStatement $3 (unLoc $5) (unLoc $7) }
-          | for '(' id '=' Expr ';' Expr ';' CounterUpdate ')' Block    { SL.LocatedAt (unionOf $1 $11) $ ForStatement (getID $ unLoc $3) $5 $7 $9 (unLoc $11) }
+          | for '(' id '=' Expr ';' Expr ';' CounterUpdate ')' Block    { SL.LocatedAt (unionOf $1 $11) $ ForStatement (getID $ unLoc $3) $5 $7 (unLoc $9) (unLoc $11) }
           | while '(' Expr ')' Block                        { SL.LocatedAt (unionOf $1 $5) $ WhileStatement $3 (unLoc $5) }
           | return ';'                                      { SL.LocatedAt (unionOf $1 $2) $ ReturnVoidStatement }
           | return Expr ';'                                 { SL.LocatedAt (unionOf $1 $3) $ ReturnExprStatement $2 }
           | break ';'                                       { SL.LocatedAt (unionOf $1 $2) $ BreakStatement }
           | continue ';'                                    { SL.LocatedAt (unionOf $1 $2) $ ContinueStatement }
 
-CounterUpdate : Location AssignExpr                         { CounterUpdate (unLoc $1) (unLoc $2) }
+CounterUpdate : Location AssignExpr                         { SL.LocatedAt (unionOf $1 $2) $ CounterUpdate (unLoc $1) (unLoc $2) }
 
 Location : id                                               { SL.LocatedAt (getLoc $1) $ ScalarLocation (getID $ unLoc $1) }
          | id '[' Expr ']'                                  { SL.LocatedAt (unionOf $1 $4) $ VectorLocation (getID $ unLoc $1) $3 }

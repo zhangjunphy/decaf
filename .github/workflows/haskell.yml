@@ -14,21 +14,23 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v3
+      - name: 🔑 Cache Key
+        id: cache_key
+        run: echo "key=$(md5sum stack.yaml | awk '{print $1}')" >> $GITHUB_OUTPUT
+      - name: 💾 Cache GHCup and Stack
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.ghcup
+            ~/.stack
+          key: ${{ runner.os }}-${{ steps.cache_key.outputs.key }}
       - name: 🧰 Setup Haskell & Stack
         uses: haskell-actions/setup@v2
         with:
           ghc-version: '9.4.5'
           enable-stack: true
           stack-version: 'latest'
-      - name: 🔑 Cache Key
-        id: cache_key
-        run: echo "key=$(md5sum stack.yaml | awk '{print $1}')" >> $GITHUB_OUTPUT
-      - name: 💾 Cache Dependencies
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.stack
-          key: ${{ runner.os }}-${{ steps.cache_key.outputs.key }}
       - name: 📸 Build Snapshot
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -43,7 +45,7 @@ jobs:
           stack hpc report --all --destdir dist/coverage 2>&1 | tee coverage.log
           coverage=$(cat coverage.log | tr '\n' ' ' | sed "s/.* \([0-9]\+\)% top-level declarations used.*/\1/")
           color="$(if [[ ${coverage} -ge '80' ]]; then echo 'green'; elif [[ $coverage -ge '60' ]]; then echo 'yellow'; else echo 'red'; fi)"
-          wget -O dist/coverage/badge.svg "https://img.shields.io/badge/coverage-${Coverage}%25-${color}"
+          wget -O dist/coverage/badge.svg "https://img.shields.io/badge/coverage-${coverage}%25-${color}"
       - name: 📘 Publish Documentation
         if: github.event_name == 'push'
         uses: peaceiris/actions-gh-pages@v3

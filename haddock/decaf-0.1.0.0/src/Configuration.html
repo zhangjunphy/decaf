@@ -35,17 +35,17 @@ PARTICULAR PURPOSE.  See the X11 license for more details. -}</span><span>
 </span><span id="line-35"></span><span>
 </span><span id="line-36"></span><span class="annot"><a href="Configuration.html#target"><span class="hs-identifier hs-type">target</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Configuration.Types.html#CompilerStage"><span class="hs-identifier hs-type">CompilerStage</span></a></span><span>
 </span><span id="line-37"></span><span id="target"><span class="annot"><span class="annottext">target :: Configuration -&gt; CompilerStage
-</span><a href="Configuration.html#target"><span class="hs-identifier hs-var hs-var">target</span></a></span></span><span> </span><span id="local-6989586621679162344"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679162344"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage -&gt; CompilerStage
+</span><a href="Configuration.html#target"><span class="hs-identifier hs-var hs-var">target</span></a></span></span><span> </span><span id="local-6989586621679162333"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679162333"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage -&gt; CompilerStage
 forall a. a -&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679162345"><span class="hs-identifier hs-var">defaultTarget</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe CompilerStage -&gt; CompilerStage)
+</span><a href="#local-6989586621679162334"><span class="hs-identifier hs-var">defaultTarget</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe CompilerStage -&gt; CompilerStage)
 -&gt; Maybe CompilerStage -&gt; CompilerStage
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration -&gt; Maybe CompilerStage
 </span><a href="Configuration.Types.html#explicitTarget"><span class="hs-identifier hs-var">explicitTarget</span></a></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679162344"><span class="hs-identifier hs-var">conf</span></a></span><span>
-</span><span id="line-38"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679162345"><span class="annot"><span class="annottext">defaultTarget :: CompilerStage
-</span><a href="#local-6989586621679162345"><span class="hs-identifier hs-var hs-var">defaultTarget</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage
+</span><a href="#local-6989586621679162333"><span class="hs-identifier hs-var">conf</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679162334"><span class="annot"><span class="annottext">defaultTarget :: CompilerStage
+</span><a href="#local-6989586621679162334"><span class="hs-identifier hs-var hs-var">defaultTarget</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage
 </span><a href="Configuration.Types.html#Parse"><span class="hs-identifier hs-var">Parse</span></a></span><span>   </span><span class="hs-comment">-- this will change as the course proceeds</span><span>
 </span><span id="line-39"></span></pre></body></html>

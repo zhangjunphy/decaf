@@ -1,5 +1,5 @@
 # Decaf 
-[![Unit tests](https://github.com/zhangjunphy/decaf/actions/workflows/haskell.yml/badge.svg)](https://github.com/zhangjunphy/decaf/actions/workflows/haskell.yml) 
+[![CI](https://github.com/zhangjunphy/decaf/actions/workflows/haskell.yml/badge.svg)](https://github.com/zhangjunphy/decaf/actions/workflows/haskell.yml) 
 [![Coverage](https://raw.githubusercontent.com/zhangjunphy/decaf/gh-pages/coverage/badge.svg)](https://zhangjunphy.github.io/decaf/coverage/hpc_index.html)
 
 An implementation of the Decaf language.

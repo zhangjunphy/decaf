@@ -14,23 +14,19 @@ jobs:
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v3
-      - name: 🔑 Cache Key
-        id: cache_key
-        run: echo "key=$(md5sum stack.yaml | awk '{print $1}')" >> $GITHUB_OUTPUT
+      - name: 🧰 Setup Haskell & Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-no-global: true
+          stack-version: 'latest'
       - name: 💾 Cache GHCup and Stack
         id: cache
         uses: actions/cache@v3
         with:
           path: |
-            ~/.ghcup
             ~/.stack
-          key: ${{ runner.os }}-${{ steps.cache_key.outputs.key }}
-      - name: 🧰 Setup Haskell & Stack
-        uses: haskell-actions/setup@v2
-        with:
-          ghc-version: '9.4.5'
-          enable-stack: true
-          stack-version: 'latest'
+          key: ${{ runner.os }}-${{ hashFiles('stack.yaml') }}
       - name: 📸 Build Snapshot
         if: steps.cache.outputs.cache-hit != 'true'
         run: |

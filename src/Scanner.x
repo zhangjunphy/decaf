@@ -22,6 +22,8 @@ module Scanner ( Token(..)
                , runAlex
                ) where
 
+import Debug.Trace
+
 import qualified SourceLoc as SL
 
 import Data.Maybe
@@ -62,10 +64,10 @@ $hexDigit = [$digit a-fA-F]
 @decimalLiteral = $digit+
 @hexLiteral = 0x $hexDigit+
 @boolLiteral = true | false
-@charLiteral = \'@char\'
-@stringLiteral = \"@char*\"
 @intLiteral = @decimalLiteral | @hexLiteral
-@literal = @intLiteral | @charLiteral | @boolLiteral
+-- @charLiteral = \'@char\'
+-- @stringLiteral = \"@char*\"
+-- @literal = @intLiteral | @charLiteral | @boolLiteral
 
 -- assign and increment
 $assignOp = \=
@@ -93,28 +95,27 @@ tokens :-
   <0, inComment>          "/*"                       { enterComment `andBegin` inComment }
   <inComment>             "*/"                       { exitComment }
   <inComment>             [.\n]                      ;
-  <0>                     "\""                       { enterString `andBegin` inString }
-  <inString>              "\\\\"                     { addToString '\\'}
-  <inString>              "\\n"                      { addToString '\n'}
-  <inString>              "\\t"                      { addToString '\t'}
-  <inString>              "\\\'"                     { addToString '\''}
+  <0>                     \"                         { enterString `andBegin` inString }
+  <inString>              "\\"                       { addToString '\\'}
+  <inString>              "\n"                       { addToString '\n'}
+  <inString>              "\t"                       { addToString '\t'}
+  <inString>              "\'"                       { addToString '\''}
   <inString>              \\\"                       { addToString '"'}
+  <inString>              \"                         { exitString }
   <inString>              [.\n]                      { addCurrentToString }
-  <inString>              "\""                       { exitString }
-  <0>                     "\'"                       { enterChar `andBegin` inChar }
-  <inChar>                "\\\\"                     { addToChar '\\'}
-  <inChar>                "\\n"                      { addToChar '\n'}
-  <inChar>                "\\t"                      { addToChar '\t'}
-  <inChar>                "\\\'"                     { addToChar '\''}
+  <0>                     "'"                        { enterChar `andBegin` inChar }
+  <inChar>                "\\"                       { addToChar '\\'}
+  <inChar>                "\n"                       { addToChar '\n'}
+  <inChar>                "\t"                       { addToChar '\t'}
+  <inChar>                "\'"                       { addToChar '\''}
   <inChar>                \\\"                       { addToChar '"'}
-  <inChar>                [.\n]                      { addCurrentToChar }
-  <inChar>                "\'"                       { exitChar }
-  <inString, inChar>      "\\"                       { scannerError $ \_ -> "invalid escape sequence" }
+  <inChar>                "'"                        { exitChar }
+  <inChar>                [.]                        { addCurrentToChar }
+  <inString, inChar>      "\"                        { scannerError $ \_ -> "invalid escape sequence" }
   <0>                     $syntaxChars ^ @keyword    { stringToken Keyword }
   <0>                     $syntaxChars ^ @id         { stringToken Identifier }
   <0>                     @intLiteral                { stringToken IntLiteral }
   <0>                     @boolLiteral               { stringToken BooleanLiteral }
-  <0>                     @stringLiteral             { stringToken StringLiteral }
   <0>                     $assignOp                  { plainToken AssignOp }
   <0>                     @compoundAssignOp          { stringToken CompoundAssignOp }
   <0>                     @incrementOp               { stringToken IncrementOp }
@@ -248,7 +249,7 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   }
 
 posnFromAlex :: AlexPosn -> SL.Posn
-posnFromAlex (AlexPn offset row col) = SL.Posn offset row col
+posnFromAlex (AlexPn offset row col) = SL.Posn offset (row-1) (col-1)
 
 locatedAt :: AlexPosn -> AlexPosn -> a -> SL.Located a
 locatedAt start stop = SL.LocatedAt (SL.Range (posnFromAlex start) (posnFromAlex stop))

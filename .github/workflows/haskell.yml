@@ -43,7 +43,7 @@ jobs:
           stack hpc report --all --destdir dist/coverage 2>&1 | tee coverage.log
           coverage=$(cat coverage.log | tr '\n' ' ' | sed "s/.* \([0-9]\+\)% top-level declarations used.*/\1/")
           color="$(if [[ ${coverage} -ge '80' ]]; then echo 'green'; elif [[ $coverage -ge '60' ]]; then echo 'yellow'; else echo 'red'; fi)"
-          wget -O dist/coverage/badge.svg "https://img.shields.io/badge/coverage-${coverage}%25-${color}"
+          wget -O dist/coverage/badge.svg "https://img.shields.io/badge/coverage-${Coverage}%25-${color}"
       - name: 📘 Publish Documentation
         if: github.event_name == 'push'
         uses: peaceiris/actions-gh-pages@v3

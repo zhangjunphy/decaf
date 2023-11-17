@@ -35,7 +35,7 @@ jobs:
           stack --no-terminal test --bench --only-snapshot
       - name: 🔨 Build & Test
         run: |
-          stack --no-terminal test --bench --haddock --no-haddock-deps --no-run-benchmarks
+          stack --no-terminal test --bench --haddock --no-haddock-deps --no-run-benchmarks --coverage
           mkdir -p dist/haddock && mv $(stack path --local-install-root)/doc/* dist/haddock
           sed -i 's@href="[^"]*/doc/\([^"]*.html\)"@href="\1"@g' dist/haddock/index.html
       - name: 🎚 Coverage

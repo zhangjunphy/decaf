@@ -23,7 +23,7 @@ jobs:
       - name: 🏷️ Variables
         id: variables
         run: |
-          echo ::set-output name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/")
+          echo name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/") >> $GITHUB_OUTPUT
       - name: 📸 Build Snapshot
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -38,3 +38,10 @@ jobs:
           DESTDIR=dist/coverage make report && DESTDIR=dist/coverage make badge
         env:
           PKG_NAME: ${{ steps.variables.outputs.pkg_name }}
+      - name: 📘 Publish Documentation
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
+          enable_jekyll: true

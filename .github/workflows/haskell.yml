@@ -20,10 +20,19 @@ jobs:
           ghc-version: '9.4.5'
           enable-stack: true
           stack-version: 'latest'
+      - name: 🔑 Cache Key
+        id: cache_key
+        run: echo name=key::$(md5sum stack.yaml | awk '{print $1}') >> $GITHUB_OUTPUT
+      - name: 💾 Cache Dependencies
+        id: cache
+        uses: actions/cache@v3
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-${{ steps.cache_key.outputs.key }}
       - name: 🏷️ Variables
         id: variables
         run: |
-          echo name=pkg_name::$(cat *.cabal | grep "name:" | sed "s/name:\s*\(.*\)/\1/") >> $GITHUB_OUTPUT
+          echo name=pkg_name::$(cat package.yaml | grep "name:" | sed "s/name:\s*\(.*\)/\1/") >> $GITHUB_OUTPUT
       - name: 📸 Build Snapshot
         if: steps.cache.outputs.cache-hit != 'true'
         run: |

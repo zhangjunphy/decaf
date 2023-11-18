@@ -1,9 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Parser.ParserSpec where
+module ScannerSpec where
 
 import Data.ByteString.Lazy (ByteString)
-import Data.Either (isRight)
 import Scanner
 import qualified SourceLoc as SL
 import Test.Hspec

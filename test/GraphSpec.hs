@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module CFG.GraphSpec where
+module GraphSpec where
 
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)

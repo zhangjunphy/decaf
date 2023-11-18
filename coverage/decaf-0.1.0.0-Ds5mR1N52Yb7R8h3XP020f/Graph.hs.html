@@ -42,7 +42,7 @@ span.spaces    { background: white }
 <span class="lineno">   23 </span>import qualified Data.Set as Set
 <span class="lineno">   24 </span>
 <span class="lineno">   25 </span>newtype Node = Node Int
-<span class="lineno">   26 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   26 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
 <span class="lineno">   27 </span>
 <span class="lineno">   28 </span>data Graph nd ed = Graph
 <span class="lineno">   29 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">nodes</span></span></span> :: Map Node nd,
@@ -58,12 +58,12 @@ span.spaces    { background: white }
 <span class="lineno">   39 </span>addNode :: nd -&gt; Graph nd ed -&gt; (Node, Graph nd ed)
 <span class="lineno">   40 </span><span class="decl"><span class="istickedoff">addNode dt cfg =</span>
 <span class="lineno">   41 </span><span class="spaces">  </span><span class="istickedoff">let n = Node (nextNodeIdx cfg)</span>
-<span class="lineno">   42 </span><span class="spaces">   </span><span class="istickedoff">in (<span class="nottickedoff">n</span>, cfg {nodes = Map.insert n dt (nodes cfg), nextNodeIdx = nextNodeIdx cfg + 1})</span></span>
+<span class="lineno">   42 </span><span class="spaces">   </span><span class="istickedoff">in (n, cfg {nodes = Map.insert n dt (nodes cfg), nextNodeIdx = nextNodeIdx cfg + 1})</span></span>
 <span class="lineno">   43 </span>
 <span class="lineno">   44 </span>addEdge :: Node -&gt; Node -&gt; ed -&gt; Graph nd ed -&gt; Graph nd ed
 <span class="lineno">   45 </span><span class="decl"><span class="istickedoff">addEdge start end dt cfg =</span>
-<span class="lineno">   46 </span><span class="spaces">  </span><span class="istickedoff">let <span class="nottickedoff">edges' = Map.insertWith (++) start [(end, dt)] (edges cfg)</span></span>
-<span class="lineno">   47 </span><span class="spaces">   </span><span class="istickedoff">in cfg {edges = <span class="nottickedoff">edges'</span>}</span></span>
+<span class="lineno">   46 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.insertWith <span class="nottickedoff">(++)</span> start [(end, <span class="nottickedoff">dt</span>)] (edges cfg)</span>
+<span class="lineno">   47 </span><span class="spaces">   </span><span class="istickedoff">in cfg {edges = edges'}</span></span>
 <span class="lineno">   48 </span>
 <span class="lineno">   49 </span>deleteEdge :: Node -&gt; Node -&gt; Graph nd ed -&gt; Graph nd ed
 <span class="lineno">   50 </span><span class="decl"><span class="nottickedoff">deleteEdge start end cfg =</span>
@@ -78,15 +78,15 @@ span.spaces    { background: white }
 <span class="lineno">   59 </span><span class="spaces">   </span><span class="nottickedoff">in cfg {nodes = nodes'}</span></span>
 <span class="lineno">   60 </span>
 <span class="lineno">   61 </span>outBound :: Node -&gt; Graph nd ed -&gt; [(Node, ed)]
-<span class="lineno">   62 </span><span class="decl"><span class="nottickedoff">outBound node cfg = concat $ Map.lookup node (edges cfg)</span></span>
+<span class="lineno">   62 </span><span class="decl"><span class="istickedoff">outBound node g = concat $ Map.lookup node (edges g)</span></span>
 <span class="lineno">   63 </span>
 <span class="lineno">   64 </span>inBound :: Node -&gt; Graph nd ed -&gt; [(Node, ed)]
-<span class="lineno">   65 </span><span class="decl"><span class="nottickedoff">inBound node cfg =</span>
-<span class="lineno">   66 </span><span class="spaces">  </span><span class="nottickedoff">let edges' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, _) -&gt; end == node)) (edges cfg)</span>
-<span class="lineno">   67 </span><span class="spaces">      </span><span class="nottickedoff">nodes' =</span>
-<span class="lineno">   68 </span><span class="spaces">        </span><span class="nottickedoff">concat (Map.assocs edges' &lt;&amp;&gt; \(src, dsts) -&gt; zip (repeat src) dsts)</span>
-<span class="lineno">   69 </span><span class="spaces">          </span><span class="nottickedoff">&lt;&amp;&gt; \(src, (_, ed)) -&gt; (src, ed)</span>
-<span class="lineno">   70 </span><span class="spaces">   </span><span class="nottickedoff">in nodes'</span></span>
+<span class="lineno">   65 </span><span class="decl"><span class="istickedoff">inBound node cfg =</span>
+<span class="lineno">   66 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, _) -&gt; end == node)) (edges cfg)</span>
+<span class="lineno">   67 </span><span class="spaces">      </span><span class="istickedoff">nodes' =</span>
+<span class="lineno">   68 </span><span class="spaces">        </span><span class="istickedoff">concat (Map.assocs edges' &lt;&amp;&gt; \(src, dsts) -&gt; zip (repeat src) dsts)</span>
+<span class="lineno">   69 </span><span class="spaces">          </span><span class="istickedoff">&lt;&amp;&gt; \(src, (_, ed)) -&gt; (src, <span class="nottickedoff">ed</span>)</span>
+<span class="lineno">   70 </span><span class="spaces">   </span><span class="istickedoff">in nodes'</span></span>
 
 </pre>
 </body>

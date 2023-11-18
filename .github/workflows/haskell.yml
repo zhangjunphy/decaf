@@ -20,7 +20,7 @@ jobs:
           enable-stack: true
           stack-no-global: true
           stack-version: 'latest'
-      - name: 💾 Cache GHCup and Stack
+      - name: 💾 Cache Stack
         id: cache
         uses: actions/cache@v3
         with:

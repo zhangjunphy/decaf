@@ -59,7 +59,7 @@ deleteNode node cfg =
    in cfg {nodes = nodes'}
 
 outBound :: Node -> Graph nd ed -> [(Node, ed)]
-outBound node cfg = concat $ Map.lookup node (edges cfg)
+outBound node g = concat $ Map.lookup node (edges g)
 
 inBound :: Node -> Graph nd ed -> [(Node, ed)]
 inBound node cfg =

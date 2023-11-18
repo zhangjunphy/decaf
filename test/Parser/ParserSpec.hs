@@ -14,6 +14,7 @@ spec = do
     scanSingleElement
     scanExpr
     scanStmt
+    scanFunction
 
 getTokens :: [Either String (SL.Located Token)] -> [Token]
 getTokens = fmap $ \(Right (SL.LocatedAt _ t)) -> t
@@ -44,3 +45,20 @@ scanStmt = do
   it "statement" $
     compareTokenStream "a = a * 1" [Identifier "a", AssignOp, Identifier "a", ArithmeticOp "*", IntLiteral "1"]
       && compareTokenStream "print(\"hello\")" [Identifier "print", LParen, StringLiteral "hello", RParen]
+
+scanFunction :: SpecWith ()
+scanFunction = do
+  it "function" $
+    compareTokenStream
+      "int func() \n{a = b;}"
+      [ Keyword "int",
+        Identifier "func",
+        LParen,
+        RParen,
+        LCurly,
+        Identifier "a",
+        AssignOp,
+        Identifier "b",
+        Semicolon,
+        RCurly
+      ]

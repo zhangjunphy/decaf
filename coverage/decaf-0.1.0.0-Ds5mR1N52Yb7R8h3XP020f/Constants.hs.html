@@ -1,0 +1,50 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>-- Constants -- Definitions for some constants
+<span class="lineno">    2 </span>-- Copyright (C) 2018 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
+<span class="lineno">    3 </span>--
+<span class="lineno">    4 </span>-- This file is a part of decafc.
+<span class="lineno">    5 </span>--
+<span class="lineno">    6 </span>-- decafc is free software: you can redistribute it and/or modify it under the
+<span class="lineno">    7 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
+<span class="lineno">    8 </span>--
+<span class="lineno">    9 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
+<span class="lineno">   10 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+<span class="lineno">   11 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+<span class="lineno">   12 </span>
+<span class="lineno">   13 </span>{-# LANGUAGE OverloadedStrings #-}
+<span class="lineno">   14 </span>
+<span class="lineno">   15 </span>module Constants
+<span class="lineno">   16 </span>where
+<span class="lineno">   17 </span>
+<span class="lineno">   18 </span>import Data.Text (Text)
+<span class="lineno">   19 </span>
+<span class="lineno">   20 </span>globalScopeID :: Int
+<span class="lineno">   21 </span><span class="decl"><span class="istickedoff">globalScopeID = 0</span></span>
+<span class="lineno">   22 </span>
+<span class="lineno">   23 </span>topLevelLabel :: Text
+<span class="lineno">   24 </span><span class="decl"><span class="nottickedoff">topLevelLabel = &quot;root&quot;</span></span>
+<span class="lineno">   25 </span>
+<span class="lineno">   26 </span>mainMethodName :: Text
+<span class="lineno">   27 </span><span class="decl"><span class="istickedoff">mainMethodName = &quot;main&quot;</span></span>
+
+</pre>
+</body>
+</html>

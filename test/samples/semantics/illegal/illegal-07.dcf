@@ -1,6 +1,0 @@
-void foo ( int i, boolean b ) {
-  return 3;
-  // should not return value;
-}
-void main ( ) {
-}

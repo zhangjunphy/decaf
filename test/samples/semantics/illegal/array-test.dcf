@@ -1,6 +1,0 @@
-int A[10];
-void main ( ) {
-  int b;
-  b[10] = 5;
-  // Semantic Error -- b is not an array
-}

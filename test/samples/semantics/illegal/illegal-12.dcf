@@ -1,6 +1,0 @@
-void main ( ) {
-  int x;
-  for ( x = false, 10 ) {
-    //initial condition must be an int
-  }
-}

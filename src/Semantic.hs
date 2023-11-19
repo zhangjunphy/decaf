@@ -13,8 +13,8 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedLabels #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Semantic
   ( runSemanticAnalysis,
@@ -26,19 +26,16 @@ module Semantic
   )
 where
 
+import AST
 import Constants
-import Formatting
-import AST 
-import qualified Parser as P
-import qualified SourceLoc as SL
-
 import Control.Applicative ((<|>))
+import Control.Lens (view)
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer.Lazy
-
 import Data.Char (ord)
 import Data.Functor ((<&>))
+import Data.Generics.Labels ()
 import Data.Int (Int64)
 import Data.List (find)
 import Data.Map (Map)
@@ -47,9 +44,9 @@ import Data.Maybe (isJust, isNothing)
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Read as T
-
-import Control.Lens (view)
-import Data.Generics.Labels ()
+import Formatting
+import qualified Parser as P
+import qualified SourceLoc as SL
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -140,7 +137,7 @@ initialSemanticState =
         }
 
 updateCurrentRange :: SL.Range -> Semantic ()
-updateCurrentRange range = modify (\s -> s{currentRange = range})
+updateCurrentRange range = modify (\s -> s {currentRange = range})
 
 getCurrentRange :: Semantic SL.Range
 getCurrentRange = gets currentRange
@@ -212,11 +209,11 @@ updateSymbolTable t = do
 
 getMethodSignature :: Semantic (Maybe MethodSig)
 getMethodSignature = do lookup <$> getSymbolTable'
-  where 
+  where
     lookup :: SymbolTable -> Maybe MethodSig
-    lookup SymbolTable{blockType=RootBlock} = Nothing
-    lookup SymbolTable{blockType=MethodBlock, methodSig=sig} = sig
-    lookup SymbolTable{parent=Just p} = lookup p
+    lookup SymbolTable {blockType = RootBlock} = Nothing
+    lookup SymbolTable {blockType = MethodBlock, methodSig = sig} = sig
+    lookup SymbolTable {parent = Just p} = lookup p
 
 getMethodSignature' :: Semantic MethodSig
 getMethodSignature' = do
@@ -255,7 +252,8 @@ exitScope = do
   case localST of
     Nothing ->
       throwSemanticException $
-        sformat ("No symbol table is associated with scope(" % int % ")!") $ currentScopeID state
+        sformat ("No symbol table is associated with scope(" % int % ")!") $
+          currentScopeID state
     Just table ->
       case parent table of
         Nothing ->
@@ -322,8 +320,9 @@ lookupVariable name = do
   sig <- getMethodSignature
   return $ st >>= lookup name sig
   where
-    lookup name sig st' = (lookupLocalVariableFromST name st' sig)
-      <|> (parent st' >>= lookup name sig)
+    lookup name sig st' =
+      (lookupLocalVariableFromST name st' sig)
+        <|> (parent st' >>= lookup name sig)
 
 lookupVariable' :: Name -> Semantic (Either Argument FieldDecl)
 lookupVariable' name = do
@@ -374,7 +373,7 @@ addVariableDef def = do
   case def of
     (FieldDecl _ (ArrayType _ sz))
       | sz < 0 ->
-        addSemanticError $ sformat ("Invalid size of array " % stext) nm
+          addSemanticError $ sformat ("Invalid size of array " % stext) nm
     _ -> return ()
   updateSymbolTable newST
 
@@ -421,12 +420,12 @@ checkReturnType (Just (Typed _ tpe')) = do
     Nothing -> addSemanticError $ sformat ("Method " % stext % " expects no return value!") method
     t
       | t /= tpe ->
-        addSemanticError $
-          sformat
-            ("Method " % stext % " expects return type of " % shown % ", but got " % shown % " instead.")
-            method
-            tpe
-            tpe'
+          addSemanticError $
+            sformat
+              ("Method " % stext % " expects return type of " % shown % ", but got " % shown % " instead.")
+              method
+              tpe
+              tpe'
     _ -> return ()
 
 -- | Check if content of lit is a valid int64.
@@ -454,8 +453,8 @@ checkBoolLiteral lit
   | lit == "true" = return True
   | lit == "flase" = return False
   | otherwise = do
-    addSemanticError $ sformat ("error parsing bool literal from string " % stext) lit
-    return True
+      addSemanticError $ sformat ("error parsing bool literal from string " % stext) lit
+      return True
 
 checkCharLiteral :: Text -> Semantic Char
 checkCharLiteral lit = do
@@ -533,7 +532,7 @@ irgenFieldDecls :: [SL.Located P.FieldDecl] -> Semantic [SL.Located FieldDecl]
 irgenFieldDecls [] = return []
 irgenFieldDecls ((SL.LocatedAt pos decl) : rest) = do
   fields <- sequence $ convertFieldDecl decl
-  vars <- addVariables fields 
+  vars <- addVariables fields
   rest' <- irgenFieldDecls rest
   return (vars ++ rest')
   where
@@ -545,7 +544,7 @@ irgenFieldDecls ((SL.LocatedAt pos decl) : rest) = do
         (SL.LocatedAt range (P.VectorField id size)) -> do
           updateCurrentRange pos
           sz <- checkInt64Literal size
-          return $ SL.LocatedAt pos $ FieldDecl id (irgenType tpe)
+          return $ SL.LocatedAt pos $ FieldDecl id (ArrayType (irgenType tpe) sz)
     addVariables [] = return []
     addVariables (v : vs) = do
       addVariableDef $ SL.unLocate v
@@ -568,8 +567,9 @@ irgenMethodDecls ((SL.LocatedAt range decl) : rest) = do
       block <- irgenBlock MethodBlock (Just sig) block
       return $ MethodDecl sig block
       where
-        args = arguments <&> \(SL.LocatedAt range (P.Argument id tpe)) ->
-           SL.LocatedAt range $ Argument id (irgenType tpe)
+        args =
+          arguments <&> \(SL.LocatedAt range (P.Argument id tpe)) ->
+            SL.LocatedAt range $ Argument id (irgenType tpe)
 
 irgenBlock :: BlockType -> Maybe MethodSig -> P.Block -> Semantic Block
 irgenBlock blockType sig (P.Block fieldDecls statements) = do
@@ -619,13 +619,17 @@ irgenLocation (P.VectorLocation id expr) = do
       return $ Typed (Location id Nothing def) tpe
     Just _ -> return $ Typed (Location id (Just expr') def) tpe
 
+checkAssignType :: Type -> Type -> Bool
+checkAssignType (ArrayType tpe _) exprType = tpe == exprType
+checkAssignType locType exprType = locType == exprType
+
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
 irgenAssign loc (P.AssignExpr op expr) = do
   loc'@(Typed _ tpe) <- irgenLocation loc
-  expr'@(SL.LocatedAt _(Typed _ tpe')) <- irgenExpr expr
+  expr'@(SL.LocatedAt _ (Typed _ tpe')) <- irgenExpr expr
   -- Semantic[19]
   when
-    (tpe /= tpe')
+    (not $ checkAssignType tpe tpe')
     (addSemanticError $ sformat ("Assign statement has different types: " % shown % " and " % shown % "") tpe tpe')
   let op' = parseAssignOp op
   -- Semantic[20]
@@ -852,7 +856,7 @@ irgenExpr (SL.LocatedAt range (P.CondOpExpr op l r)) = do
   when
     (ltp /= BoolType || rtp /= BoolType)
     (addSemanticError "Conditional ops only accept booleans!")
-  return $ SL.LocatedAt range  $ Typed (CondOpExpr (parseCondOp op) l' r') BoolType
+  return $ SL.LocatedAt range $ Typed (CondOpExpr (parseCondOp op) l' r') BoolType
 irgenExpr (SL.LocatedAt range (P.NegativeExpr expr)) = do
   updateCurrentRange range
   -- Semantic[16]
@@ -860,7 +864,7 @@ irgenExpr (SL.LocatedAt range (P.NegativeExpr expr)) = do
   when
     (tpe /= IntType)
     (addSemanticError "Operator \"-\" only accepts integers!")
-  return $ SL.LocatedAt range  $ Typed (NegOpExpr Neg expr') IntType
+  return $ SL.LocatedAt range $ Typed (NegOpExpr Neg expr') IntType
 irgenExpr (SL.LocatedAt range (P.NegateExpr expr)) = do
   updateCurrentRange range
   -- Semantic[18]
@@ -868,7 +872,7 @@ irgenExpr (SL.LocatedAt range (P.NegateExpr expr)) = do
   when
     (tpe /= BoolType)
     (addSemanticError "Operator \"!\" only accepts integers!")
-  return $ SL.LocatedAt range  $ Typed (NotOpExpr Not expr') BoolType
+  return $ SL.LocatedAt range $ Typed (NotOpExpr Not expr') BoolType
 irgenExpr (SL.LocatedAt range (P.ChoiceExpr pred l r)) = do
   updateCurrentRange range
   pred'@(SL.LocatedAt _ (Typed _ ptp)) <- irgenExpr pred
@@ -881,7 +885,7 @@ irgenExpr (SL.LocatedAt range (P.ChoiceExpr pred l r)) = do
   when
     (ltp /= rtp)
     (addSemanticError "Alternatives of choice op should have same type!")
-  return $ SL.LocatedAt range  $ Typed (ChoiceOpExpr Choice pred' l' r') ltp
+  return $ SL.LocatedAt range $ Typed (ChoiceOpExpr Choice pred' l' r') ltp
 irgenExpr (SL.LocatedAt range (P.ParenExpr expr)) = do
   updateCurrentRange range
   irgenExpr expr

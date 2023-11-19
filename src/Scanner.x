@@ -112,10 +112,10 @@ tokens :-
   <inChar>                "'"                        { exitChar }
   <inChar>                [.]                        { addCurrentToChar }
   <inString, inChar>      "\"                        { scannerError $ \_ -> "invalid escape sequence" }
-  <0>                     $syntaxChars ^ @keyword    { stringToken Keyword }
-  <0>                     $syntaxChars ^ @id         { stringToken Identifier }
   <0>                     @intLiteral                { stringToken IntLiteral }
   <0>                     @boolLiteral               { stringToken BooleanLiteral }
+  <0>                     $syntaxChars ^ @keyword    { stringToken Keyword }
+  <0>                     $syntaxChars ^ @id         { stringToken Identifier }
   <0>                     $assignOp                  { plainToken AssignOp }
   <0>                     @compoundAssignOp          { stringToken CompoundAssignOp }
   <0>                     @incrementOp               { stringToken IncrementOp }

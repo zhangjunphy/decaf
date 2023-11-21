@@ -451,7 +451,7 @@ checkInt64Literal lit = do
 checkBoolLiteral :: Text -> Semantic Bool
 checkBoolLiteral lit
   | lit == "true" = return True
-  | lit == "flase" = return False
+  | lit == "false" = return False
   | otherwise = do
       addSemanticError $ sformat ("error parsing bool literal from string " % stext) lit
       return True

@@ -111,6 +111,7 @@ parseError :: Token -> Alex a
 
 
 -- precedence --
+%right '+=' '-=' TERNARY_COND
 %left '||'
 %left '&&'
 %nonassoc '==' '!='
@@ -119,6 +120,7 @@ parseError :: Token -> Alex a
 %left '*' '/' '%'
 %left '!'
 %left NEG
+%left '++'
 
 %% -------------------------------- Grammar -----------------------------------
 
@@ -189,7 +191,7 @@ ImportArg : Expr                                            { SL.LocatedAt (getL
           | stringLiteral                                   { SL.LocatedAt (getLoc $1) $ StringImportArg (getLiteral $ unLoc $1) }
 
 Expr : Expr1                                                { SL.LocatedAt (getLoc $1) $ unLoc $1 }
-     | Expr1 '?' Expr1 '\:' Expr                            { SL.LocatedAt (unionOf $1 $5) $ ChoiceExpr $1 $3 $5 }
+     | Expr1 '?' Expr1 '\:' Expr %prec TERNARY_COND         { SL.LocatedAt (unionOf $1 $5) $ ChoiceExpr $1 $3 $5 }
 
 Expr1 : Location                                            { SL.LocatedAt (getLoc $1) $ LocationExpr (unLoc $1) }
       | MethodCall                                          { SL.LocatedAt (getLoc $1) $ MethodCallExpr (unLoc $1) }
@@ -212,7 +214,7 @@ Expr1 : Location                                            { SL.LocatedAt (getL
       | Expr1 '||' Expr1                                    { SL.LocatedAt (unionOf $1 $3) $ CondOpExpr "||" $1 $3 }
       | '-' Expr1 %prec NEG                                 { SL.LocatedAt (unionOf $1 $2) $ NegativeExpr $2 }
       | '!' Expr1                                           { SL.LocatedAt (unionOf $1 $2) $ NegateExpr $2 }
-      | '(' Expr1 ')'                                       { SL.LocatedAt (unionOf $1 $3) $ ParenExpr $2 }
+      | '(' Expr ')'                                        { SL.LocatedAt (unionOf $1 $3) $ ParenExpr $2 }
 
 ----------------------------------- Haskell -----------------------------------
 {

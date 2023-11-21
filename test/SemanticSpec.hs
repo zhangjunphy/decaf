@@ -36,4 +36,5 @@ typeCheckSpec = do
           (AST.AssignStmt (AST.Assignment _ _ (Just expr))) = SL.unLocate $ head stmts
           tpe = view #tpe $ SL.unLocate expr
        in typeOfAssignExpr (stmts!!0) == AST.IntType &&
-          typeOfAssignExpr (stmts!!1) == AST.BoolType
+          typeOfAssignExpr (stmts!!1) == AST.BoolType && 
+          typeOfAssignExpr (stmts!!2) == AST.BoolType 

@@ -1,10 +1,13 @@
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module ParserSpec where
 
+import Control.Lens (view)
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BL
 import Data.Either (isRight)
+import Parser (Expr (choicePredExpr))
 import qualified Parser
 import SourceLoc (unLocate)
 import qualified SourceLoc as SL
@@ -16,13 +19,10 @@ spec = do
   describe "parser" $ do
     parseTopLevel
 
-program :: String
-program = "test/samples/hello_world.dcf"
-
 parseTopLevel :: SpecWith ()
 parseTopLevel = do
   it "parse" $
-    checkSample program pred
+    checkSample "test/samples/hello_world.dcf" pred
   where
     pred program =
       let (Right p) = Parser.parse program
@@ -36,3 +36,19 @@ parseTopLevel = do
             && length (Parser.methodDecls p) == 1
             && Parser.methodId main == "main"
             && methodName == "print"
+
+parseChoiceExpr :: SpecWith ()
+parseChoiceExpr = do
+  it "parse" $
+    checkSample "test/samples/choice_expr.dcf" pred
+  where
+    getChoiceExpr stmt =
+      let (Parser.AssignStatement {Parser.assignExpr = (Parser.AssignExpr {Parser.assignSourceExpr = expr})}) = SL.unLocate stmt
+       in unLocate expr
+    pred program =
+      let (Right p) = Parser.parse program
+          main = unLocate (head (Parser.methodDecls p))
+          block = Parser.block main
+          stmts = Parser.blockStatements block
+          choiceExpr = getChoiceExpr $ stmts !! 0
+       in case choiceExpr of (Parser.ChoiceExpr _ _ _) -> True

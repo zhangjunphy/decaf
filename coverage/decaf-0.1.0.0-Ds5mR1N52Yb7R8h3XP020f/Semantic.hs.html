@@ -469,8 +469,8 @@ span.spaces    { background: white }
 <span class="lineno">  450 </span>
 <span class="lineno">  451 </span>checkBoolLiteral :: Text -&gt; Semantic Bool
 <span class="lineno">  452 </span><span class="decl"><span class="istickedoff">checkBoolLiteral lit</span>
-<span class="lineno">  453 </span><span class="spaces">  </span><span class="istickedoff">| <span class="tickonlytrue">lit == &quot;true&quot;</span> = return <span class="nottickedoff">True</span></span>
-<span class="lineno">  454 </span><span class="spaces">  </span><span class="istickedoff">| <span class="nottickedoff">lit == &quot;flase&quot;</span> = <span class="nottickedoff">return False</span></span>
+<span class="lineno">  453 </span><span class="spaces">  </span><span class="istickedoff">| lit == &quot;true&quot; = return <span class="nottickedoff">True</span></span>
+<span class="lineno">  454 </span><span class="spaces">  </span><span class="istickedoff">| <span class="tickonlytrue">lit == &quot;false&quot;</span> = return <span class="nottickedoff">False</span></span>
 <span class="lineno">  455 </span><span class="spaces">  </span><span class="istickedoff">| <span class="nottickedoff">otherwise</span> = <span class="nottickedoff">do</span></span>
 <span class="lineno">  456 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">addSemanticError $ sformat (&quot;error parsing bool literal from string &quot; % stext) lit</span></span>
 <span class="lineno">  457 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">return True</span></span></span>
@@ -905,9 +905,9 @@ span.spaces    { background: white }
 <span class="lineno">  886 </span><span class="spaces">    </span><span class="istickedoff">(ltp /= rtp)</span>
 <span class="lineno">  887 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError &quot;Alternatives of choice op should have same type!&quot;)</span></span>
 <span class="lineno">  888 </span><span class="spaces">  </span><span class="istickedoff">return $ SL.LocatedAt <span class="nottickedoff">range</span> $ Typed <span class="nottickedoff">(ChoiceOpExpr Choice pred' l' r')</span> ltp</span>
-<span class="lineno">  889 </span><span class="spaces"></span><span class="istickedoff">irgenExpr (SL.LocatedAt range (P.ParenExpr expr)) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  890 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">updateCurrentRange range</span></span>
-<span class="lineno">  891 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">irgenExpr expr</span></span></span>
+<span class="lineno">  889 </span><span class="spaces"></span><span class="istickedoff">irgenExpr (SL.LocatedAt range (P.ParenExpr expr)) = do</span>
+<span class="lineno">  890 </span><span class="spaces">  </span><span class="istickedoff">updateCurrentRange <span class="nottickedoff">range</span></span>
+<span class="lineno">  891 </span><span class="spaces">  </span><span class="istickedoff">irgenExpr expr</span></span>
 <span class="lineno">  892 </span>
 <span class="lineno">  893 </span>irgenImportArg :: SL.Located P.ImportArg -&gt; Semantic (SL.Located (Typed Expr))
 <span class="lineno">  894 </span><span class="decl"><span class="nottickedoff">irgenImportArg (SL.LocatedAt range (P.ExprImportArg expr)) = irgenExpr expr</span>

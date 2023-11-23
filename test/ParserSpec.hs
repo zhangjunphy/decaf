@@ -51,4 +51,6 @@ parseChoiceExpr = do
           block = Parser.block main
           stmts = Parser.blockStatements block
           choiceExpr = getChoiceExpr $ stmts !! 0
-       in case choiceExpr of (Parser.ChoiceExpr _ _ _) -> True
+       in case choiceExpr of
+            (Parser.ChoiceExpr _ _ (SL.LocatedAt _ (Parser.ChoiceExpr {}))) -> True
+            _ -> False

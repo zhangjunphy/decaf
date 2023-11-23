@@ -1,6 +1,6 @@
 int a;
 
 void main() {
-    a = true ? true : false ? 1 : 2;
-    a += 1;
+    // In our implementation, choice operator should be right-associative
+    a = true ? 1 : false ? 1 : 2;
 }

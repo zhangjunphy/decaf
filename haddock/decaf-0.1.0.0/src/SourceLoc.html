@@ -14,14 +14,14 @@
 </span><span id="line-12"></span><span>    </span><span id="col"><span class="annot"><span class="annottext">Posn -&gt; Int
 </span><a href="SourceLoc.html#col"><span class="hs-identifier hs-var hs-var">col</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-13"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-14"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162868"><span id="local-6989586621679162874"><span class="annot"><span class="annottext">Posn -&gt; Posn -&gt; Bool
+</span><span id="line-14"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162872"><span id="local-6989586621679162878"><span class="annot"><span class="annottext">Posn -&gt; Posn -&gt; Bool
 (Posn -&gt; Posn -&gt; Bool) -&gt; (Posn -&gt; Posn -&gt; Bool) -&gt; Eq Posn
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c== :: Posn -&gt; Posn -&gt; Bool
 == :: Posn -&gt; Posn -&gt; Bool
 $c/= :: Posn -&gt; Posn -&gt; Bool
 /= :: Posn -&gt; Posn -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679162881"><span id="local-6989586621679162887"><span id="local-6989586621679162892"><span id="local-6989586621679162896"><span id="local-6989586621679162899"><span id="local-6989586621679162902"><span id="local-6989586621679162905"><span class="annot"><span class="annottext">Eq Posn
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679162885"><span id="local-6989586621679162891"><span id="local-6989586621679162896"><span id="local-6989586621679162900"><span id="local-6989586621679162903"><span id="local-6989586621679162906"><span id="local-6989586621679162909"><span class="annot"><span class="annottext">Eq Posn
 Eq Posn
 -&gt; (Posn -&gt; Posn -&gt; Ordering)
 -&gt; (Posn -&gt; Posn -&gt; Bool)
@@ -68,12 +68,12 @@ min :: Posn -&gt; Posn -&gt; Posn
 </span><span class="hs-number">0</span></span><span> </span><span class="annot"><span class="annottext">Int
 </span><span class="hs-number">0</span></span><span>
 </span><span id="line-18"></span><span>
-</span><span id="line-19"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679162910"><span id="local-6989586621679162915"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Posn"><span class="hs-identifier hs-type">Posn</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-20"></span><span>  </span><span id="local-6989586621679162928"><span class="annot"><span class="annottext">show :: Posn -&gt; String
-</span><a href="#local-6989586621679162928"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#Posn"><span class="hs-identifier hs-type">Posn</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679162930"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679162930"><span class="hs-identifier hs-var">row</span></a></span></span><span> </span><span id="local-6989586621679162931"><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679162931"><span class="hs-identifier hs-var">col</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Int -&gt; Int -&gt; String) -&gt; Int -&gt; Int -&gt; String
+</span><span id="line-19"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679162914"><span id="local-6989586621679162919"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Posn"><span class="hs-identifier hs-type">Posn</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-20"></span><span>  </span><span id="local-6989586621679162932"><span class="annot"><span class="annottext">show :: Posn -&gt; String
+</span><a href="#local-6989586621679162932"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#Posn"><span class="hs-identifier hs-type">Posn</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679162934"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679162934"><span class="hs-identifier hs-var">row</span></a></span></span><span> </span><span id="local-6989586621679162935"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679162935"><span class="hs-identifier hs-var">col</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Int -&gt; Int -&gt; String) -&gt; Int -&gt; Int -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Int -&gt; Int -&gt; String) (Int -&gt; Int -&gt; String)
 </span><span class="hs-string">&quot;(&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Int -&gt; Int -&gt; String) (Int -&gt; Int -&gt; String)
@@ -97,8 +97,8 @@ forall a r. Integral a =&gt; Format r (a -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String String
 </span><span class="hs-string">&quot;)&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679162930"><span class="hs-identifier hs-var">row</span></a></span><span> </span><span class="annot"><span class="annottext">Int
-</span><a href="#local-6989586621679162931"><span class="hs-identifier hs-var">col</span></a></span><span>
+</span><a href="#local-6989586621679162934"><span class="hs-identifier hs-var">row</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679162935"><span class="hs-identifier hs-var">col</span></a></span><span>
 </span><span id="line-21"></span><span>
 </span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Range"><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-var">Range</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Range"><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-var">Range</span></a></span></span><span>
 </span><span id="line-23"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="start"><span class="annot"><span class="annottext">Range -&gt; Posn
@@ -106,14 +106,14 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span id="line-24"></span><span>    </span><span id="stop"><span class="annot"><span class="annottext">Range -&gt; Posn
 </span><a href="SourceLoc.html#stop"><span class="hs-identifier hs-var hs-var">stop</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SourceLoc.html#Posn"><span class="hs-identifier hs-type">Posn</span></a></span><span>
 </span><span id="line-25"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162936"><span id="local-6989586621679162940"><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
+</span><span id="line-26"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162940"><span id="local-6989586621679162944"><span class="annot"><span class="annottext">Range -&gt; Range -&gt; Bool
 (Range -&gt; Range -&gt; Bool) -&gt; (Range -&gt; Range -&gt; Bool) -&gt; Eq Range
 forall a. (a -&gt; a -&gt; Bool) -&gt; (a -&gt; a -&gt; Bool) -&gt; Eq a
 $c== :: Range -&gt; Range -&gt; Bool
 == :: Range -&gt; Range -&gt; Bool
 $c/= :: Range -&gt; Range -&gt; Bool
 /= :: Range -&gt; Range -&gt; Bool
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679162946"><span id="local-6989586621679162950"><span id="local-6989586621679162954"><span id="local-6989586621679162958"><span id="local-6989586621679162961"><span id="local-6989586621679162964"><span id="local-6989586621679162967"><span class="annot"><span class="annottext">Eq Range
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Eq</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679162950"><span id="local-6989586621679162954"><span id="local-6989586621679162958"><span id="local-6989586621679162962"><span id="local-6989586621679162965"><span id="local-6989586621679162968"><span id="local-6989586621679162971"><span class="annot"><span class="annottext">Eq Range
 Eq Range
 -&gt; (Range -&gt; Range -&gt; Ordering)
 -&gt; (Range -&gt; Range -&gt; Bool)
@@ -159,11 +159,11 @@ min :: Range -&gt; Range -&gt; Range
 </span><a href="SourceLoc.html#posn0"><span class="hs-identifier hs-var">posn0</span></a></span><span> </span><span class="annot"><span class="annottext">Posn
 </span><a href="SourceLoc.html#posn0"><span class="hs-identifier hs-var">posn0</span></a></span><span>
 </span><span id="line-30"></span><span>
-</span><span id="line-31"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679162971"><span id="local-6989586621679162976"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-32"></span><span>  </span><span id="local-6989586621679162986"><span class="annot"><span class="annottext">show :: Range -&gt; String
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span id="local-6989586621679162987"><span class="annot"><span class="annottext">Posn
-</span><a href="#local-6989586621679162987"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679162988"><span class="annot"><span class="annottext">Posn
-</span><a href="#local-6989586621679162988"><span class="hs-identifier hs-var">stop</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Posn -&gt; Posn -&gt; String) -&gt; Posn -&gt; Posn -&gt; String
+</span><span id="line-31"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679162975"><span id="local-6989586621679162980"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-32"></span><span>  </span><span id="local-6989586621679162990"><span class="annot"><span class="annottext">show :: Range -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span id="local-6989586621679162991"><span class="annot"><span class="annottext">Posn
+</span><a href="#local-6989586621679162991"><span class="hs-identifier hs-var">start</span></a></span></span><span> </span><span id="local-6989586621679162992"><span class="annot"><span class="annottext">Posn
+</span><a href="#local-6989586621679162992"><span class="hs-identifier hs-var">stop</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Posn -&gt; Posn -&gt; String) -&gt; Posn -&gt; Posn -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Posn -&gt; Posn -&gt; String) (Posn -&gt; Posn -&gt; String)
 </span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Posn -&gt; Posn -&gt; String) (Posn -&gt; Posn -&gt; String)
@@ -187,12 +187,12 @@ forall a r. Show a =&gt; Format r (a -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String String
 </span><span class="hs-string">&quot;]&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Posn
-</span><a href="#local-6989586621679162987"><span class="hs-identifier hs-var">start</span></a></span><span> </span><span class="annot"><span class="annottext">Posn
-</span><a href="#local-6989586621679162988"><span class="hs-identifier hs-var">stop</span></a></span><span>
+</span><a href="#local-6989586621679162991"><span class="hs-identifier hs-var">start</span></a></span><span> </span><span class="annot"><span class="annottext">Posn
+</span><a href="#local-6989586621679162992"><span class="hs-identifier hs-var">stop</span></a></span><span>
 </span><span id="line-33"></span><span>
 </span><span id="line-34"></span><span>
-</span><span id="line-35"></span><span class="hs-keyword">data</span><span> </span><span id="Located"><span class="annot"><a href="SourceLoc.html#Located"><span class="hs-identifier hs-var">Located</span></a></span></span><span> </span><span id="local-6989586621679162989"><span class="annot"><a href="#local-6989586621679162989"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LocatedAt"><span class="annot"><a href="SourceLoc.html#LocatedAt"><span class="hs-identifier hs-var">LocatedAt</span></a></span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679162989"><span class="hs-identifier hs-type">a</span></a></span><span>
-</span><span id="line-36"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162993"><span id="local-6989586621679162998"><span id="local-6989586621679163002"><span class="annot"><span class="annottext">Int -&gt; Located a -&gt; ShowS
+</span><span id="line-35"></span><span class="hs-keyword">data</span><span> </span><span id="Located"><span class="annot"><a href="SourceLoc.html#Located"><span class="hs-identifier hs-var">Located</span></a></span></span><span> </span><span id="local-6989586621679162993"><span class="annot"><a href="#local-6989586621679162993"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="LocatedAt"><span class="annot"><a href="SourceLoc.html#LocatedAt"><span class="hs-identifier hs-var">LocatedAt</span></a></span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">Range</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679162993"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679162997"><span id="local-6989586621679163002"><span id="local-6989586621679163006"><span class="annot"><span class="annottext">Int -&gt; Located a -&gt; ShowS
 [Located a] -&gt; ShowS
 Located a -&gt; String
 (Int -&gt; Located a -&gt; ShowS)
@@ -210,7 +210,7 @@ $cshow :: forall a. Show a =&gt; Located a -&gt; String
 show :: Located a -&gt; String
 $cshowList :: forall a. Show a =&gt; [Located a] -&gt; ShowS
 showList :: [Located a] -&gt; ShowS
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679163005"><span id="local-6989586621679163007"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Located a -&gt; Located b)
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679163009"><span id="local-6989586621679163011"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; Located a -&gt; Located b)
 -&gt; (forall a b. a -&gt; Located b -&gt; Located a) -&gt; Functor Located
 forall a b. a -&gt; Located b -&gt; Located a
 forall a b. (a -&gt; b) -&gt; Located a -&gt; Located b
@@ -223,10 +223,10 @@ $c&lt;$ :: forall a b. a -&gt; Located b -&gt; Located a
 &lt;$ :: forall a b. a -&gt; Located b -&gt; Located a
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-37"></span><span>
-</span><span id="line-38"></span><span id="local-6989586621679162856"><span class="annot"><a href="SourceLoc.html#unLocate"><span class="hs-identifier hs-type">unLocate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SourceLoc.html#Located"><span class="hs-identifier hs-type">Located</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679162856"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679162856"><span class="hs-identifier hs-type">a</span></a></span></span><span>
+</span><span id="line-38"></span><span id="local-6989586621679162860"><span class="annot"><a href="SourceLoc.html#unLocate"><span class="hs-identifier hs-type">unLocate</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SourceLoc.html#Located"><span class="hs-identifier hs-type">Located</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679162860"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679162860"><span class="hs-identifier hs-type">a</span></a></span></span><span>
 </span><span id="line-39"></span><span id="unLocate"><span class="annot"><span class="annottext">unLocate :: forall a. Located a -&gt; a
 </span><a href="SourceLoc.html#unLocate"><span class="hs-identifier hs-var hs-var">unLocate</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679163010"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679163010"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679163010"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679163014"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679163014"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679163014"><span class="hs-identifier hs-var">a</span></a></span><span>
 </span><span id="line-40"></span></pre></body></html>

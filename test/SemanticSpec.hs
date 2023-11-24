@@ -19,7 +19,7 @@ spec = do
     typeCheckSpec
 
 program :: String
-program = "test/samples/type_check.dcf"
+program = "test/samples/semantic/type_check.dcf"
 
 typeCheckSpec :: SpecWith ()
 typeCheckSpec = do

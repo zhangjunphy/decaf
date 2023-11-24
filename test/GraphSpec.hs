@@ -4,7 +4,7 @@ module GraphSpec where
 
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
-import Graph (Graph)
+import Graph
 import qualified Graph
 import Test.Hspec
 
@@ -28,26 +28,25 @@ specEmptyGraph = do
 specTrivialGraph :: SpecWith ()
 specTrivialGraph = do
   it "construct a trivial graph" $
-    let trivialGraph = constructTrivialGraph
+    let (Right trivialGraph) = build constructTrivialGraph
      in Map.size (Graph.nodes trivialGraph) == 2
   where
-    constructTrivialGraph =
-      let emptyGraph = Graph.empty
-          (node1, graph1) = Graph.addNode "1" emptyGraph
-          (node2, graph2) = Graph.addNode "2" graph1
-          graph3 = Graph.addEdge node1 node2 "1-2" graph2
-       in graph3
+    constructTrivialGraph = do
+      n1 <- addNode "1"
+      n2 <- addNode "2"
+      addEdge n1 n2 "1-2"
 
 specCyclicGraph :: SpecWith ()
 specCyclicGraph = do
   it "construct a cyclic graph" $
-    let emptyGraph = Graph.empty
-        (node1, graph1) = Graph.addNode "1" emptyGraph
-        (node2, graph2) = Graph.addNode "2" graph1
-        (node3, graph3) = Graph.addNode "3" graph2
-        graph4 = Graph.addEdge node1 node2 "1-2" graph3
-        graph5 = Graph.addEdge node2 node3 "2-3" graph4
-        cyclicGraph = Graph.addEdge node3 node1 "3-1" graph5
+    let constructG = do
+          n1 <- addNode "1"
+          n2 <- addNode "2"
+          n3 <- addNode "3"
+          addEdge n1 n2 "1-2"
+          addEdge n2 n3 "2-3"
+          addEdge n3 n1 "3-1"
+        (Right cyclicGraph) = build constructG
      in Map.size (Graph.nodes cyclicGraph) == 3
           && Map.size (Graph.edges cyclicGraph) == 3
           && ( let inEdges = Graph.inBound node3 cyclicGraph

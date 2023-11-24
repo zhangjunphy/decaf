@@ -22,7 +22,7 @@ spec = do
 parseTopLevel :: SpecWith ()
 parseTopLevel = do
   it "parse" $
-    checkSample "test/samples/hello_world.dcf" pred
+    checkSample "test/samples/parser/hello_world.dcf" pred
   where
     pred program =
       let (Right p) = Parser.parse program
@@ -40,7 +40,7 @@ parseTopLevel = do
 parseChoiceExpr :: SpecWith ()
 parseChoiceExpr = do
   it "parse" $
-    checkSample "test/samples/choice_expr.dcf" pred
+    checkSample "test/samples/parser/choice_expr.dcf" pred
   where
     getChoiceExpr stmt =
       let (Parser.AssignStatement {Parser.assignExpr = (Parser.AssignExpr {Parser.assignSourceExpr = expr})}) = SL.unLocate stmt

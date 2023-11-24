@@ -3,6 +3,7 @@
 module ScannerSpec where
 
 import Data.ByteString.Lazy (ByteString)
+import Data.Either (isLeft)
 import Scanner
 import qualified SourceLoc as SL
 import Test.Hspec
@@ -14,6 +15,7 @@ spec = do
     scanExpr
     scanStmt
     scanFunction
+    scannerLoc
 
 getTokens :: [Either String (SL.Located Token)] -> [Token]
 getTokens = fmap $ \(Right (SL.LocatedAt _ t)) -> t
@@ -23,14 +25,37 @@ compareTokenStream inp toks =
   let res = Scanner.scan inp
    in getTokens res == toks
 
+shouldErrorOut :: ByteString -> Bool
+shouldErrorOut inp =
+  let res = Scanner.scan inp
+   in length res == 1 && isLeft (head res)
+
+checkLoc :: ByteString -> Int -> SL.Range -> Bool
+checkLoc inp idxEle range =
+  let res = Scanner.scan inp
+      (Right (SL.LocatedAt pos _)) = res !! idxEle
+   in pos == range
+
 scanSingleElement :: SpecWith ()
 scanSingleElement =
   do
-    it "single element" $
+    it "elements" $
       compareTokenStream "a" [Identifier "a"]
         && compareTokenStream "1" [IntLiteral "1"]
         && compareTokenStream "()" [LParen, RParen]
         && compareTokenStream "/* comment */" []
+        && compareTokenStream "/* line1 \n line2 \t \n line3 */" []
+        && compareTokenStream "//" []
+        && compareTokenStream "3 >= 2" [IntLiteral "3", RelationOp ">=", IntLiteral "2"]
+        && compareTokenStream "if else for" [Keyword "if", Keyword "else", Keyword "for"]
+        && compareTokenStream "\"this\t is\\\\ a string\"" [StringLiteral "this\t is\\ a string"]
+
+scanError :: SpecWith ()
+scanError = do
+  it "should error" $
+    shouldErrorOut "\f"
+      && shouldErrorOut "|"
+      && shouldErrorOut "|||"
 
 scanExpr :: SpecWith ()
 scanExpr = do
@@ -61,3 +86,11 @@ scanFunction = do
         Semicolon,
         RCurly
       ]
+
+scannerLoc :: SpecWith ()
+scannerLoc = do
+  it "location check" $
+    checkLoc "int func() \n{a = b;}" 1 
+      (SL.Range (SL.Posn 4 0 4) (SL.Posn 8 0 8))
+    && checkLoc "int func() \n{a = b;}" 5
+      (SL.Range (SL.Posn 13 1 1) (SL.Posn 14 1 2))

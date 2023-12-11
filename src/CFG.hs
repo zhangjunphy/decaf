@@ -44,7 +44,7 @@ data CFGEdgeData
   | CondEdge Condition
 
 data CFGState = CFGState
-  { cfg :: G.Graph CFGNodeData CFGEdgeData,
+  { cfg :: G.Graph Int CFGNodeData CFGEdgeData,
     sid :: AST.ScopeID
   }
 

@@ -26,78 +26,55 @@ import Data.Text (Text)
 import Control.Monad.Except
 import Control.Monad.State
 
-newtype Node = Node Int
+newtype Node a = Node a
   deriving (Eq, Ord, Show)
 
-data Graph nd ed = Graph
-  { nodes :: Map Node nd,
-    edges :: Map Node [(Node, ed)],
-    start :: Maybe Node,
-    nextNodeIdx :: Int
+data Graph ni nd ed = Graph
+  { nodes :: Map (Node ni) nd,
+    edges :: Map (Node ni) [(Node ni, ed)],
+    start :: Maybe (Node ni)
   }
   deriving (Show)
 
 type GraphException = Text
 
-empty :: Graph nd ed
-empty = Graph Map.empty Map.empty Nothing 0
+empty :: Graph ni nd ed
+empty = Graph Map.empty Map.empty Nothing
 
--- addNode :: nd -> Graph nd ed -> (Node, Graph nd ed)
--- addNode dt cfg =
---   let n = Node (nextNodeIdx cfg)
---    in (n, cfg {nodes = Map.insert n dt (nodes cfg), nextNodeIdx = nextNodeIdx cfg + 1})
+outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+outBound idx g = concat $ Map.lookup (Node idx) (edges g)
 
--- addEdge :: Node -> Node -> ed -> Graph nd ed -> Graph nd ed
--- addEdge start end dt cfg =
---   let edges' = Map.insertWith (++) start [(end, dt)] (edges cfg)
---    in cfg {edges = edges'}
-
--- deleteEdge :: Node -> Node -> Graph nd ed -> Graph nd ed
--- deleteEdge start end cfg =
---   let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges cfg)
---    in cfg {edges = edges'}
-
--- deleteNode :: Node -> Graph nd ed -> Graph nd ed
--- deleteNode node cfg =
---   let nodes' = Map.delete node (nodes cfg)
---       edges' = Map.filterWithKey (\k v -> k /= node) (edges cfg)
---       edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= node)) edges'
---    in cfg {nodes = nodes'}
-
-outBound :: Node -> Graph nd ed -> [(Node, ed)]
-outBound node g = concat $ Map.lookup node (edges g)
-
-inBound :: Node -> Graph nd ed -> [(Node, ed)]
-inBound node cfg =
-  let edges' = Map.mapMaybe (Just <$> filter (\(end, _) -> end == node)) (edges cfg)
+inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+inBound idx cfg =
+  let edges' = Map.mapMaybe (Just <$> filter (\(end, _) -> end == Node idx)) (edges cfg)
       nodes' =
         concat (Map.assocs edges' <&> \(src, dsts) -> zip (repeat src) dsts)
           <&> \(src, (_, ed)) -> (src, ed)
    in nodes'
 
-newtype GraphBuilder nd ed a = GraphBuilder
-  {buildGraph :: (ExceptT GraphException (State (Graph nd ed))) a}
+newtype GraphBuilder ni nd ed a = GraphBuilder
+  {buildGraph :: (ExceptT GraphException (State (Graph ni nd ed))) a}
   deriving
     ( Functor,
       Applicative,
       Monad,
       MonadError GraphException,
-      MonadState (Graph nd ed)
+      MonadState (Graph ni nd ed)
     )
 
-addNode :: nd -> GraphBuilder nd ed Node
-addNode dt = do
-  g <- get
-  let n = Node (nextNodeIdx g)
+addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed (Node ni)
+addNode idx dt = do
+  let n = Node idx
+  modify $ \g -> g{nodes = Map.insert n dt (nodes g)}
   return n
 
-addEdge :: Node -> Node -> ed -> GraphBuilder nd ed ()
+addEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> ed -> GraphBuilder ni nd ed ()
 addEdge start end dt = do
   g <- get
   let edges' = Map.insertWith (++) start [(end, dt)] (edges g)
   modify $ \g -> g{edges = edges'}
 
-deleteNode :: Node -> GraphBuilder nd ed ()
+deleteNode :: (Eq ni, Ord ni) => Node ni -> GraphBuilder ni nd ed ()
 deleteNode node = do 
   g <- get
   let nodes' = Map.delete node (nodes g)
@@ -105,18 +82,18 @@ deleteNode node = do
       edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= node)) edges'
   modify $ \g -> g{nodes = nodes'}
 
-deleteEdge :: Node -> Node -> GraphBuilder nd ed ()
+deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
 deleteEdge start end = do
   g <- get
   let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges g)
   modify $ \g -> g{edges = edges'}
 
-update :: GraphBuilder nd ed () -> Graph nd ed -> Either String (Graph nd ed)
+update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either String (Graph ni nd ed)
 update bd init =
   let (except, g) = (runState $ runExceptT $ buildGraph bd) init
    in case except of
     Left except -> Left $ show except
     Right _ -> Right g
 
-build :: GraphBuilder nd ed () -> Either String (Graph nd ed)
+build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either String (Graph ni nd ed)
 build bd = update bd Graph.empty

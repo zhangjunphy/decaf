@@ -72,25 +72,35 @@ mainMethodName :: Text
 module DominatorTree
 
 module Graph
-newtype Node
-Node :: Int -> Node
-data Graph nd ed
-Graph :: Map Node nd -> Map Node [(Node, ed)] -> Maybe Node -> Int -> Graph nd ed
-[$sel:nodes:Graph] :: Graph nd ed -> Map Node nd
-[$sel:edges:Graph] :: Graph nd ed -> Map Node [(Node, ed)]
-[$sel:start:Graph] :: Graph nd ed -> Maybe Node
-[$sel:nextNodeIdx:Graph] :: Graph nd ed -> Int
-empty :: Graph nd ed
-addNode :: nd -> Graph nd ed -> (Node, Graph nd ed)
-addEdge :: Node -> Node -> ed -> Graph nd ed -> Graph nd ed
-deleteEdge :: Node -> Node -> Graph nd ed -> Graph nd ed
-deleteNode :: Node -> Graph nd ed -> Graph nd ed
-outBound :: Node -> Graph nd ed -> [(Node, ed)]
-inBound :: Node -> Graph nd ed -> [(Node, ed)]
-instance GHC.Show.Show Graph.Node
-instance GHC.Classes.Ord Graph.Node
-instance GHC.Classes.Eq Graph.Node
-instance (GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Graph.Graph nd ed)
+newtype Node a
+Node :: a -> Node a
+data Graph ni nd ed
+Graph :: Map (Node ni) nd -> Map (Node ni) [(Node ni, ed)] -> Maybe (Node ni) -> Graph ni nd ed
+[$sel:nodes:Graph] :: Graph ni nd ed -> Map (Node ni) nd
+[$sel:edges:Graph] :: Graph ni nd ed -> Map (Node ni) [(Node ni, ed)]
+[$sel:start:Graph] :: Graph ni nd ed -> Maybe (Node ni)
+type GraphException = Text
+empty :: Graph ni nd ed
+outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+newtype GraphBuilder ni nd ed a
+GraphBuilder :: ExceptT GraphException (State (Graph ni nd ed)) a -> GraphBuilder ni nd ed a
+[$sel:buildGraph:GraphBuilder] :: GraphBuilder ni nd ed a -> ExceptT GraphException (State (Graph ni nd ed)) a
+addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed (Node ni)
+addEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> ed -> GraphBuilder ni nd ed ()
+deleteNode :: (Eq ni, Ord ni) => Node ni -> GraphBuilder ni nd ed ()
+deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
+update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either String (Graph ni nd ed)
+build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either String (Graph ni nd ed)
+instance GHC.Show.Show a => GHC.Show.Show (Graph.Node a)
+instance GHC.Classes.Ord a => GHC.Classes.Ord (Graph.Node a)
+instance GHC.Classes.Eq a => GHC.Classes.Eq (Graph.Node a)
+instance (GHC.Show.Show ni, GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Graph.Graph ni nd ed)
+instance Control.Monad.State.Class.MonadState (Graph.Graph ni nd ed) (Graph.GraphBuilder ni nd ed)
+instance Control.Monad.Error.Class.MonadError Graph.GraphException (Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Monad (Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Applicative (Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Functor (Graph.GraphBuilder ni nd ed)
 
 module SSA
 
@@ -562,8 +572,8 @@ data CFGEdgeData
 SeqEdge :: CFGEdgeData
 CondEdge :: Condition -> CFGEdgeData
 data CFGState
-CFGState :: Graph CFGNodeData CFGEdgeData -> ScopeID -> CFGState
-[$sel:cfg:CFGState] :: CFGState -> Graph CFGNodeData CFGEdgeData
+CFGState :: Graph Int CFGNodeData CFGEdgeData -> ScopeID -> CFGState
+[$sel:cfg:CFGState] :: CFGState -> Graph Int CFGNodeData CFGEdgeData
 [$sel:sid:CFGState] :: CFGState -> ScopeID
 newtype CFGExcept
 CFGExcept :: Text -> CFGExcept

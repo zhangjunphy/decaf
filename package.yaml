@@ -19,6 +19,18 @@ extra-source-files:
 # common to point users to the README.md file.
 description:         Please see the README on GitHub at <https://github.com/zhangjunphy/decaf#README.md>
 
+default-extensions:
+- DataKinds
+- DuplicateRecordFields
+- DeriveGeneric
+- GADTs
+- GeneralizedNewtypeDeriving
+- ImportQualifiedPost
+- OverloadedStrings
+- OverloadedLabels
+- DeriveFunctor
+- TupleSections
+
 dependencies:
 - base >=4.7 && <5
 - array ==0.5.*

@@ -11,9 +11,6 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
 {-# OPTIONS_GHC -w #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Scanner ( Token(..)
                , Alex(..)
                , scan

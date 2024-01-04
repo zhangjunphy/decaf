@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor #-}
-
 module SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
 
 import Formatting (formatToString, int, shown, (%))

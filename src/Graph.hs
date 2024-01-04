@@ -9,10 +9,6 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Graph where
 
 import Control.Monad
@@ -52,6 +48,22 @@ inBound idx cfg =
           <&> \(src, (_, ed)) -> (src, ed)
    in nodes'
 
+lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
+lookupNode nid g = Map.lookup (Node nid) $ nodes g 
+
+updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
+updateNodeWith nid g f = 
+  let nds = nodes g
+      nd = lookupNode nid g
+      nds' = Map.alter (const $ Just $ f nd) (Node nid) nds
+  in g{nodes = nds'}
+
+updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
+updateNode nid d g =
+  let nds = nodes g
+      nds' = Map.alter (const $ Just d) (Node nid) nds
+  in g{nodes = nds'}
+
 newtype GraphBuilder ni nd ed a = GraphBuilder
   {buildGraph :: (ExceptT GraphException (State (Graph ni nd ed))) a}
   deriving
@@ -80,7 +92,7 @@ deleteNode node = do
   let nodes' = Map.delete node (nodes g)
       edges' = Map.filterWithKey (\k v -> k /= node) (edges g)
       edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= node)) edges'
-  modify $ \g -> g{nodes = nodes'}
+  modify $ \g -> g{nodes = nodes', edges = edges''}
 
 deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
 deleteEdge start end = do

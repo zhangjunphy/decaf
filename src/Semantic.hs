@@ -9,13 +9,6 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DuplicateRecordFields #-}
-{-# LANGUAGE GADTs #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedLabels #-}
-{-# LANGUAGE OverloadedStrings #-}
-
 module Semantic
   ( runSemanticAnalysis,
     SymbolTable (..),
@@ -88,10 +81,10 @@ instance Show SymbolTable where
       ("SymbolTable {scopeID=" % int % ", parent=" % shown % ", imports=" % shown % ", variables=" % shown % ", methods=" % shown % ", tpe=" % shown)
       sid
       (scopeID <$> p)
-      (show imports)
-      (show variables)
-      (show methods)
-      (show tpe)
+      imports
+      variables
+      methods
+      tpe
 
 data SemanticState = SemanticState
   { nextScopeID :: ScopeID,

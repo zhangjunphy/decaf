@@ -9,70 +9,68 @@ terms of the MIT (X11) License as described in the LICENSE file.
 decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 PARTICULAR PURPOSE.  See the X11 license for more details. -}</span><span>
-</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CLI</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CLI.html#generateUsage"><span class="hs-identifier">generateUsage</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CLI.html#getConfiguration"><span class="hs-identifier">getConfiguration</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-13"></span><span>
-</span><span id="line-14"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CLI</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CLI.html#generateUsage"><span class="hs-identifier">generateUsage</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CLI.html#getConfiguration"><span class="hs-identifier">getConfiguration</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-15"></span><span>
-</span><span id="line-16"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;$&gt;)</span></span><span class="hs-special">)</span><span>
-</span><span id="line-17"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldM</span></span><span class="hs-special">)</span><span>
-</span><span id="line-18"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List.Split</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">wordsBy</span></span><span class="hs-special">)</span><span>
-</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
-</span><span id="line-20"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Console.GetOpt</span></span><span>
-</span><span id="line-21"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">getArgs</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getProgName</span></span><span class="hs-special">)</span><span>
-</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Formatting</span></span><span>
-</span><span id="line-23"></span><span>
-</span><span id="line-24"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Configuration.html"><span class="hs-identifier">Configuration</span></a></span><span>
-</span><span id="line-25"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Configuration.Types.html"><span class="hs-identifier">Configuration.Types</span></a></span><span>
-</span><span id="line-26"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Applicative</span></span><span>   </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;$&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Control.Monad</span></span><span>         </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">foldM</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">Data.List.Split</span></span><span>       </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">wordsBy</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Console.GetOpt</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><span class="hs-identifier">System.Environment</span></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">getArgs</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">getProgName</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Formatting</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Configuration.html"><span class="hs-identifier">Configuration</span></a></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span>           </span><span class="annot"><a href="Configuration.Types.html"><span class="hs-identifier">Configuration.Types</span></a></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span>
+</span><span id="line-26"></span><span class="hs-comment">--------------------------------- FlagAction ----------------------------------</span><span>
 </span><span id="line-27"></span><span>
-</span><span id="line-28"></span><span class="hs-comment">--------------------------------- FlagAction ----------------------------------</span><span>
-</span><span id="line-29"></span><span>
-</span><span id="line-30"></span><span class="hs-comment">-- I'll describe the behavior of each flag in terms of a 'FlagAction':</span><span>
-</span><span id="line-31"></span><span class="hs-keyword">type</span><span> </span><span id="FlagAction"><span class="annot"><a href="CLI.html#FlagAction"><span class="hs-identifier hs-var">FlagAction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span>
-</span><span id="line-32"></span><span>
-</span><span id="line-33"></span><span class="hs-comment">{- Later, I'll 'foldM' over a list of FlagActions to apply them to a
+</span><span id="line-28"></span><span class="hs-comment">-- I'll describe the behavior of each flag in terms of a 'FlagAction':</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">type</span><span> </span><span id="FlagAction"><span class="annot"><a href="CLI.html#FlagAction"><span class="hs-identifier hs-var">FlagAction</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">{- Later, I'll 'foldM' over a list of FlagActions to apply them to a
 configuration type.  If a FlagAction fails (e.g., because it was unable to
 parse an argument), it'll return a 'Left', in which case the error will be
 detectable at the end of the fold.  (Of course, I won't be able to recover from
 command-line errors, but this seems reasonable behavior for a compiler. -}</span><span>
-</span><span id="line-38"></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-comment">------------------------------- Available flags -------------------------------</span><span>
 </span><span id="line-39"></span><span>
-</span><span id="line-40"></span><span class="hs-comment">------------------------------- Available flags -------------------------------</span><span>
-</span><span id="line-41"></span><span>
-</span><span id="line-42"></span><span class="annot"><a href="CLI.html#generateUsage"><span class="hs-identifier hs-type">generateUsage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
-</span><span id="line-43"></span><span id="generateUsage"><span class="annot"><span class="annottext">generateUsage :: IO [Char]
+</span><span id="line-40"></span><span class="annot"><a href="CLI.html#generateUsage"><span class="hs-identifier hs-type">generateUsage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-41"></span><span id="generateUsage"><span class="annot"><span class="annottext">generateUsage :: IO [Char]
 </span><a href="CLI.html#generateUsage"><span class="hs-identifier hs-var hs-var">generateUsage</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-44"></span><span>  </span><span id="local-6989586621679164494"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164494"><span class="hs-identifier hs-var">firstLine</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Char]
+</span><span id="line-42"></span><span>  </span><span id="local-6989586621679166952"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166952"><span class="hs-identifier hs-var">firstLine</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [Char]
 </span><a href="CLI.html#generateSummary"><span class="hs-identifier hs-var">generateSummary</span></a></span><span>
-</span><span id="line-45"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; IO [Char]
+</span><span id="line-43"></span><span>  </span><span class="annot"><span class="annottext">[Char] -&gt; IO [Char]
 forall a. a -&gt; IO a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; IO [Char]) -&gt; [Char] -&gt; IO [Char]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
 </span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164494"><span class="hs-identifier hs-var">firstLine</span></a></span><span>
-</span><span id="line-46"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [OptDescr FlagAction] -&gt; [Char]
+</span><a href="#local-6989586621679166952"><span class="hs-identifier hs-var">firstLine</span></a></span><span>
+</span><span id="line-44"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [OptDescr FlagAction] -&gt; [Char]
 forall a. [Char] -&gt; [OptDescr a] -&gt; [Char]
 </span><span class="hs-identifier hs-var">usageInfo</span></span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;Summary of options:&quot;</span></span><span> </span><span class="annot"><span class="annottext">[OptDescr FlagAction]
 </span><a href="CLI.html#options"><span class="hs-identifier hs-var">options</span></a></span><span>
-</span><span id="line-47"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-45"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;Long description of options:&quot;</span></span><span>
-</span><span id="line-48"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><span id="line-46"></span><span>                   </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
 forall a. HasCallStack =&gt; [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">init</span></span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><a href="CLI.html#longDescription"><span class="hs-identifier hs-var">longDescription</span></a></span><span> </span><span class="hs-comment">-- drop trailing newline</span><span>
-</span><span id="line-49"></span><span>                   </span><span class="hs-special">]</span><span>
-</span><span id="line-50"></span><span>
-</span><span id="line-51"></span><span class="hs-comment">{- The rest of this section is organized in the order of the lines in the usage
+</span><span id="line-47"></span><span>                   </span><span class="hs-special">]</span><span>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-comment">{- The rest of this section is organized in the order of the lines in the usage
 message. -}</span><span>
-</span><span id="line-53"></span><span>
-</span><span id="line-54"></span><span class="annot"><a href="CLI.html#generateSummary"><span class="hs-identifier hs-type">generateSummary</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
-</span><span id="line-55"></span><span id="generateSummary"><span class="annot"><span class="annottext">generateSummary :: IO [Char]
+</span><span id="line-51"></span><span>
+</span><span id="line-52"></span><span class="annot"><a href="CLI.html#generateSummary"><span class="hs-identifier hs-type">generateSummary</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-53"></span><span id="generateSummary"><span class="annot"><span class="annottext">generateSummary :: IO [Char]
 </span><a href="CLI.html#generateSummary"><span class="hs-identifier hs-var hs-var">generateSummary</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-56"></span><span>  </span><span class="annot"><span class="annottext">Format [Char] ([Char] -&gt; [Char]) -&gt; [Char] -&gt; [Char]
+</span><span id="line-54"></span><span>  </span><span class="annot"><span class="annottext">Format [Char] ([Char] -&gt; [Char]) -&gt; [Char] -&gt; [Char]
 forall a. Format [Char] a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format [Char] ([Char] -&gt; [Char])
 forall r. Format r ([Char] -&gt; r)
@@ -81,172 +79,172 @@ forall r. Format r ([Char] -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span class="annot"><span class="annottext">Format [Char] [Char]
 </span><span class="hs-string">&quot; [options] &lt;filename&gt;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-57"></span><span>         </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; IO [Char] -&gt; IO [Char]
+</span><span id="line-55"></span><span>         </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; IO [Char] -&gt; IO [Char]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO [Char]
 </span><span class="hs-identifier hs-var">getProgName</span></span><span>
-</span><span id="line-58"></span><span>
-</span><span id="line-59"></span><span class="annot"><a href="CLI.html#options"><span class="hs-identifier hs-type">options</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">OptDescr</span></span><span> </span><span class="annot"><a href="CLI.html#FlagAction"><span class="hs-identifier hs-type">FlagAction</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-60"></span><span id="options"><span class="annot"><span class="annottext">options :: [OptDescr FlagAction]
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="CLI.html#options"><span class="hs-identifier hs-type">options</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">OptDescr</span></span><span> </span><span class="annot"><a href="CLI.html#FlagAction"><span class="hs-identifier hs-type">FlagAction</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span id="options"><span class="annot"><span class="annottext">options :: [OptDescr FlagAction]
 </span><a href="CLI.html#options"><span class="hs-identifier hs-var hs-var">options</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
 -&gt; [[Char]] -&gt; ArgDescr FlagAction -&gt; [Char] -&gt; OptDescr FlagAction
 forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
 </span><span class="hs-identifier hs-var">Option</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">'t'</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;target&quot;</span></span><span class="hs-special">]</span><span>
-</span><span id="line-61"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
+</span><span id="line-59"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
 forall a. ([Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
-</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679164506"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164506"><span class="hs-identifier hs-var">stage</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679164507"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164507"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-62"></span><span>                                         </span><span id="local-6989586621679164508"><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679164508"><span class="hs-identifier hs-var">parsedStage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] CompilerStage
+</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679166964"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166964"><span class="hs-identifier hs-var">stage</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679166965"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679166965"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-60"></span><span>                                         </span><span id="local-6989586621679166966"><span class="annot"><span class="annottext">CompilerStage
+</span><a href="#local-6989586621679166966"><span class="hs-identifier hs-var">parsedStage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] CompilerStage
 </span><a href="CLI.html#readStage"><span class="hs-identifier hs-var">readStage</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164506"><span class="hs-identifier hs-var">stage</span></a></span><span>
-</span><span id="line-63"></span><span>                                         </span><span class="annot"><span class="annottext">FlagAction
+</span><a href="#local-6989586621679166964"><span class="hs-identifier hs-var">stage</span></a></span><span>
+</span><span id="line-61"></span><span>                                         </span><span class="annot"><span class="annottext">FlagAction
 forall a. a -&gt; Either [Char] a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">FlagAction -&gt; FlagAction
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164507"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">explicitTarget :: Maybe CompilerStage
-</span><a href="Configuration.Types.html#explicitTarget"><span class="hs-identifier hs-var">explicitTarget</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage
+</span><a href="#local-6989586621679166965"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:explicitTarget:Configuration :: Maybe CompilerStage
+</span><a href="Configuration.Types.html#%24sel%3AexplicitTarget%3AConfiguration"><span class="hs-identifier hs-var">explicitTarget</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679164508"><span class="hs-identifier hs-var">parsedStage</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
-</span><span id="line-64"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166966"><span class="hs-identifier hs-var">parsedStage</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-62"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;&lt;stage&gt;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-65"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-63"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;compile to the given stage&quot;</span></span><span>
-</span><span id="line-66"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-64"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 -&gt; [[Char]] -&gt; ArgDescr FlagAction -&gt; [Char] -&gt; OptDescr FlagAction
 forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
 </span><span class="hs-identifier hs-var">Option</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">'o'</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;output&quot;</span></span><span class="hs-special">]</span><span>
-</span><span id="line-67"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
+</span><span id="line-65"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
 forall a. ([Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
-</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679164511"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164511"><span class="hs-identifier hs-var">outfile</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679164512"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164512"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-68"></span><span>                                         </span><span class="annot"><span class="annottext">FlagAction
+</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679166969"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166969"><span class="hs-identifier hs-var">outfile</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679166970"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679166970"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-66"></span><span>                                         </span><span class="annot"><span class="annottext">FlagAction
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">FlagAction -&gt; FlagAction
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164512"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">outputFileName :: Maybe [Char]
-</span><a href="Configuration.Types.html#outputFileName"><span class="hs-identifier hs-var">outputFileName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char]
+</span><a href="#local-6989586621679166970"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:outputFileName:Configuration :: Maybe [Char]
+</span><a href="Configuration.Types.html#%24sel%3AoutputFileName%3AConfiguration"><span class="hs-identifier hs-var">outputFileName</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char]
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164511"><span class="hs-identifier hs-var">outfile</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
-</span><span id="line-69"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166969"><span class="hs-identifier hs-var">outfile</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-67"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;&lt;outfile&gt;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-70"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-68"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;write output to &lt;outfile&gt;&quot;</span></span><span>
-</span><span id="line-71"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-69"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 -&gt; [[Char]] -&gt; ArgDescr FlagAction -&gt; [Char] -&gt; OptDescr FlagAction
 forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
 </span><span class="hs-identifier hs-var">Option</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">'O'</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;opt&quot;</span></span><span class="hs-special">]</span><span>
-</span><span id="line-72"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
+</span><span id="line-70"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">([Char] -&gt; FlagAction) -&gt; [Char] -&gt; ArgDescr FlagAction
 forall a. ([Char] -&gt; a) -&gt; [Char] -&gt; ArgDescr a
-</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679164514"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164514"><span class="hs-identifier hs-var">optSpec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679164515"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164515"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-73"></span><span>                                           </span><span id="local-6989586621679164516"><span class="annot"><span class="annottext">OptimizationSpecification
-</span><a href="#local-6989586621679164516"><span class="hs-identifier hs-var">parsedOptSpec</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] OptimizationSpecification
+</span><span class="hs-identifier hs-var">ReqArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679166972"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166972"><span class="hs-identifier hs-var">optSpec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679166973"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679166973"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-71"></span><span>                                           </span><span id="local-6989586621679166974"><span class="annot"><span class="annottext">OptimizationSpecification
+</span><a href="#local-6989586621679166974"><span class="hs-identifier hs-var">parsedOptSpec</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] OptimizationSpecification
 </span><a href="CLI.html#readOptimizationSpec"><span class="hs-identifier hs-var">readOptimizationSpec</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164514"><span class="hs-identifier hs-var">optSpec</span></a></span><span>
-</span><span id="line-74"></span><span>                                           </span><span class="annot"><span class="annottext">FlagAction
+</span><a href="#local-6989586621679166972"><span class="hs-identifier hs-var">optSpec</span></a></span><span>
+</span><span id="line-72"></span><span>                                           </span><span class="annot"><span class="annottext">FlagAction
 forall a. a -&gt; Either [Char] a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">FlagAction -&gt; FlagAction
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164515"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">opt :: OptimizationSpecification
-</span><a href="Configuration.Types.html#opt"><span class="hs-identifier hs-var">opt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
-</span><a href="#local-6989586621679164516"><span class="hs-identifier hs-var">parsedOptSpec</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
-</span><span id="line-75"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166973"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:opt:Configuration :: OptimizationSpecification
+</span><a href="Configuration.Types.html#%24sel%3Aopt%3AConfiguration"><span class="hs-identifier hs-var">opt</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
+</span><a href="#local-6989586621679166974"><span class="hs-identifier hs-var">parsedOptSpec</span></a></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-73"></span><span>                           </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;&lt;(opt|-opt|all)...&gt;&quot;</span></span><span class="hs-special">)</span><span>
-</span><span id="line-76"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-74"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;perform the listed optimizations&quot;</span></span><span>
-</span><span id="line-77"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-75"></span><span>          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 -&gt; [[Char]] -&gt; ArgDescr FlagAction -&gt; [Char] -&gt; OptDescr FlagAction
 forall a. [Char] -&gt; [[Char]] -&gt; ArgDescr a -&gt; [Char] -&gt; OptDescr a
 </span><span class="hs-identifier hs-var">Option</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">'d'</span></span><span class="hs-special">]</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;debug&quot;</span></span><span class="hs-special">]</span><span>
-</span><span id="line-78"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FlagAction -&gt; ArgDescr FlagAction
+</span><span id="line-76"></span><span>                   </span><span class="hs-special">(</span><span class="annot"><span class="annottext">FlagAction -&gt; ArgDescr FlagAction
 forall a. a -&gt; ArgDescr a
-</span><span class="hs-identifier hs-var">NoArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679164520"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164520"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FlagAction
+</span><span class="hs-identifier hs-var">NoArg</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679166978"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679166978"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">FlagAction
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">FlagAction -&gt; FlagAction
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164520"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">debug :: Bool
-</span><a href="Configuration.Types.html#debug"><span class="hs-identifier hs-var">debug</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><a href="#local-6989586621679166978"><span class="hs-identifier hs-var">conf</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:debug:Configuration :: Bool
+</span><a href="Configuration.Types.html#%24sel%3Adebug%3AConfiguration"><span class="hs-identifier hs-var">debug</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">True</span></span><span> </span><span class="hs-special">}</span><span class="hs-special">)</span><span class="hs-special">)</span><span>
-</span><span id="line-79"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-77"></span><span>                   </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;print debugging information&quot;</span></span><span>
-</span><span id="line-80"></span><span>          </span><span class="hs-special">]</span><span>
-</span><span id="line-81"></span><span>
-</span><span id="line-82"></span><span class="annot"><a href="CLI.html#longDescription"><span class="hs-identifier hs-type">longDescription</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
-</span><span id="line-83"></span><span id="longDescription"><span class="annot"><span class="annottext">longDescription :: [Char]
+</span><span id="line-78"></span><span>          </span><span class="hs-special">]</span><span>
+</span><span id="line-79"></span><span>
+</span><span id="line-80"></span><span class="annot"><a href="CLI.html#longDescription"><span class="hs-identifier hs-type">longDescription</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-81"></span><span id="longDescription"><span class="annot"><span class="annottext">longDescription :: [Char]
 </span><a href="CLI.html#longDescription"><span class="hs-identifier hs-var hs-var">longDescription</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
 </span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  -t &lt;stage&gt;          &lt;stage&gt; is one of \&quot;scan\&quot;, \&quot;parse\&quot;, \&quot;inter\&quot;, or \&quot;assembly\&quot;.&quot;</span></span><span>
-</span><span id="line-84"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-82"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  --target=&lt;stage&gt;    Compilation will proceed to the given stage and halt there.&quot;</span></span><span>
-</span><span id="line-85"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-83"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  &quot;</span></span><span>
-</span><span id="line-86"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-84"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  -d                  Print debugging information.  If this option is not given,&quot;</span></span><span>
-</span><span id="line-87"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-85"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  --debug             then there will be no output to the screen on successful&quot;</span></span><span>
-</span><span id="line-88"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-86"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  &quot;</span></span><span>
-</span><span id="line-89"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-87"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  -O &lt;optspec&gt;        Perform the listed optimizations.  &lt;optspec&gt; is a comma-&quot;</span></span><span>
-</span><span id="line-90"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-88"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  --opt=&lt;optspec&gt;     separated list of optimization names, or the special symbol&quot;</span></span><span>
-</span><span id="line-91"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-89"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;                      \&quot;all\&quot;, meaning all possible optimizations.  You may&quot;</span></span><span>
-</span><span id="line-92"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-90"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;                      explicitly disable an optimization by prefixing its name&quot;</span></span><span>
-</span><span id="line-93"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-91"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;                      '-'.  As an example, \&quot;hoistLoop,-unrollLoops\&quot; will enable&quot;</span></span><span>
-</span><span id="line-94"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-92"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;                      hoisting of loop invariant code but will disable loop&quot;</span></span><span>
-</span><span id="line-95"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-93"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;                      unrolling.&quot;</span></span><span>
-</span><span id="line-96"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-94"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  &quot;</span></span><span>
-</span><span id="line-97"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-95"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  -o &lt;outfile&gt;        Write output to &lt;outfile&gt;.  If this option is not given,&quot;</span></span><span>
-</span><span id="line-98"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><span id="line-96"></span><span>                          </span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;  --output=&lt;outfile&gt;  output will be written to standard output.&quot;</span></span><span>
-</span><span id="line-99"></span><span>                          </span><span class="hs-special">]</span><span>
-</span><span id="line-100"></span><span>
+</span><span id="line-97"></span><span>                          </span><span class="hs-special">]</span><span>
+</span><span id="line-98"></span><span>
+</span><span id="line-99"></span><span>
+</span><span id="line-100"></span><span class="hs-comment">---------------------------- Reading option specs -----------------------------</span><span>
 </span><span id="line-101"></span><span>
-</span><span id="line-102"></span><span class="hs-comment">---------------------------- Reading option specs -----------------------------</span><span>
-</span><span id="line-103"></span><span>
-</span><span id="line-104"></span><span class="annot"><a href="CLI.html#readStage"><span class="hs-identifier hs-type">readStage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#CompilerStage"><span class="hs-identifier hs-type">CompilerStage</span></a></span><span>
-</span><span id="line-105"></span><span id="readStage"><span class="annot"><span class="annottext">readStage :: [Char] -&gt; Either [Char] CompilerStage
-</span><a href="CLI.html#readStage"><span class="hs-identifier hs-var hs-var">readStage</span></a></span></span><span> </span><span id="local-6989586621679164522"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164522"><span class="hs-identifier hs-var">stageString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-106"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ReadS CompilerStage
+</span><span id="line-102"></span><span class="annot"><a href="CLI.html#readStage"><span class="hs-identifier hs-type">readStage</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#CompilerStage"><span class="hs-identifier hs-type">CompilerStage</span></a></span><span>
+</span><span id="line-103"></span><span id="readStage"><span class="annot"><span class="annottext">readStage :: [Char] -&gt; Either [Char] CompilerStage
+</span><a href="CLI.html#readStage"><span class="hs-identifier hs-var hs-var">readStage</span></a></span></span><span> </span><span id="local-6989586621679166980"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166980"><span class="hs-identifier hs-var">stageString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-104"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ReadS CompilerStage
 forall a. Read a =&gt; ReadS a
 </span><span class="hs-identifier hs-var">reads</span></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164522"><span class="hs-identifier hs-var">stageString</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-107"></span><span>    </span><span class="hs-special">[</span><span class="hs-special">(</span><span id="local-6989586621679164524"><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679164524"><span class="hs-identifier hs-var">stage</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166980"><span class="hs-identifier hs-var">stageString</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-105"></span><span>    </span><span class="hs-special">[</span><span class="hs-special">(</span><span id="local-6989586621679166982"><span class="annot"><span class="annottext">CompilerStage
+</span><a href="#local-6989586621679166982"><span class="hs-identifier hs-var">stage</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;&quot;</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Either [Char] CompilerStage
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679164524"><span class="hs-identifier hs-var">stage</span></a></span><span>
-</span><span id="line-108"></span><span>    </span><span class="annot"><span class="annottext">[(CompilerStage, [Char])]
+</span><a href="#local-6989586621679166982"><span class="hs-identifier hs-var">stage</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span class="annot"><span class="annottext">[(CompilerStage, [Char])]
 </span><span class="hs-identifier">_</span></span><span>             </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] CompilerStage
 forall a b. a -&gt; Either a b
 </span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; Either [Char] CompilerStage)
@@ -266,32 +264,32 @@ forall r. Format r ([Char] -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span class="annot"><span class="annottext">Format [Char] [Char]
 </span><span class="hs-string">&quot;'\n&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164522"><span class="hs-identifier hs-var">stageString</span></a></span><span>
-</span><span id="line-109"></span><span>
-</span><span id="line-110"></span><span class="annot"><a href="CLI.html#readOptimizationSpec"><span class="hs-identifier hs-type">readOptimizationSpec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#OptimizationSpecification"><span class="hs-identifier hs-type">OptimizationSpecification</span></a></span><span>
-</span><span id="line-111"></span><span id="readOptimizationSpec"><span class="annot"><span class="annottext">readOptimizationSpec :: [Char] -&gt; Either [Char] OptimizationSpecification
-</span><a href="CLI.html#readOptimizationSpec"><span class="hs-identifier hs-var hs-var">readOptimizationSpec</span></a></span></span><span> </span><span id="local-6989586621679164525"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164525"><span class="hs-identifier hs-var">optString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-112"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679164527"><span class="annot"><span class="annottext">opts :: [[Char]]
-</span><a href="#local-6989586621679164527"><span class="hs-identifier hs-var hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; [[Char]]
+</span><a href="#local-6989586621679166980"><span class="hs-identifier hs-var">stageString</span></a></span><span>
+</span><span id="line-107"></span><span>
+</span><span id="line-108"></span><span class="annot"><a href="CLI.html#readOptimizationSpec"><span class="hs-identifier hs-type">readOptimizationSpec</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#OptimizationSpecification"><span class="hs-identifier hs-type">OptimizationSpecification</span></a></span><span>
+</span><span id="line-109"></span><span id="readOptimizationSpec"><span class="annot"><span class="annottext">readOptimizationSpec :: [Char] -&gt; Either [Char] OptimizationSpecification
+</span><a href="CLI.html#readOptimizationSpec"><span class="hs-identifier hs-var hs-var">readOptimizationSpec</span></a></span></span><span> </span><span id="local-6989586621679166983"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166983"><span class="hs-identifier hs-var">optString</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-110"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679166984"><span class="annot"><span class="annottext">opts :: [[Char]]
+</span><a href="#local-6989586621679166984"><span class="hs-identifier hs-var hs-var">opts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Char -&gt; Bool) -&gt; [Char] -&gt; [[Char]]
 forall a. (a -&gt; Bool) -&gt; [a] -&gt; [[a]]
 </span><span class="hs-identifier hs-var">wordsBy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char -&gt; Char -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">','</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164525"><span class="hs-identifier hs-var">optString</span></a></span><span> </span><span class="hs-keyword">in</span><span>
-</span><span id="line-113"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166983"><span class="hs-identifier hs-var">optString</span></a></span><span> </span><span class="hs-keyword">in</span><span>
+</span><span id="line-111"></span><span>  </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;all&quot;</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [[Char]] -&gt; Bool
 forall a. Eq a =&gt; a -&gt; [a] -&gt; Bool
 forall (t :: * -&gt; *) a. (Foldable t, Eq a) =&gt; a -&gt; t a -&gt; Bool
 </span><span class="hs-operator hs-var">`elem`</span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164527"><span class="hs-identifier hs-var">opts</span></a></span><span>
-</span><span id="line-114"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
+</span><a href="#local-6989586621679166984"><span class="hs-identifier hs-var">opts</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
 -&gt; Either [Char] OptimizationSpecification
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
 </span><a href="Configuration.Types.html#All"><span class="hs-identifier hs-var">All</span></a></span><span>
-</span><span id="line-115"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
+</span><span id="line-113"></span><span>  </span><span class="hs-keyword">else</span><span> </span><span class="annot"><span class="annottext">OptimizationSpecification
 -&gt; Either [Char] OptimizationSpecification
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(OptimizationSpecification
@@ -305,48 +303,48 @@ forall a b. (a -&gt; b) -&gt; a -&gt; b
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; ([Char] -&gt; OptimizationName) -&gt; [OptimizationName]
 forall {a} {b}. [a] -&gt; (a -&gt; b) -&gt; [b]
-</span><a href="#local-6989586621679164531"><span class="hs-identifier hs-var">for</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164527"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; OptimizationName) -&gt; [OptimizationName])
+</span><a href="#local-6989586621679166988"><span class="hs-identifier hs-var">for</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621679166984"><span class="hs-identifier hs-var">opts</span></a></span><span> </span><span class="annot"><span class="annottext">(([Char] -&gt; OptimizationName) -&gt; [OptimizationName])
 -&gt; ([Char] -&gt; OptimizationName) -&gt; [OptimizationName]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679164532"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164532"><span class="hs-identifier hs-var">optSpec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164532"><span class="hs-identifier hs-var">optSpec</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-116"></span><span>                                               </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
-</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679164533"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164533"><span class="hs-identifier hs-var">optName</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptimizationName
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679166989"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166989"><span class="hs-identifier hs-var">optSpec</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166989"><span class="hs-identifier hs-var">optSpec</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-114"></span><span>                                               </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Char
+</span><span class="hs-char">'-'</span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span id="local-6989586621679166990"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166990"><span class="hs-identifier hs-var">optName</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptimizationName
 </span><a href="Configuration.Types.html#Disable"><span class="hs-identifier hs-var">Disable</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164533"><span class="hs-identifier hs-var">optName</span></a></span><span>
-</span><span id="line-117"></span><span>                                               </span><span id="local-6989586621679164535"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164535"><span class="hs-identifier hs-var">optName</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptimizationName
+</span><a href="#local-6989586621679166990"><span class="hs-identifier hs-var">optName</span></a></span><span>
+</span><span id="line-115"></span><span>                                               </span><span id="local-6989586621679166992"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679166992"><span class="hs-identifier hs-var">optName</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; OptimizationName
 </span><a href="Configuration.Types.html#Enable"><span class="hs-identifier hs-var">Enable</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164535"><span class="hs-identifier hs-var">optName</span></a></span><span>
-</span><span id="line-118"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679164531"><span class="annot"><span class="annottext">for :: [a] -&gt; (a -&gt; b) -&gt; [b]
-</span><a href="#local-6989586621679164531"><span class="hs-identifier hs-var hs-var">for</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; [a] -&gt; [b]) -&gt; [a] -&gt; (a -&gt; b) -&gt; [b]
+</span><a href="#local-6989586621679166992"><span class="hs-identifier hs-var">optName</span></a></span><span>
+</span><span id="line-116"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679166988"><span class="annot"><span class="annottext">for :: [a] -&gt; (a -&gt; b) -&gt; [b]
+</span><a href="#local-6989586621679166988"><span class="hs-identifier hs-var hs-var">for</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((a -&gt; b) -&gt; [a] -&gt; [b]) -&gt; [a] -&gt; (a -&gt; b) -&gt; [b]
 forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
 </span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">(a -&gt; b) -&gt; [a] -&gt; [b]
 forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
 </span><span class="hs-identifier hs-var">map</span></span><span>
-</span><span id="line-119"></span><span>
+</span><span id="line-117"></span><span>
+</span><span id="line-118"></span><span>
+</span><span id="line-119"></span><span class="hs-comment">------------------------------ Main entry points ------------------------------</span><span>
 </span><span id="line-120"></span><span>
-</span><span id="line-121"></span><span class="hs-comment">------------------------------ Main entry points ------------------------------</span><span>
-</span><span id="line-122"></span><span>
-</span><span id="line-123"></span><span class="annot"><span class="hs-comment">{-| Parses command-line options, returning a 'Configuration' describing the
+</span><span id="line-121"></span><span class="annot"><span class="hs-comment">{-| Parses command-line options, returning a 'Configuration' describing the
 behavior of the compiler. -}</span></span><span>
-</span><span id="line-125"></span><span class="annot"><a href="CLI.html#getConfiguration"><span class="hs-identifier hs-type">getConfiguration</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-126"></span><span id="getConfiguration"><span class="annot"><span class="annottext">getConfiguration :: IO (Either [Char] Configuration)
+</span><span id="line-123"></span><span class="annot"><a href="CLI.html#getConfiguration"><span class="hs-identifier hs-type">getConfiguration</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">IO</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-124"></span><span id="getConfiguration"><span class="annot"><span class="annottext">getConfiguration :: IO (Either [Char] Configuration)
 </span><a href="CLI.html#getConfiguration"><span class="hs-identifier hs-var hs-var">getConfiguration</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- Fetch the arguments and process them.</span><span>
-</span><span id="line-128"></span><span>  </span><span id="local-6989586621679164539"><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164539"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [[Char]]
+</span><span id="line-125"></span><span>  </span><span class="hs-comment">-- Fetch the arguments and process them.</span><span>
+</span><span id="line-126"></span><span>  </span><span id="local-6989586621679166996"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621679166996"><span class="hs-identifier hs-var">args</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">IO [[Char]]
 </span><span class="hs-identifier hs-var">getArgs</span></span><span>
-</span><span id="line-129"></span><span>  </span><span class="hs-comment">-- return $ do</span><span>
-</span><span id="line-130"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679164547"><span class="annot"><span class="annottext">maybeSelectedOptions :: Either [Char] Configuration
-</span><a href="#local-6989586621679164547"><span class="hs-identifier hs-var hs-var">maybeSelectedOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-131"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679164548"><span class="annot"><span class="annottext">[FlagAction]
-</span><a href="#local-6989586621679164548"><span class="hs-identifier hs-var">flagActions</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679164549"><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164549"><span class="hs-identifier hs-var">nonOptions</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679164550"><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164550"><span class="hs-identifier hs-var">errors</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder FlagAction
+</span><span id="line-127"></span><span>  </span><span class="hs-comment">-- return $ do</span><span>
+</span><span id="line-128"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679166997"><span class="annot"><span class="annottext">maybeSelectedOptions :: Either [Char] Configuration
+</span><a href="#local-6989586621679166997"><span class="hs-identifier hs-var hs-var">maybeSelectedOptions</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679166998"><span class="annot"><span class="annottext">[FlagAction]
+</span><a href="#local-6989586621679166998"><span class="hs-identifier hs-var">flagActions</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679166999"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621679166999"><span class="hs-identifier hs-var">nonOptions</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679167000"><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621679167000"><span class="hs-identifier hs-var">errors</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ArgOrder FlagAction
 -&gt; [OptDescr FlagAction]
 -&gt; [[Char]]
 -&gt; ([FlagAction], [[Char]], [[Char]])
@@ -356,20 +354,20 @@ ArgOrder a -&gt; [OptDescr a] -&gt; [[Char]] -&gt; ([a], [[Char]], [[Char]])
 forall a. ArgOrder a
 </span><span class="hs-identifier hs-var">Permute</span></span><span> </span><span class="annot"><span class="annottext">[OptDescr FlagAction]
 </span><a href="CLI.html#options"><span class="hs-identifier hs-var">options</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164539"><span class="hs-identifier hs-var">args</span></a></span><span>
-</span><span id="line-132"></span><span>        </span><span class="hs-comment">-- If there were any errors, notify the monad.</span><span>
-</span><span id="line-133"></span><span>        </span><span class="annot"><span class="annottext">([Char] -&gt; Either [Char] Any) -&gt; [[Char]] -&gt; Either [Char] ()
+</span><a href="#local-6989586621679166996"><span class="hs-identifier hs-var">args</span></a></span><span>
+</span><span id="line-130"></span><span>        </span><span class="hs-comment">-- If there were any errors, notify the monad.</span><span>
+</span><span id="line-131"></span><span>        </span><span class="annot"><span class="annottext">([Char] -&gt; Either [Char] Any) -&gt; [[Char]] -&gt; Either [Char] ()
 forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
 (Foldable t, Monad m) =&gt;
 (a -&gt; m b) -&gt; t a -&gt; m ()
 </span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; Either [Char] Any
 forall a b. a -&gt; Either a b
 </span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164550"><span class="hs-identifier hs-var">errors</span></a></span><span>
-</span><span id="line-134"></span><span>        </span><span class="hs-comment">{- Construct the options struct by applying the 'flagActions' to the
+</span><a href="#local-6989586621679167000"><span class="hs-identifier hs-var">errors</span></a></span><span>
+</span><span id="line-132"></span><span>        </span><span class="hs-comment">{- Construct the options struct by applying the 'flagActions' to the
         default configuration. -}</span><span>
-</span><span id="line-136"></span><span>        </span><span id="local-6989586621679164554"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164554"><span class="hs-identifier hs-var">selectedOptions</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Configuration -&gt; FlagAction -&gt; Either [Char] Configuration)
+</span><span id="line-134"></span><span>        </span><span id="local-6989586621679167004"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679167004"><span class="hs-identifier hs-var">selectedOptions</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(Configuration -&gt; FlagAction -&gt; Either [Char] Configuration)
 -&gt; Configuration -&gt; [FlagAction] -&gt; Either [Char] Configuration
 forall (t :: * -&gt; *) (m :: * -&gt; *) b a.
 (Foldable t, Monad m) =&gt;
@@ -381,40 +379,40 @@ forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
 forall a. a -&gt; a
 </span><span class="hs-identifier hs-var">id</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Configuration
 </span><a href="Configuration.Types.html#defaultConfiguration"><span class="hs-identifier hs-var">defaultConfiguration</span></a></span><span> </span><span class="annot"><span class="annottext">[FlagAction]
-</span><a href="#local-6989586621679164548"><span class="hs-identifier hs-var">flagActions</span></a></span><span>
-</span><span id="line-137"></span><span>        </span><span class="hs-comment">-- What file are we reading?</span><span>
-</span><span id="line-138"></span><span>        </span><span id="local-6989586621679164557"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164557"><span class="hs-identifier hs-var">inputFileName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
-</span><span id="line-139"></span><span>          </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char] -&gt; Either [Char] [Char]
+</span><a href="#local-6989586621679166998"><span class="hs-identifier hs-var">flagActions</span></a></span><span>
+</span><span id="line-135"></span><span>        </span><span class="hs-comment">-- What file are we reading?</span><span>
+</span><span id="line-136"></span><span>        </span><span id="local-6989586621679167007"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167007"><span class="hs-identifier hs-var">inputFileName</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span>
+</span><span id="line-137"></span><span>          </span><span class="annot"><span class="annottext">[Char] -&gt; Maybe [Char] -&gt; Either [Char] [Char]
 forall {a} {b}. a -&gt; Maybe b -&gt; Either a b
-</span><a href="#local-6989586621679164558"><span class="hs-identifier hs-var">maybeToEither</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167008"><span class="hs-identifier hs-var">maybeToEither</span></a></span><span> </span><span class="annot"><span class="annottext">[Char]
 </span><span class="hs-string">&quot;no input file specified\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">(Maybe [Char] -&gt; Either [Char] [Char])
 -&gt; Maybe [Char] -&gt; Either [Char] [Char]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; Maybe [Char]
 forall {a}. [a] -&gt; Maybe a
-</span><a href="#local-6989586621679164559"><span class="hs-identifier hs-var">headMay</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
-</span><a href="#local-6989586621679164549"><span class="hs-identifier hs-var">nonOptions</span></a></span><span>
-</span><span id="line-140"></span><span>        </span><span class="annot"><span class="annottext">FlagAction
+</span><a href="#local-6989586621679167009"><span class="hs-identifier hs-var">headMay</span></a></span><span> </span><span class="annot"><span class="annottext">[[Char]]
+</span><a href="#local-6989586621679166999"><span class="hs-identifier hs-var">nonOptions</span></a></span><span>
+</span><span id="line-138"></span><span>        </span><span class="annot"><span class="annottext">FlagAction
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">FlagAction -&gt; FlagAction
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164554"><span class="hs-identifier hs-var">selectedOptions</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">input :: [Char]
-</span><a href="#local-6989586621679164560"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164557"><span class="hs-identifier hs-var">inputFileName</span></a></span><span> </span><span class="hs-special">}</span><span>
-</span><span id="line-141"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either [Char] Configuration
-</span><a href="#local-6989586621679164547"><span class="hs-identifier hs-var">maybeSelectedOptions</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-142"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679164561"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164561"><span class="hs-identifier hs-var">errorMessage</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-143"></span><span>      </span><span id="local-6989586621679164562"><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164562"><span class="hs-identifier hs-var">usage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
+</span><a href="#local-6989586621679167004"><span class="hs-identifier hs-var">selectedOptions</span></a></span><span> </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:input:Configuration :: [Char]
+</span><a href="#local-6989586621679167010"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167007"><span class="hs-identifier hs-var">inputFileName</span></a></span><span> </span><span class="hs-special">}</span><span>
+</span><span id="line-139"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either [Char] Configuration
+</span><a href="#local-6989586621679166997"><span class="hs-identifier hs-var">maybeSelectedOptions</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-140"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679167011"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167011"><span class="hs-identifier hs-var">errorMessage</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-141"></span><span>      </span><span id="local-6989586621679167012"><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167012"><span class="hs-identifier hs-var">usage</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">[Char] -&gt; [Char]
 forall a. HasCallStack =&gt; [a] -&gt; [a]
 </span><span class="hs-identifier hs-var">init</span></span><span> </span><span class="annot"><span class="annottext">([Char] -&gt; [Char]) -&gt; IO [Char] -&gt; IO [Char]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">IO [Char]
 </span><a href="CLI.html#generateUsage"><span class="hs-identifier hs-var">generateUsage</span></a></span><span> </span><span class="hs-comment">-- drop trailing newline</span><span>
-</span><span id="line-144"></span><span>      </span><span class="annot"><span class="annottext">Either [Char] Configuration -&gt; IO (Either [Char] Configuration)
+</span><span id="line-142"></span><span>      </span><span class="annot"><span class="annottext">Either [Char] Configuration -&gt; IO (Either [Char] Configuration)
 forall a. a -&gt; IO a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either [Char] Configuration -&gt; IO (Either [Char] Configuration))
@@ -431,10 +429,10 @@ forall a. HasCallStack =&gt; [a] -&gt; [a]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[[Char]] -&gt; [Char]
 </span><span class="hs-identifier hs-var">unlines</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164561"><span class="hs-identifier hs-var">errorMessage</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
-</span><a href="#local-6989586621679164562"><span class="hs-identifier hs-var">usage</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-145"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679164563"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164563"><span class="hs-identifier hs-var">selectedOptions</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either [Char] Configuration -&gt; IO (Either [Char] Configuration)
+</span><a href="#local-6989586621679167011"><span class="hs-identifier hs-var">errorMessage</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">[Char]
+</span><a href="#local-6989586621679167012"><span class="hs-identifier hs-var">usage</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-143"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679167013"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679167013"><span class="hs-identifier hs-var">selectedOptions</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Either [Char] Configuration -&gt; IO (Either [Char] Configuration)
 forall a. a -&gt; IO a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(Either [Char] Configuration -&gt; IO (Either [Char] Configuration))
@@ -443,29 +441,29 @@ forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">FlagAction
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679164563"><span class="hs-identifier hs-var">selectedOptions</span></a></span><span>
-</span><span id="line-146"></span><span>
-</span><span id="line-147"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679164558"><span class="annot"><span class="annottext">maybeToEither :: a -&gt; Maybe b -&gt; Either a b
-</span><a href="#local-6989586621679164558"><span class="hs-identifier hs-var hs-var">maybeToEither</span></a></span></span><span> </span><span class="annot"><span class="annottext">a
-</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679164564"><span class="annot"><span class="annottext">b
-</span><a href="#local-6989586621679164564"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Either a b
+</span><a href="#local-6989586621679167013"><span class="hs-identifier hs-var">selectedOptions</span></a></span><span>
+</span><span id="line-144"></span><span>
+</span><span id="line-145"></span><span>  </span><span class="hs-keyword">where</span><span> </span><span id="local-6989586621679167008"><span class="annot"><span class="annottext">maybeToEither :: a -&gt; Maybe b -&gt; Either a b
+</span><a href="#local-6989586621679167008"><span class="hs-identifier hs-var hs-var">maybeToEither</span></a></span></span><span> </span><span class="annot"><span class="annottext">a
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679167014"><span class="annot"><span class="annottext">b
+</span><a href="#local-6989586621679167014"><span class="hs-identifier hs-var">a</span></a></span></span><span class="hs-special">)</span><span>  </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">b -&gt; Either a b
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">b
-</span><a href="#local-6989586621679164564"><span class="hs-identifier hs-var">a</span></a></span><span>
-</span><span id="line-148"></span><span>        </span><span class="annot"><a href="#local-6989586621679164558"><span class="hs-identifier hs-var">maybeToEither</span></a></span><span> </span><span id="local-6989586621679164565"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679164565"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe b
+</span><a href="#local-6989586621679167014"><span class="hs-identifier hs-var">a</span></a></span><span>
+</span><span id="line-146"></span><span>        </span><span class="annot"><a href="#local-6989586621679167008"><span class="hs-identifier hs-var">maybeToEither</span></a></span><span> </span><span id="local-6989586621679167015"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679167015"><span class="hs-identifier hs-var">msg</span></a></span></span><span> </span><span class="annot"><span class="annottext">Maybe b
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Either a b
 forall a b. a -&gt; Either a b
 </span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679164565"><span class="hs-identifier hs-var">msg</span></a></span><span>
-</span><span id="line-149"></span><span>        </span><span id="local-6989586621679164559"><span class="annot"><span class="annottext">headMay :: [a] -&gt; Maybe a
-</span><a href="#local-6989586621679164559"><span class="hs-identifier hs-var hs-var">headMay</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
+</span><a href="#local-6989586621679167015"><span class="hs-identifier hs-var">msg</span></a></span><span>
+</span><span id="line-147"></span><span>        </span><span id="local-6989586621679167009"><span class="annot"><span class="annottext">headMay :: [a] -&gt; Maybe a
+</span><a href="#local-6989586621679167009"><span class="hs-identifier hs-var hs-var">headMay</span></a></span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>    </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe a
 forall a. Maybe a
 </span><span class="hs-identifier hs-var">Nothing</span></span><span>
-</span><span id="line-150"></span><span>        </span><span class="annot"><a href="#local-6989586621679164559"><span class="hs-identifier hs-var">headMay</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679164566"><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679164566"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[a]
+</span><span id="line-148"></span><span>        </span><span class="annot"><a href="#local-6989586621679167009"><span class="hs-identifier hs-var">headMay</span></a></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679167016"><span class="annot"><span class="annottext">a
+</span><a href="#local-6989586621679167016"><span class="hs-identifier hs-var">x</span></a></span></span><span class="annot"><span class="hs-glyph hs-type">:</span></span><span class="annot"><span class="annottext">[a]
 </span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">a -&gt; Maybe a
 forall a. a -&gt; Maybe a
 </span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">a
-</span><a href="#local-6989586621679164566"><span class="hs-identifier hs-var">x</span></a></span><span>
-</span><span id="line-151"></span></pre></body></html>
+</span><a href="#local-6989586621679167016"><span class="hs-identifier hs-var">x</span></a></span><span>
+</span><span id="line-149"></span></pre></body></html>

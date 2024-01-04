@@ -12,11 +12,11 @@ module CodeGen
 module Configuration.Types
 data Configuration
 Configuration :: FilePath -> Maybe CompilerStage -> Bool -> OptimizationSpecification -> Maybe FilePath -> Configuration
-[input] :: Configuration -> FilePath
-[explicitTarget] :: Configuration -> Maybe CompilerStage
-[debug] :: Configuration -> Bool
-[opt] :: Configuration -> OptimizationSpecification
-[outputFileName] :: Configuration -> Maybe FilePath
+[$sel:input:Configuration] :: Configuration -> FilePath
+[$sel:explicitTarget:Configuration] :: Configuration -> Maybe CompilerStage
+[$sel:debug:Configuration] :: Configuration -> Bool
+[$sel:opt:Configuration] :: Configuration -> OptimizationSpecification
+[$sel:outputFileName:Configuration] :: Configuration -> Maybe FilePath
 defaultConfiguration :: Configuration
 data CompilerStage
 Scan :: CompilerStage
@@ -39,11 +39,11 @@ instance GHC.Read.Read Configuration.Types.CompilerStage
 
 module Configuration
 data Configuration
-input :: Configuration -> FilePath
+($sel:input:Configuration) :: Configuration -> FilePath
 target :: Configuration -> CompilerStage
-debug :: Configuration -> Bool
-opt :: Configuration -> OptimizationSpecification
-outputFileName :: Configuration -> Maybe FilePath
+($sel:debug:Configuration) :: Configuration -> Bool
+($sel:opt:Configuration) :: Configuration -> OptimizationSpecification
+($sel:outputFileName:Configuration) :: Configuration -> Maybe FilePath
 defaultConfiguration :: Configuration
 data CompilerStage
 Scan :: CompilerStage
@@ -83,6 +83,9 @@ type GraphException = Text
 empty :: Graph ni nd ed
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
 inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
+updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
+updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
 newtype GraphBuilder ni nd ed a
 GraphBuilder :: ExceptT GraphException (State (Graph ni nd ed)) a -> GraphBuilder ni nd ed a
 [$sel:buildGraph:GraphBuilder] :: GraphBuilder ni nd ed a -> ExceptT GraphException (State (Graph ni nd ed)) a
@@ -102,18 +105,16 @@ instance GHC.Base.Monad (Graph.GraphBuilder ni nd ed)
 instance GHC.Base.Applicative (Graph.GraphBuilder ni nd ed)
 instance GHC.Base.Functor (Graph.GraphBuilder ni nd ed)
 
-module SSA
-
 module SourceLoc
 data Posn
 Posn :: !Int -> !Int -> !Int -> Posn
-[offset] :: Posn -> !Int
-[row] :: Posn -> !Int
-[col] :: Posn -> !Int
+[$sel:offset:Posn] :: Posn -> !Int
+[$sel:row:Posn] :: Posn -> !Int
+[$sel:col:Posn] :: Posn -> !Int
 data Range
 Range :: Posn -> Posn -> Range
-[start] :: Range -> Posn
-[stop] :: Range -> Posn
+[$sel:start:Range] :: Range -> Posn
+[$sel:stop:Range] :: Range -> Posn
 data Located a
 LocatedAt :: Range -> a -> Located a
 unLocate :: Located a -> a
@@ -557,8 +558,77 @@ instance GHC.Show.Show Semantic.SymbolTable
 instance GHC.Show.Show Semantic.SemanticException
 instance GHC.Show.Show Semantic.SemanticError
 
+module SSA
+type VID = Int
+data Var
+Var :: Type -> Maybe FieldDecl -> Maybe Range -> Var
+[$sel:tpe:Var] :: Var -> Type
+[$sel:astDecl:Var] :: Var -> Maybe FieldDecl
+[$sel:loc:Var] :: Var -> Maybe Range
+data VarOrImm
+BoolImm :: Bool -> VarOrImm
+IntImm :: Int -> VarOrImm
+StringImm :: Text -> VarOrImm
+Variable :: Var -> VarOrImm
+type VarList = [Var]
+data SSA
+Assignment :: Var -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:src:Assignment] :: SSA -> VarOrImm
+MethodCall :: Var -> [Var] -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:arguments:Assignment] :: SSA -> [Var]
+Return :: Var -> SSA
+[$sel:ret:Assignment] :: SSA -> Var
+ArrayDeref :: Var -> Var -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:arr:Assignment] :: SSA -> Var
+[$sel:idx:Assignment] :: SSA -> VarOrImm
+Arith :: Var -> ArithOp -> VarOrImm -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:arithOp:Assignment] :: SSA -> ArithOp
+[$sel:opl:Assignment] :: SSA -> VarOrImm
+[$sel:opr:Assignment] :: SSA -> VarOrImm
+Rel :: Var -> RelOp -> VarOrImm -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:relOp:Assignment] :: SSA -> RelOp
+[$sel:opl:Assignment] :: SSA -> VarOrImm
+[$sel:opr:Assignment] :: SSA -> VarOrImm
+Cond :: Var -> CondOp -> VarOrImm -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:condOp:Assignment] :: SSA -> CondOp
+[$sel:opl:Assignment] :: SSA -> VarOrImm
+[$sel:opr:Assignment] :: SSA -> VarOrImm
+Eq :: Var -> EqOp -> VarOrImm -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:eqOp:Assignment] :: SSA -> EqOp
+[$sel:opl:Assignment] :: SSA -> VarOrImm
+[$sel:opr:Assignment] :: SSA -> VarOrImm
+Neg :: Var -> NegOp -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:negOp:Assignment] :: SSA -> NegOp
+[$sel:oprand:Assignment] :: SSA -> VarOrImm
+Not :: Var -> NotOp -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:notOp:Assignment] :: SSA -> NotOp
+[$sel:oprand:Assignment] :: SSA -> VarOrImm
+Choice :: Var -> ChoiceOp -> VarOrImm -> VarOrImm -> VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:choiceOp:Assignment] :: SSA -> ChoiceOp
+[$sel:pred:Assignment] :: SSA -> VarOrImm
+[$sel:opl:Assignment] :: SSA -> VarOrImm
+[$sel:opr:Assignment] :: SSA -> VarOrImm
+Len :: Var -> Var -> SSA
+[$sel:dst:Assignment] :: SSA -> Var
+[$sel:arr:Assignment] :: SSA -> Var
+instance GHC.Show.Show SSA.Var
+instance GHC.Show.Show SSA.VarOrImm
+instance GHC.Show.Show SSA.SSA
+
 module CFG
 type Label = Text
+type BBID = Int
+type VID = Int
 data Condition
 Pred :: Expr -> Condition
 [$sel:pred:Pred] :: Condition -> Expr
@@ -566,25 +636,44 @@ Complement :: Condition
 data CFGContext
 CFGContext :: Map ScopeID SymbolTable -> CFGContext
 [$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
-data CFGNodeData
-StatementNode :: Statement -> CFGNodeData
-data CFGEdgeData
-SeqEdge :: CFGEdgeData
-CondEdge :: Condition -> CFGEdgeData
+data BasicBlock
+BasicBlock :: BBID -> ScopeID -> [Statement] -> BasicBlock
+[$sel:bbid:BasicBlock] :: BasicBlock -> BBID
+[$sel:sid:BasicBlock] :: BasicBlock -> ScopeID
+[$sel:statements:BasicBlock] :: BasicBlock -> [Statement]
+data CFGNode
+CFGNode :: BBID -> BasicBlock -> CFGNode
+[$sel:bbid:CFGNode] :: CFGNode -> BBID
+[$sel:bb:CFGNode] :: CFGNode -> BasicBlock
+data CFGEdge
+SeqEdge :: CFGEdge
+CondEdge :: Condition -> CFGEdge
+type CFG = Graph BBID CFGNode CFGEdge
 data CFGState
-CFGState :: Graph Int CFGNodeData CFGEdgeData -> ScopeID -> CFGState
-[$sel:cfg:CFGState] :: CFGState -> Graph Int CFGNodeData CFGEdgeData
-[$sel:sid:CFGState] :: CFGState -> ScopeID
+CFGState :: CFG -> Maybe CFGNode -> BBID -> ScopeID -> CFGState
+[$sel:cfg:CFGState] :: CFGState -> CFG
+[$sel:currentNode:CFGState] :: CFGState -> Maybe CFGNode
+[$sel:nextBbid:CFGState] :: CFGState -> BBID
+[$sel:astScope:CFGState] :: CFGState -> ScopeID
 newtype CFGExcept
 CFGExcept :: Text -> CFGExcept
-newtype CFGMonad a
-CFGMonad :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGMonad a
-[$sel:runCFGMonad:CFGMonad] :: CFGMonad a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
+newtype CFGBuild a
+CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuild a
+[$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
+initialCFGState :: ScopeID -> CFGState
+buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
+buildMethod :: MethodDecl -> CFGBuild CFG
+buildStatement :: Located Statement -> CFGBuild ()
 instance GHC.Show.Show CFG.Condition
+instance GHC.Show.Show CFG.BasicBlock
+instance GHC.Generics.Generic CFG.BasicBlock
+instance GHC.Show.Show CFG.CFGNode
+instance GHC.Generics.Generic CFG.CFGNode
+instance GHC.Show.Show CFG.CFGEdge
 instance GHC.Show.Show CFG.CFGExcept
-instance Control.Monad.State.Class.MonadState CFG.CFGState CFG.CFGMonad
-instance Control.Monad.Reader.Class.MonadReader CFG.CFGContext CFG.CFGMonad
-instance Control.Monad.Error.Class.MonadError CFG.CFGExcept CFG.CFGMonad
-instance GHC.Base.Monad CFG.CFGMonad
-instance GHC.Base.Applicative CFG.CFGMonad
-instance GHC.Base.Functor CFG.CFGMonad
+instance Control.Monad.State.Class.MonadState CFG.CFGState CFG.CFGBuild
+instance Control.Monad.Reader.Class.MonadReader CFG.CFGContext CFG.CFGBuild
+instance Control.Monad.Error.Class.MonadError CFG.CFGExcept CFG.CFGBuild
+instance GHC.Base.Monad CFG.CFGBuild
+instance GHC.Base.Applicative CFG.CFGBuild
+instance GHC.Base.Functor CFG.CFGBuild

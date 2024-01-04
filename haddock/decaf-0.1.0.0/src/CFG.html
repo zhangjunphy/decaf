@@ -9,112 +9,215 @@
 </span><span id="line-9"></span><span class="hs-comment">-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY</span><span>
 </span><span id="line-10"></span><span class="hs-comment">-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span><span>
 </span><span id="line-11"></span><span class="hs-comment">-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.</span><span>
-</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE DuplicateRecordFields #-}</span><span>
-</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
-</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
-</span><span id="line-15"></span><span>
-</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CFG</span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-17"></span><span>
-</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
-</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
-</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
-</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
-</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CFG</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">view</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(^.)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Reader</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Writer</span></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span class="hs-special">)</span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
 </span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
-</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Graph.html"><span class="hs-identifier">Graph</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
-</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span>
-</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="Semantic.html"><span class="hs-identifier">Semantic</span></a></span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SE</span></span><span>
-</span><span id="line-27"></span><span>
-</span><span id="line-28"></span><span class="hs-keyword">type</span><span> </span><span id="Label"><span class="annot"><a href="CFG.html#Label"><span class="hs-identifier hs-var">Label</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
-</span><span id="line-29"></span><span>
-</span><span id="line-30"></span><span class="hs-keyword">data</span><span> </span><span id="Condition"><span class="annot"><a href="CFG.html#Condition"><span class="hs-identifier hs-var">Condition</span></a></span></span><span>
-</span><span id="line-31"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Pred"><span class="annot"><a href="CFG.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Apred%3APred"><span class="annot"><span class="annottext">Condition -&gt; Expr
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Graph.html"><span class="hs-identifier">Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Semantic.html"><span class="hs-identifier">Semantic</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SE</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="SourceLoc.html"><span class="hs-identifier">SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">type</span><span> </span><span id="Label"><span class="annot"><a href="CFG.html#Label"><span class="hs-identifier hs-var">Label</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-comment">-- Basic block ID</span><span>
+</span><span id="line-32"></span><span class="hs-keyword">type</span><span> </span><span id="BBID"><span class="annot"><a href="CFG.html#BBID"><span class="hs-identifier hs-var">BBID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-comment">-- Variable ID</span><span>
+</span><span id="line-35"></span><span class="hs-keyword">type</span><span> </span><span id="VID"><span class="annot"><a href="CFG.html#VID"><span class="hs-identifier hs-var">VID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-36"></span><span>
+</span><span id="line-37"></span><span class="hs-keyword">data</span><span> </span><span id="Condition"><span class="annot"><a href="CFG.html#Condition"><span class="hs-identifier hs-var">Condition</span></a></span></span><span>
+</span><span id="line-38"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Pred"><span class="annot"><a href="CFG.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Apred%3APred"><span class="annot"><span class="annottext">Condition -&gt; Expr
 </span><a href="CFG.html#%24sel%3Apred%3APred"><span class="hs-identifier hs-var hs-var">pred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#Expr"><span class="hs-identifier hs-type">AST.Expr</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Complement"><span class="annot"><a href="CFG.html#Complement"><span class="hs-identifier hs-var">Complement</span></a></span></span><span>
-</span><span id="line-33"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679177846"><span id="local-6989586621679177852"><span id="local-6989586621679177856"><span class="annot"><span class="annottext">Int -&gt; Condition -&gt; ShowS
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Complement"><span class="annot"><a href="CFG.html#Complement"><span class="hs-identifier hs-var">Complement</span></a></span></span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180826"><span id="local-6989586621679180832"><span id="local-6989586621679180836"><span class="annot"><span class="annottext">ScopeID -&gt; Condition -&gt; ShowS
 [Condition] -&gt; ShowS
 Condition -&gt; String
-(Int -&gt; Condition -&gt; ShowS)
+(ScopeID -&gt; Condition -&gt; ShowS)
 -&gt; (Condition -&gt; String)
 -&gt; ([Condition] -&gt; ShowS)
 -&gt; Show Condition
 forall a.
-(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-$cshowsPrec :: Int -&gt; Condition -&gt; ShowS
-showsPrec :: Int -&gt; Condition -&gt; ShowS
+(ScopeID -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: ScopeID -&gt; Condition -&gt; ShowS
+showsPrec :: ScopeID -&gt; Condition -&gt; ShowS
 $cshow :: Condition -&gt; String
 show :: Condition -&gt; String
 $cshowList :: [Condition] -&gt; ShowS
 showList :: [Condition] -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-34"></span><span>
-</span><span id="line-35"></span><span class="hs-keyword">data</span><span> </span><span id="CFGContext"><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-var">CFGContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGContext"><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-var">CFGContext</span></a></span></span><span>
-</span><span id="line-36"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AsymbolTables%3ACFGContext"><span class="annot"><span class="annottext">CFGContext -&gt; Map Int SymbolTable
-</span><a href="CFG.html#%24sel%3AsymbolTables%3ACFGContext"><span class="hs-identifier hs-var hs-var">symbolTables</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span> </span><span class="annot"><a href="Semantic.html#SymbolTable"><span class="hs-identifier hs-type">SE.SymbolTable</span></a></span><span>
-</span><span id="line-37"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-38"></span><span>
-</span><span id="line-39"></span><span class="hs-keyword">data</span><span> </span><span id="CFGNodeData"><span class="annot"><a href="CFG.html#CFGNodeData"><span class="hs-identifier hs-var">CFGNodeData</span></a></span></span><span>
-</span><span id="line-40"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="StatementNode"><span class="annot"><a href="CFG.html#StatementNode"><span class="hs-identifier hs-var">StatementNode</span></a></span></span><span> </span><span class="annot"><a href="AST.html#Statement"><span class="hs-identifier hs-type">AST.Statement</span></a></span><span>
 </span><span id="line-41"></span><span>
-</span><span id="line-42"></span><span class="hs-keyword">data</span><span> </span><span id="CFGEdgeData"><span class="annot"><a href="CFG.html#CFGEdgeData"><span class="hs-identifier hs-var">CFGEdgeData</span></a></span></span><span>
-</span><span id="line-43"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SeqEdge"><span class="annot"><a href="CFG.html#SeqEdge"><span class="hs-identifier hs-var">SeqEdge</span></a></span></span><span>
-</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CondEdge"><span class="annot"><a href="CFG.html#CondEdge"><span class="hs-identifier hs-var">CondEdge</span></a></span></span><span> </span><span class="annot"><a href="CFG.html#Condition"><span class="hs-identifier hs-type">Condition</span></a></span><span>
+</span><span id="line-42"></span><span class="hs-keyword">data</span><span> </span><span id="CFGContext"><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-var">CFGContext</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGContext"><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-var">CFGContext</span></a></span></span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3AsymbolTables%3ACFGContext"><span class="annot"><span class="annottext">CFGContext -&gt; Map ScopeID SymbolTable
+</span><a href="CFG.html#%24sel%3AsymbolTables%3ACFGContext"><span class="hs-identifier hs-var hs-var">symbolTables</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span> </span><span class="annot"><a href="Semantic.html#SymbolTable"><span class="hs-identifier hs-type">SE.SymbolTable</span></a></span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">}</span><span>
 </span><span id="line-45"></span><span>
-</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="CFGState"><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-var">CFGState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGState"><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-var">CFGState</span></a></span></span><span>
-</span><span id="line-47"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Acfg%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; Graph Int CFGNodeData CFGEdgeData
-</span><a href="CFG.html#%24sel%3Acfg%3ACFGState"><span class="hs-identifier hs-var hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Graph.html#Graph"><span class="hs-identifier hs-type">G.Graph</span></a></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span> </span><span class="annot"><a href="CFG.html#CFGNodeData"><span class="hs-identifier hs-type">CFGNodeData</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFGEdgeData"><span class="hs-identifier hs-type">CFGEdgeData</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-48"></span><span>    </span><span id="%24sel%3Asid%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; Int
-</span><a href="CFG.html#%24sel%3Asid%3ACFGState"><span class="hs-identifier hs-var hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span>
-</span><span id="line-49"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-50"></span><span>
-</span><span id="line-51"></span><span class="hs-keyword">newtype</span><span> </span><span id="CFGExcept"><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-var">CFGExcept</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGExcept"><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-var">CFGExcept</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
-</span><span id="line-52"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679177871"><span id="local-6989586621679177876"><span id="local-6989586621679177880"><span class="annot"><span class="annottext">Int -&gt; CFGExcept -&gt; ShowS
+</span><span id="line-46"></span><span class="hs-keyword">data</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Abbid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3Abbid%3ABasicBlock"><span class="hs-identifier hs-var hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-48"></span><span>    </span><span id="%24sel%3Asid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3Asid%3ABasicBlock"><span class="hs-identifier hs-var hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-49"></span><span>    </span><span id="%24sel%3Astatements%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; [Statement]
+</span><a href="CFG.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var hs-var">statements</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="AST.html#Statement"><span class="hs-identifier hs-type">AST.Statement</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180846"><span id="local-6989586621679180848"><span class="annot"><span class="annottext">(forall x. BasicBlock -&gt; Rep BasicBlock x)
+-&gt; (forall x. Rep BasicBlock x -&gt; BasicBlock) -&gt; Generic BasicBlock
+forall x. Rep BasicBlock x -&gt; BasicBlock
+forall x. BasicBlock -&gt; Rep BasicBlock x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. BasicBlock -&gt; Rep BasicBlock x
+from :: forall x. BasicBlock -&gt; Rep BasicBlock x
+$cto :: forall x. Rep BasicBlock x -&gt; BasicBlock
+to :: forall x. Rep BasicBlock x -&gt; BasicBlock
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679180852"><span id="local-6989586621679180861"><span id="local-6989586621679180865"><span class="annot"><span class="annottext">ScopeID -&gt; BasicBlock -&gt; ShowS
+[BasicBlock] -&gt; ShowS
+BasicBlock -&gt; String
+(ScopeID -&gt; BasicBlock -&gt; ShowS)
+-&gt; (BasicBlock -&gt; String)
+-&gt; ([BasicBlock] -&gt; ShowS)
+-&gt; Show BasicBlock
+forall a.
+(ScopeID -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: ScopeID -&gt; BasicBlock -&gt; ShowS
+showsPrec :: ScopeID -&gt; BasicBlock -&gt; ShowS
+$cshow :: BasicBlock -&gt; String
+show :: BasicBlock -&gt; String
+$cshowList :: [BasicBlock] -&gt; ShowS
+showList :: [BasicBlock] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="hs-keyword">data</span><span> </span><span id="CFGNode"><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-var">CFGNode</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGNode"><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-var">CFGNode</span></a></span></span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Abbid%3ACFGNode"><span class="annot"><span class="annottext">CFGNode -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3Abbid%3ACFGNode"><span class="hs-identifier hs-var hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-55"></span><span>    </span><span id="%24sel%3Abb%3ACFGNode"><span class="annot"><span class="annottext">CFGNode -&gt; BasicBlock
+</span><a href="CFG.html#%24sel%3Abb%3ACFGNode"><span class="hs-identifier hs-var hs-var">bb</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span>
+</span><span id="line-56"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-57"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180872"><span id="local-6989586621679180874"><span class="annot"><span class="annottext">(forall x. CFGNode -&gt; Rep CFGNode x)
+-&gt; (forall x. Rep CFGNode x -&gt; CFGNode) -&gt; Generic CFGNode
+forall x. Rep CFGNode x -&gt; CFGNode
+forall x. CFGNode -&gt; Rep CFGNode x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. CFGNode -&gt; Rep CFGNode x
+from :: forall x. CFGNode -&gt; Rep CFGNode x
+$cto :: forall x. Rep CFGNode x -&gt; CFGNode
+to :: forall x. Rep CFGNode x -&gt; CFGNode
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679180877"><span id="local-6989586621679180882"><span id="local-6989586621679180886"><span class="annot"><span class="annottext">ScopeID -&gt; CFGNode -&gt; ShowS
+[CFGNode] -&gt; ShowS
+CFGNode -&gt; String
+(ScopeID -&gt; CFGNode -&gt; ShowS)
+-&gt; (CFGNode -&gt; String) -&gt; ([CFGNode] -&gt; ShowS) -&gt; Show CFGNode
+forall a.
+(ScopeID -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: ScopeID -&gt; CFGNode -&gt; ShowS
+showsPrec :: ScopeID -&gt; CFGNode -&gt; ShowS
+$cshow :: CFGNode -&gt; String
+show :: CFGNode -&gt; String
+$cshowList :: [CFGNode] -&gt; ShowS
+showList :: [CFGNode] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-58"></span><span>
+</span><span id="line-59"></span><span class="hs-keyword">data</span><span> </span><span id="CFGEdge"><span class="annot"><a href="CFG.html#CFGEdge"><span class="hs-identifier hs-var">CFGEdge</span></a></span></span><span>
+</span><span id="line-60"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SeqEdge"><span class="annot"><a href="CFG.html#SeqEdge"><span class="hs-identifier hs-var">SeqEdge</span></a></span></span><span>
+</span><span id="line-61"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CondEdge"><span class="annot"><a href="CFG.html#CondEdge"><span class="hs-identifier hs-var">CondEdge</span></a></span></span><span> </span><span class="annot"><a href="CFG.html#Condition"><span class="hs-identifier hs-type">Condition</span></a></span><span>
+</span><span id="line-62"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180891"><span id="local-6989586621679180895"><span id="local-6989586621679180899"><span class="annot"><span class="annottext">ScopeID -&gt; CFGEdge -&gt; ShowS
+[CFGEdge] -&gt; ShowS
+CFGEdge -&gt; String
+(ScopeID -&gt; CFGEdge -&gt; ShowS)
+-&gt; (CFGEdge -&gt; String) -&gt; ([CFGEdge] -&gt; ShowS) -&gt; Show CFGEdge
+forall a.
+(ScopeID -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: ScopeID -&gt; CFGEdge -&gt; ShowS
+showsPrec :: ScopeID -&gt; CFGEdge -&gt; ShowS
+$cshow :: CFGEdge -&gt; String
+show :: CFGEdge -&gt; String
+$cshowList :: [CFGEdge] -&gt; ShowS
+showList :: [CFGEdge] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-63"></span><span>
+</span><span id="line-64"></span><span class="hs-keyword">type</span><span> </span><span id="CFG"><span class="annot"><a href="CFG.html#CFG"><span class="hs-identifier hs-var">CFG</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Graph.html#Graph"><span class="hs-identifier hs-type">G.Graph</span></a></span><span> </span><span class="annot"><a href="CFG.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-type">CFGNode</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span>
+</span><span id="line-65"></span><span>
+</span><span id="line-66"></span><span class="hs-keyword">data</span><span> </span><span id="CFGState"><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-var">CFGState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGState"><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-var">CFGState</span></a></span></span><span>
+</span><span id="line-67"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Acfg%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; CFG
+</span><a href="CFG.html#%24sel%3Acfg%3ACFGState"><span class="hs-identifier hs-var hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-68"></span><span>    </span><span id="%24sel%3AcurrentNode%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; Maybe CFGNode
+</span><a href="CFG.html#%24sel%3AcurrentNode%3ACFGState"><span class="hs-identifier hs-var hs-var">currentNode</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-type">CFGNode</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-69"></span><span>    </span><span id="%24sel%3AnextBbid%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3AnextBbid%3ACFGState"><span class="hs-identifier hs-var hs-var">nextBbid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-70"></span><span>    </span><span id="%24sel%3AastScope%3ACFGState"><span class="annot"><span class="annottext">CFGState -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3AastScope%3ACFGState"><span class="hs-identifier hs-var hs-var">astScope</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span>
+</span><span id="line-71"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-72"></span><span>
+</span><span id="line-73"></span><span class="hs-keyword">newtype</span><span> </span><span id="CFGExcept"><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-var">CFGExcept</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGExcept"><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-var">CFGExcept</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-74"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180908"><span id="local-6989586621679180913"><span id="local-6989586621679180917"><span class="annot"><span class="annottext">ScopeID -&gt; CFGExcept -&gt; ShowS
 [CFGExcept] -&gt; ShowS
 CFGExcept -&gt; String
-(Int -&gt; CFGExcept -&gt; ShowS)
+(ScopeID -&gt; CFGExcept -&gt; ShowS)
 -&gt; (CFGExcept -&gt; String)
 -&gt; ([CFGExcept] -&gt; ShowS)
 -&gt; Show CFGExcept
 forall a.
-(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-$cshowsPrec :: Int -&gt; CFGExcept -&gt; ShowS
-showsPrec :: Int -&gt; CFGExcept -&gt; ShowS
+(ScopeID -&gt; a -&gt; ShowS)
+-&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: ScopeID -&gt; CFGExcept -&gt; ShowS
+showsPrec :: ScopeID -&gt; CFGExcept -&gt; ShowS
 $cshow :: CFGExcept -&gt; String
 show :: CFGExcept -&gt; String
 $cshowList :: [CFGExcept] -&gt; ShowS
 showList :: [CFGExcept] -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-53"></span><span>
-</span><span id="line-54"></span><span class="hs-keyword">newtype</span><span> </span><span id="CFGMonad"><span class="annot"><a href="CFG.html#CFGMonad"><span class="hs-identifier hs-var">CFGMonad</span></a></span></span><span> </span><span id="local-6989586621679177744"><span class="annot"><a href="#local-6989586621679177744"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGMonad"><span class="annot"><a href="CFG.html#CFGMonad"><span class="hs-identifier hs-var">CFGMonad</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3ArunCFGMonad%3ACFGMonad"><span class="annot"><span class="annottext">forall a.
-CFGMonad a
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="hs-keyword">newtype</span><span> </span><span id="CFGBuild"><span class="annot"><a href="CFG.html#CFGBuild"><span class="hs-identifier hs-var">CFGBuild</span></a></span></span><span> </span><span id="local-6989586621679180524"><span class="annot"><a href="#local-6989586621679180524"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGBuild"><span class="annot"><a href="CFG.html#CFGBuild"><span class="hs-identifier hs-var">CFGBuild</span></a></span></span><span>
+</span><span id="line-77"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3ArunCFGBuild%3ACFGBuild"><span class="annot"><span class="annottext">forall a.
+CFGBuild a
 -&gt; ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
-</span><a href="CFG.html#%24sel%3ArunCFGMonad%3ACFGMonad"><span class="hs-identifier hs-var hs-var">runCFGMonad</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span> </span><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-type">CFGExcept</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-type">CFGContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">State</span></span><span> </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679177744"><span class="hs-identifier hs-type">a</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-55"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679177885"><span id="local-6989586621679177891"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b)
--&gt; (forall a b. a -&gt; CFGMonad b -&gt; CFGMonad a) -&gt; Functor CFGMonad
-forall a b. a -&gt; CFGMonad b -&gt; CFGMonad a
-forall a b. (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
+</span><a href="CFG.html#%24sel%3ArunCFGBuild%3ACFGBuild"><span class="hs-identifier hs-var hs-var">runCFGBuild</span></a></span></span><span> </span><span class="hs-glyph">::</span><span>
+</span><span id="line-78"></span><span>      </span><span class="annot"><span class="hs-identifier hs-type">ExceptT</span></span><span>
+</span><span id="line-79"></span><span>        </span><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-type">CFGExcept</span></a></span><span>
+</span><span id="line-80"></span><span>        </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">ReaderT</span></span><span> </span><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-type">CFGContext</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">State</span></span><span> </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-81"></span><span>        </span><span class="annot"><a href="#local-6989586621679180524"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-82"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-83"></span><span>  </span><span class="hs-keyword">deriving</span><span>
+</span><span id="line-84"></span><span>    </span><span class="hs-special">(</span><span> </span><span id="local-6989586621679180922"><span id="local-6989586621679180928"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b)
+-&gt; (forall a b. a -&gt; CFGBuild b -&gt; CFGBuild a) -&gt; Functor CFGBuild
+forall a b. a -&gt; CFGBuild b -&gt; CFGBuild a
+forall a b. (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
 forall (f :: * -&gt; *).
 (forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
 -&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
-$cfmap :: forall a b. (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
-fmap :: forall a b. (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
-$c&lt;$ :: forall a b. a -&gt; CFGMonad b -&gt; CFGMonad a
-&lt;$ :: forall a b. a -&gt; CFGMonad b -&gt; CFGMonad a
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679177907"><span id="local-6989586621679177914"><span id="local-6989586621679177920"><span id="local-6989586621679177926"><span id="local-6989586621679177932"><span class="annot"><span class="annottext">Functor CFGMonad
-Functor CFGMonad
--&gt; (forall a. a -&gt; CFGMonad a)
--&gt; (forall a b. CFGMonad (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b)
+$cfmap :: forall a b. (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
+fmap :: forall a b. (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
+$c&lt;$ :: forall a b. a -&gt; CFGBuild b -&gt; CFGBuild a
+&lt;$ :: forall a b. a -&gt; CFGBuild b -&gt; CFGBuild a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-85"></span><span>      </span><span id="local-6989586621679180944"><span id="local-6989586621679180951"><span id="local-6989586621679180957"><span id="local-6989586621679180963"><span id="local-6989586621679180969"><span class="annot"><span class="annottext">Functor CFGBuild
+Functor CFGBuild
+-&gt; (forall a. a -&gt; CFGBuild a)
+-&gt; (forall a b. CFGBuild (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b)
 -&gt; (forall a b c.
-    (a -&gt; b -&gt; c) -&gt; CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad c)
--&gt; (forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b)
--&gt; (forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad a)
--&gt; Applicative CFGMonad
-forall a. a -&gt; CFGMonad a
-forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad a
-forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-forall a b. CFGMonad (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
+    (a -&gt; b -&gt; c) -&gt; CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild c)
+-&gt; (forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b)
+-&gt; (forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild a)
+-&gt; Applicative CFGBuild
+forall a. a -&gt; CFGBuild a
+forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild a
+forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+forall a b. CFGBuild (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
 forall a b c.
-(a -&gt; b -&gt; c) -&gt; CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad c
+(a -&gt; b -&gt; c) -&gt; CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild c
 forall (f :: * -&gt; *).
 Functor f
 -&gt; (forall a. a -&gt; f a)
@@ -123,39 +226,294 @@ Functor f
 -&gt; (forall a b. f a -&gt; f b -&gt; f b)
 -&gt; (forall a b. f a -&gt; f b -&gt; f a)
 -&gt; Applicative f
-$cpure :: forall a. a -&gt; CFGMonad a
-pure :: forall a. a -&gt; CFGMonad a
-$c&lt;*&gt; :: forall a b. CFGMonad (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
-&lt;*&gt; :: forall a b. CFGMonad (a -&gt; b) -&gt; CFGMonad a -&gt; CFGMonad b
+$cpure :: forall a. a -&gt; CFGBuild a
+pure :: forall a. a -&gt; CFGBuild a
+$c&lt;*&gt; :: forall a b. CFGBuild (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
+&lt;*&gt; :: forall a b. CFGBuild (a -&gt; b) -&gt; CFGBuild a -&gt; CFGBuild b
 $cliftA2 :: forall a b c.
-(a -&gt; b -&gt; c) -&gt; CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad c
+(a -&gt; b -&gt; c) -&gt; CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild c
 liftA2 :: forall a b c.
-(a -&gt; b -&gt; c) -&gt; CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad c
-$c*&gt; :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-*&gt; :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-$c&lt;* :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad a
-&lt;* :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad a
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679177965"><span id="local-6989586621679177971"><span id="local-6989586621679177976"><span class="annot"><span class="annottext">Applicative CFGMonad
-Applicative CFGMonad
--&gt; (forall a b. CFGMonad a -&gt; (a -&gt; CFGMonad b) -&gt; CFGMonad b)
--&gt; (forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b)
--&gt; (forall a. a -&gt; CFGMonad a)
--&gt; Monad CFGMonad
-forall a. a -&gt; CFGMonad a
-forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-forall a b. CFGMonad a -&gt; (a -&gt; CFGMonad b) -&gt; CFGMonad b
+(a -&gt; b -&gt; c) -&gt; CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild c
+$c*&gt; :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+*&gt; :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+$c&lt;* :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild a
+&lt;* :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-86"></span><span>      </span><span id="local-6989586621679181002"><span id="local-6989586621679181008"><span id="local-6989586621679181013"><span class="annot"><span class="annottext">Applicative CFGBuild
+Applicative CFGBuild
+-&gt; (forall a b. CFGBuild a -&gt; (a -&gt; CFGBuild b) -&gt; CFGBuild b)
+-&gt; (forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b)
+-&gt; (forall a. a -&gt; CFGBuild a)
+-&gt; Monad CFGBuild
+forall a. a -&gt; CFGBuild a
+forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+forall a b. CFGBuild a -&gt; (a -&gt; CFGBuild b) -&gt; CFGBuild b
 forall (m :: * -&gt; *).
 Applicative m
 -&gt; (forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
 -&gt; (forall a b. m a -&gt; m b -&gt; m b)
 -&gt; (forall a. a -&gt; m a)
 -&gt; Monad m
-$c&gt;&gt;= :: forall a b. CFGMonad a -&gt; (a -&gt; CFGMonad b) -&gt; CFGMonad b
-&gt;&gt;= :: forall a b. CFGMonad a -&gt; (a -&gt; CFGMonad b) -&gt; CFGMonad b
-$c&gt;&gt; :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-&gt;&gt; :: forall a b. CFGMonad a -&gt; CFGMonad b -&gt; CFGMonad b
-$creturn :: forall a. a -&gt; CFGMonad a
-return :: forall a. a -&gt; CFGMonad a
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679177991"><span id="local-6989586621679177997"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-type">CFGExcept</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679178010"><span id="local-6989586621679178016"><span id="local-6989586621679178021"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-type">CFGContext</span></a></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679178037"><span id="local-6989586621679178043"><span id="local-6989586621679178048"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-56"></span><span>
-</span><span id="line-57"></span></pre></body></html>
+$c&gt;&gt;= :: forall a b. CFGBuild a -&gt; (a -&gt; CFGBuild b) -&gt; CFGBuild b
+&gt;&gt;= :: forall a b. CFGBuild a -&gt; (a -&gt; CFGBuild b) -&gt; CFGBuild b
+$c&gt;&gt; :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+&gt;&gt; :: forall a b. CFGBuild a -&gt; CFGBuild b -&gt; CFGBuild b
+$creturn :: forall a. a -&gt; CFGBuild a
+return :: forall a. a -&gt; CFGBuild a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-87"></span><span>      </span><span id="local-6989586621679181027"><span id="local-6989586621679181033"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-type">CFGExcept</span></a></span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-88"></span><span>      </span><span id="local-6989586621679181046"><span id="local-6989586621679181052"><span id="local-6989586621679181057"><span class="annot"><span class="hs-identifier hs-type">MonadReader</span></span><span> </span><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-type">CFGContext</span></a></span></span></span></span><span class="hs-special">,</span><span>
+</span><span id="line-89"></span><span>      </span><span id="local-6989586621679181073"><span id="local-6989586621679181079"><span id="local-6989586621679181084"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span></span></span></span><span>
+</span><span id="line-90"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-91"></span><span>
+</span><span id="line-92"></span><span class="annot"><a href="CFG.html#initialCFGState"><span class="hs-identifier hs-type">initialCFGState</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ScopeID"><span class="hs-identifier hs-type">AST.ScopeID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span><span>
+</span><span id="line-93"></span><span id="initialCFGState"><span class="annot"><span class="annottext">initialCFGState :: ScopeID -&gt; CFGState
+</span><a href="CFG.html#initialCFGState"><span class="hs-identifier hs-var hs-var">initialCFGState</span></a></span></span><span> </span><span id="local-6989586621679181098"><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181098"><span class="hs-identifier hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-94"></span><span>  </span><span class="annot"><a href="CFG.html#CFGState"><span class="hs-identifier hs-type">CFGState</span></a></span><span>
+</span><span id="line-95"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">$sel:cfg:CFGState :: CFG
+</span><a href="CFG.html#%24sel%3Acfg%3ACFGState"><span class="hs-identifier hs-var">cfg</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CFG
+forall ni nd ed. Graph ni nd ed
+</span><a href="Graph.html#empty"><span class="hs-identifier hs-var">G.empty</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-96"></span><span>      </span><span class="annot"><span class="annottext">$sel:currentNode:CFGState :: Maybe CFGNode
+</span><a href="CFG.html#%24sel%3AcurrentNode%3ACFGState"><span class="hs-identifier hs-var">currentNode</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Maybe CFGNode
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span class="hs-special">,</span><span>
+</span><span id="line-97"></span><span>      </span><span class="annot"><span class="annottext">$sel:nextBbid:CFGState :: ScopeID
+</span><a href="CFG.html#%24sel%3AnextBbid%3ACFGState"><span class="hs-identifier hs-var">nextBbid</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScopeID
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span>
+</span><span id="line-98"></span><span>      </span><span class="annot"><span class="annottext">$sel:astScope:CFGState :: ScopeID
+</span><a href="CFG.html#%24sel%3AastScope%3ACFGState"><span class="hs-identifier hs-var">astScope</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181098"><span class="hs-identifier hs-var">sid</span></a></span><span>
+</span><span id="line-99"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-100"></span><span>
+</span><span id="line-101"></span><span class="annot"><a href="CFG.html#buildCFG"><span class="hs-identifier hs-type">buildCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ASTRoot"><span class="hs-identifier hs-type">AST.ASTRoot</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.html#CFGContext"><span class="hs-identifier hs-type">CFGContext</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><a href="CFG.html#CFGExcept"><span class="hs-identifier hs-type">CFGExcept</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="AST.html#Name"><span class="hs-identifier hs-type">AST.Name</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-102"></span><span id="buildCFG"><span class="annot"><span class="annottext">buildCFG :: ASTRoot -&gt; CFGContext -&gt; Either CFGExcept (Map Name CFG)
+</span><a href="CFG.html#buildCFG"><span class="hs-identifier hs-var hs-var">buildCFG</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="AST.html#ASTRoot"><span class="hs-identifier hs-type">AST.ASTRoot</span></a></span><span> </span><span class="annot"><span class="annottext">[Located ImportDecl]
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Located FieldDecl]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679181102"><span class="annot"><span class="annottext">[Located MethodDecl]
+</span><a href="#local-6989586621679181102"><span class="hs-identifier hs-var">methods</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679181103"><span class="annot"><span class="annottext">CFGContext
+</span><a href="#local-6989586621679181103"><span class="hs-identifier hs-var">context</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-103"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679181104"><span class="annot"><span class="annottext">build :: MethodDecl -&gt; CFGState -&gt; (Either CFGExcept CFG, CFGState)
+</span><a href="#local-6989586621679181104"><span class="hs-identifier hs-var hs-var">build</span></a></span></span><span> </span><span id="local-6989586621679181105"><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181105"><span class="hs-identifier hs-var">method</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-104"></span><span>        </span><span class="annot"><span class="annottext">State CFGState (Either CFGExcept CFG)
+-&gt; CFGState -&gt; (Either CFGExcept CFG, CFGState)
+forall s a. State s a -&gt; s -&gt; (a, s)
+</span><span class="hs-identifier hs-var">runState</span></span><span> </span><span class="annot"><span class="annottext">(State CFGState (Either CFGExcept CFG)
+ -&gt; CFGState -&gt; (Either CFGExcept CFG, CFGState))
+-&gt; State CFGState (Either CFGExcept CFG)
+-&gt; CFGState
+-&gt; (Either CFGExcept CFG, CFGState)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-105"></span><span>          </span><span class="annot"><span class="annottext">(ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+ -&gt; CFGContext -&gt; State CFGState (Either CFGExcept CFG))
+-&gt; CFGContext
+-&gt; ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+-&gt; State CFGState (Either CFGExcept CFG)
+forall a b c. (a -&gt; b -&gt; c) -&gt; b -&gt; a -&gt; c
+</span><span class="hs-identifier hs-var">flip</span></span><span> </span><span class="annot"><span class="annottext">ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+-&gt; CFGContext -&gt; State CFGState (Either CFGExcept CFG)
+forall r (m :: * -&gt; *) a. ReaderT r m a -&gt; r -&gt; m a
+</span><span class="hs-identifier hs-var">runReaderT</span></span><span> </span><span class="annot"><span class="annottext">CFGContext
+</span><a href="#local-6989586621679181103"><span class="hs-identifier hs-var">context</span></a></span><span> </span><span class="annot"><span class="annottext">(ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+ -&gt; State CFGState (Either CFGExcept CFG))
+-&gt; ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+-&gt; State CFGState (Either CFGExcept CFG)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-106"></span><span>            </span><span class="annot"><span class="annottext">ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) CFG
+-&gt; ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+forall e (m :: * -&gt; *) a. ExceptT e m a -&gt; m (Either e a)
+</span><span class="hs-identifier hs-var">runExceptT</span></span><span> </span><span class="annot"><span class="annottext">(ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) CFG
+ -&gt; ReaderT CFGContext (State CFGState) (Either CFGExcept CFG))
+-&gt; ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) CFG
+-&gt; ReaderT CFGContext (State CFGState) (Either CFGExcept CFG)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-107"></span><span>              </span><span class="annot"><span class="annottext">CFGBuild CFG
+-&gt; ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) CFG
+forall a.
+CFGBuild a
+-&gt; ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
+</span><a href="CFG.html#%24sel%3ArunCFGBuild%3ACFGBuild"><span class="hs-identifier hs-var">runCFGBuild</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MethodDecl -&gt; CFGBuild CFG
+</span><a href="CFG.html#buildMethod"><span class="hs-identifier hs-var">buildMethod</span></a></span><span> </span><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181105"><span class="hs-identifier hs-var">method</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-108"></span><span>      </span><span id="local-6989586621679181111"><span class="annot"><span class="annottext">updateMap :: Map Name CFG
+-&gt; Located MethodDecl -&gt; Either CFGExcept (Map Name CFG)
+</span><a href="#local-6989586621679181111"><span class="hs-identifier hs-var hs-var">updateMap</span></a></span></span><span> </span><span id="local-6989586621679181112"><span class="annot"><span class="annottext">Map Name CFG
+</span><a href="#local-6989586621679181112"><span class="hs-identifier hs-var">map</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679181114"><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181114"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-109"></span><span>        </span><span class="hs-keyword">let</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679181115"><span class="annot"><span class="annottext">Either CFGExcept CFG
+</span><a href="#local-6989586621679181115"><span class="hs-identifier hs-var">r</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGState
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">MethodDecl -&gt; CFGState -&gt; (Either CFGExcept CFG, CFGState)
+</span><a href="#local-6989586621679181104"><span class="hs-identifier hs-var">build</span></a></span><span> </span><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181114"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">(CFGState -&gt; (Either CFGExcept CFG, CFGState))
+-&gt; CFGState -&gt; (Either CFGExcept CFG, CFGState)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScopeID -&gt; CFGState
+</span><a href="CFG.html#initialCFGState"><span class="hs-identifier hs-var">initialCFGState</span></a></span><span> </span><span class="annot"><span class="annottext">(ScopeID -&gt; CFGState) -&gt; ScopeID -&gt; CFGState
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181114"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">MethodDecl -&gt; Getting ScopeID MethodDecl ScopeID -&gt; ScopeID
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(Block -&gt; Const ScopeID Block)
+-&gt; MethodDecl -&gt; Const ScopeID MethodDecl
+</span><span class="">#block</span></span><span> </span><span class="annot"><span class="annottext">((Block -&gt; Const ScopeID Block)
+ -&gt; MethodDecl -&gt; Const ScopeID MethodDecl)
+-&gt; ((ScopeID -&gt; Const ScopeID ScopeID)
+    -&gt; Block -&gt; Const ScopeID Block)
+-&gt; Getting ScopeID MethodDecl ScopeID
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(ScopeID -&gt; Const ScopeID ScopeID) -&gt; Block -&gt; Const ScopeID Block
+</span><span class="">#blockID</span></span><span class="hs-special">)</span><span>
+</span><span id="line-110"></span><span>         </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either CFGExcept CFG
+</span><a href="#local-6989586621679181115"><span class="hs-identifier hs-var">r</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-111"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679181117"><span class="annot"><span class="annottext">CFGExcept
+</span><a href="#local-6989586621679181117"><span class="hs-identifier hs-var">e</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CFGExcept -&gt; Either CFGExcept (Map Name CFG)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">CFGExcept
+</span><a href="#local-6989586621679181117"><span class="hs-identifier hs-var">e</span></a></span><span>
+</span><span id="line-112"></span><span>              </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679181118"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679181118"><span class="hs-identifier hs-var">r'</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Map Name CFG -&gt; Either CFGExcept (Map Name CFG)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(Map Name CFG -&gt; Either CFGExcept (Map Name CFG))
+-&gt; Map Name CFG -&gt; Either CFGExcept (Map Name CFG)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Name -&gt; CFG -&gt; Map Name CFG -&gt; Map Name CFG
+forall k a. Ord k =&gt; k -&gt; a -&gt; Map k a -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.insert</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MethodDecl
+</span><a href="#local-6989586621679181114"><span class="hs-identifier hs-var">m</span></a></span><span> </span><span class="annot"><span class="annottext">MethodDecl -&gt; Getting Name MethodDecl Name -&gt; Name
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(MethodSig -&gt; Const Name MethodSig)
+-&gt; MethodDecl -&gt; Const Name MethodDecl
+</span><span class="">#sig</span></span><span> </span><span class="annot"><span class="annottext">((MethodSig -&gt; Const Name MethodSig)
+ -&gt; MethodDecl -&gt; Const Name MethodDecl)
+-&gt; ((Name -&gt; Const Name Name) -&gt; MethodSig -&gt; Const Name MethodSig)
+-&gt; Getting Name MethodDecl Name
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Name -&gt; Const Name Name) -&gt; MethodSig -&gt; Const Name MethodSig
+</span><span class="">#name</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679181118"><span class="hs-identifier hs-var">r'</span></a></span><span> </span><span class="annot"><span class="annottext">Map Name CFG
+</span><a href="#local-6989586621679181112"><span class="hs-identifier hs-var">map</span></a></span><span>
+</span><span id="line-113"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">(Map Name CFG
+ -&gt; Located MethodDecl -&gt; Either CFGExcept (Map Name CFG))
+-&gt; Map Name CFG
+-&gt; [Located MethodDecl]
+-&gt; Either CFGExcept (Map Name CFG)
+forall (t :: * -&gt; *) (m :: * -&gt; *) b a.
+(Foldable t, Monad m) =&gt;
+(b -&gt; a -&gt; m b) -&gt; b -&gt; t a -&gt; m b
+</span><span class="hs-identifier hs-var">foldM</span></span><span> </span><span class="annot"><span class="annottext">Map Name CFG
+-&gt; Located MethodDecl -&gt; Either CFGExcept (Map Name CFG)
+</span><a href="#local-6989586621679181111"><span class="hs-identifier hs-var">updateMap</span></a></span><span> </span><span class="annot"><span class="annottext">Map Name CFG
+forall k a. Map k a
+</span><span class="hs-identifier hs-var">Map.empty</span></span><span> </span><span class="annot"><span class="annottext">[Located MethodDecl]
+</span><a href="#local-6989586621679181102"><span class="hs-identifier hs-var">methods</span></a></span><span>
+</span><span id="line-114"></span><span>
+</span><span id="line-115"></span><span class="annot"><a href="CFG.html#buildMethod"><span class="hs-identifier hs-type">buildMethod</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#MethodDecl"><span class="hs-identifier hs-type">AST.MethodDecl</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.html#CFGBuild"><span class="hs-identifier hs-type">CFGBuild</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span>
+</span><span id="line-116"></span><span id="buildMethod"><span class="annot"><span class="annottext">buildMethod :: MethodDecl -&gt; CFGBuild CFG
+</span><a href="CFG.html#buildMethod"><span class="hs-identifier hs-var hs-var">buildMethod</span></a></span></span><span> </span><span id="local-6989586621679181122"><span class="annot"><span class="annottext">method :: MethodDecl
+</span><a href="#local-6989586621679181122"><span class="hs-identifier hs-var">method</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="AST.html#MethodDecl"><span class="hs-identifier hs-type">AST.MethodDecl</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:sig:MethodDecl :: MethodDecl -&gt; MethodSig
+</span><a href="AST.html#%24sel%3Asig%3AMethodDecl"><span class="hs-identifier hs-var">sig</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679181125"><span class="annot"><span class="annottext">MethodSig
+</span><a href="#local-6989586621679181125"><span class="hs-identifier hs-var">sig</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:block:MethodDecl :: MethodDecl -&gt; Block
+</span><a href="AST.html#%24sel%3Ablock%3AMethodDecl"><span class="hs-identifier hs-var">block</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="AST.html#Block"><span class="hs-identifier hs-type">AST.Block</span></a></span><span> </span><span class="annot"><span class="annottext">[Located FieldDecl]
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679181128"><span class="annot"><span class="annottext">[Located Statement]
+</span><a href="#local-6989586621679181128"><span class="hs-identifier hs-var">stmts</span></a></span></span><span> </span><span id="local-6989586621679181129"><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181129"><span class="hs-identifier hs-var">sid</span></a></span></span><span class="hs-special">)</span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-117"></span><span>  </span><span class="annot"><span class="annottext">(Located Statement -&gt; CFGBuild ())
+-&gt; [Located Statement] -&gt; CFGBuild ()
+forall (t :: * -&gt; *) (m :: * -&gt; *) a b.
+(Foldable t, Monad m) =&gt;
+(a -&gt; m b) -&gt; t a -&gt; m ()
+</span><span class="hs-identifier hs-var">mapM_</span></span><span> </span><span class="annot"><span class="annottext">Located Statement -&gt; CFGBuild ()
+</span><a href="CFG.html#buildStatement"><span class="hs-identifier hs-var">buildStatement</span></a></span><span> </span><span class="annot"><span class="annottext">[Located Statement]
+</span><a href="#local-6989586621679181128"><span class="hs-identifier hs-var">stmts</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="annot"><span class="annottext">(CFGState -&gt; CFG) -&gt; CFGBuild CFG
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGState -&gt; CFG
+</span><a href="CFG.html#%24sel%3Acfg%3ACFGState"><span class="hs-identifier hs-var">cfg</span></a></span><span>
+</span><span id="line-119"></span><span>
+</span><span id="line-120"></span><span class="annot"><a href="CFG.html#buildStatement"><span class="hs-identifier hs-type">buildStatement</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SourceLoc.html#Located"><span class="hs-identifier hs-type">SL.Located</span></a></span><span> </span><span class="annot"><a href="AST.html#Statement"><span class="hs-identifier hs-type">AST.Statement</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.html#CFGBuild"><span class="hs-identifier hs-type">CFGBuild</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span id="buildStatement"><span class="annot"><span class="annottext">buildStatement :: Located Statement -&gt; CFGBuild ()
+</span><a href="CFG.html#buildStatement"><span class="hs-identifier hs-var hs-var">buildStatement</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679181133"><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181133"><span class="hs-identifier hs-var">stmt</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-122"></span><span>  </span><span id="local-6989586621679181134"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679181134"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(CFGState -&gt; CFG) -&gt; CFGBuild CFG
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGState -&gt; CFG
+</span><a href="CFG.html#%24sel%3Acfg%3ACFGState"><span class="hs-identifier hs-var">cfg</span></a></span><span>
+</span><span id="line-123"></span><span>  </span><span id="local-6989586621679181135"><span class="annot"><span class="annottext">Maybe CFGNode
+</span><a href="#local-6989586621679181135"><span class="hs-identifier hs-var">node</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(CFGState -&gt; Maybe CFGNode) -&gt; CFGBuild (Maybe CFGNode)
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGState -&gt; Maybe CFGNode
+</span><a href="CFG.html#%24sel%3AcurrentNode%3ACFGState"><span class="hs-identifier hs-var">currentNode</span></a></span><span>
+</span><span id="line-124"></span><span>  </span><span id="local-6989586621679181136"><span class="annot"><span class="annottext">CFGNode
+</span><a href="#local-6989586621679181136"><span class="hs-identifier hs-var">node'</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Maybe CFGNode -&gt; Statement -&gt; CFGBuild CFGNode
+</span><a href="#local-6989586621679181137"><span class="hs-identifier hs-var">insertStmt</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe CFGNode
+</span><a href="#local-6989586621679181135"><span class="hs-identifier hs-var">node</span></a></span><span> </span><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181133"><span class="hs-identifier hs-var">stmt</span></a></span><span>
+</span><span id="line-125"></span><span>  </span><span class="annot"><span class="annottext">(CFGState -&gt; CFGState) -&gt; CFGBuild ()
+forall s (m :: * -&gt; *). MonadState s m =&gt; (s -&gt; s) -&gt; m ()
+</span><span class="hs-identifier hs-var">modify</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span id="local-6989586621679181139"><span class="annot"><span class="annottext">CFGState
+</span><a href="#local-6989586621679181139"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CFGState
+</span><a href="#local-6989586621679181139"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:currentNode:CFGState :: Maybe CFGNode
+</span><a href="CFG.html#%24sel%3AcurrentNode%3ACFGState"><span class="hs-identifier hs-var">currentNode</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CFGNode -&gt; Maybe CFGNode
+forall a. a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Just</span></span><span> </span><span class="annot"><span class="annottext">CFGNode
+</span><a href="#local-6989586621679181136"><span class="hs-identifier hs-var">node'</span></a></span><span class="hs-special">}</span><span class="hs-special">)</span><span>
+</span><span id="line-126"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-127"></span><span>    </span><span class="annot"><a href="#local-6989586621679181137"><span class="hs-identifier hs-type">insertStmt</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-type">CFGNode</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="AST.html#Statement"><span class="hs-identifier hs-type">AST.Statement</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.html#CFGBuild"><span class="hs-identifier hs-type">CFGBuild</span></a></span><span> </span><span class="annot"><a href="CFG.html#CFGNode"><span class="hs-identifier hs-type">CFGNode</span></a></span><span>
+</span><span id="line-128"></span><span>    </span><span id="local-6989586621679181137"><span class="annot"><span class="annottext">insertStmt :: Maybe CFGNode -&gt; Statement -&gt; CFGBuild CFGNode
+</span><a href="#local-6989586621679181137"><span class="hs-identifier hs-var hs-var">insertStmt</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679181140"><span class="annot"><span class="annottext">CFGNode
+</span><a href="#local-6989586621679181140"><span class="hs-identifier hs-var">nd</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679181141"><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181141"><span class="hs-identifier hs-var">stmt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-129"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679181142"><span class="annot"><span class="annottext">block :: BasicBlock
+</span><a href="#local-6989586621679181142"><span class="hs-identifier hs-var hs-var">block</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CFGNode -&gt; BasicBlock
+</span><a href="CFG.html#%24sel%3Abb%3ACFGNode"><span class="hs-identifier hs-var">bb</span></a></span><span> </span><span class="annot"><span class="annottext">CFGNode
+</span><a href="#local-6989586621679181140"><span class="hs-identifier hs-var">nd</span></a></span><span>
+</span><span id="line-130"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679181143"><span class="annot"><span class="annottext">stmts :: [Statement]
+</span><a href="#local-6989586621679181143"><span class="hs-identifier hs-var hs-var">stmts</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BasicBlock -&gt; [Statement]
+</span><a href="CFG.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var">statements</span></a></span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><a href="#local-6989586621679181142"><span class="hs-identifier hs-var">block</span></a></span><span>
+</span><span id="line-131"></span><span>      </span><span class="annot"><span class="annottext">CFGNode -&gt; CFGBuild CFGNode
+forall a. a -&gt; CFGBuild a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">CFGNode
+</span><a href="#local-6989586621679181140"><span class="hs-identifier hs-var">nd</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:bb:CFGNode :: BasicBlock
+</span><a href="CFG.html#%24sel%3Abb%3ACFGNode"><span class="hs-identifier hs-var">bb</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><a href="#local-6989586621679181142"><span class="hs-identifier hs-var">block</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:statements:BasicBlock :: [Statement]
+</span><a href="CFG.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var">statements</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[Statement]
+</span><a href="#local-6989586621679181143"><span class="hs-identifier hs-var">stmts</span></a></span><span> </span><span class="annot"><span class="annottext">[Statement] -&gt; [Statement] -&gt; [Statement]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181141"><span class="hs-identifier hs-var">stmt</span></a></span><span class="hs-special">]</span><span class="hs-special">}</span><span class="hs-special">}</span><span>
+</span><span id="line-132"></span><span>    </span><span class="annot"><a href="#local-6989586621679181137"><span class="hs-identifier hs-var">insertStmt</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe CFGNode
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span id="local-6989586621679181144"><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181144"><span class="hs-identifier hs-var">stmt</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-133"></span><span>      </span><span id="local-6989586621679181145"><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181145"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(CFGState -&gt; ScopeID) -&gt; CFGBuild ScopeID
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGState -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3AnextBbid%3ACFGState"><span class="hs-identifier hs-var">nextBbid</span></a></span><span>
+</span><span id="line-134"></span><span>      </span><span id="local-6989586621679181146"><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181146"><span class="hs-identifier hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">(CFGState -&gt; ScopeID) -&gt; CFGBuild ScopeID
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGState -&gt; ScopeID
+</span><a href="CFG.html#%24sel%3AastScope%3ACFGState"><span class="hs-identifier hs-var">astScope</span></a></span><span>
+</span><span id="line-135"></span><span>      </span><span class="annot"><span class="annottext">CFGNode -&gt; CFGBuild CFGNode
+forall a. a -&gt; CFGBuild a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="annot"><span class="annottext">(CFGNode -&gt; CFGBuild CFGNode) -&gt; CFGNode -&gt; CFGBuild CFGNode
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">ScopeID -&gt; BasicBlock -&gt; CFGNode
+</span><a href="CFG.html#CFGNode"><span class="hs-identifier hs-var">CFGNode</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181145"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">ScopeID -&gt; ScopeID -&gt; [Statement] -&gt; BasicBlock
+</span><a href="CFG.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181145"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">ScopeID
+</span><a href="#local-6989586621679181146"><span class="hs-identifier hs-var">sid</span></a></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Statement
+</span><a href="#local-6989586621679181144"><span class="hs-identifier hs-var">stmt</span></a></span><span class="hs-special">]</span><span class="hs-special">)</span><span>
+</span><span id="line-136"></span></pre></body></html>

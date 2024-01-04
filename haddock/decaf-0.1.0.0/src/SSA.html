@@ -9,506 +9,103 @@
 </span><span id="line-9"></span><span class="hs-comment">-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY</span><span>
 </span><span id="line-10"></span><span class="hs-comment">-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span><span>
 </span><span id="line-11"></span><span class="hs-comment">-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.</span><span>
-</span><span id="line-12"></span><span class="hs-pragma">{-# LANGUAGE DuplicateRecordFields #-}</span><span>
-</span><span id="line-13"></span><span class="hs-pragma">{-# LANGUAGE GeneralizedNewtypeDeriving #-}</span><span>
-</span><span id="line-14"></span><span class="hs-pragma">{-# LANGUAGE OverloadedStrings #-}</span><span>
-</span><span id="line-15"></span><span>
-</span><span id="line-16"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">SSA</span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-17"></span><span>
-</span><span id="line-18"></span><span class="hs-comment">{-
-
-import Constants
-import Control.Applicative ((&lt;|&gt;))
-import Control.Monad.Except
-import Control.Monad.Reader
-import Control.Monad.State
-import Control.Monad.Writer.Strict
-import Data.Char (ord)
-import Data.Functor
-import Data.Int (Int64, Int8)
-import Data.Map (Map)
-import qualified Data.Map.Strict as Map
-import Data.Text (Text)
-import qualified Data.Text as Text
-import Formatting
-import qualified IR
-import qualified Scanner as IR
-import qualified Semantic as SE
-
-type BlockLabel = Int
-
-data Type
-  = Int64Type
-  | Int8Type
-  | PtrType Type
-  | ArrayType Type Int64
-  | VoidType
-  deriving (Show, Eq)
-
-isIntegerType :: Type -&gt; Bool
-isIntegerType Int64Type = True
-isIntegerType Int8Type = True
-isIntegerType _ = False
-
-convertIRType :: IR.Type -&gt; Type
-convertIRType IR.IntType = Int64Type
-convertIRType IR.BoolType = Int8Type
-convertIRType IR.StringType = PtrType Int8Type
-convertIRType (IR.ArrayType t sz) = ArrayType (convertIRType t) sz
-
-typeSize :: Type -&gt; Int64
-typeSize Int64Type = 8
-typeSize Int8Type = 1
-typeSize (PtrType _) = 8
-typeSize (ArrayType tpe sz) = sz * typeSize tpe
-typeSize VoidType = 0
-
-data Imm
-  = Int64Imm Int64
-  | Int8Imm Int8
-  deriving (Show)
-
-data Identifier = Identifier
-  { idx :: Int64,
-    tpe :: Type
-  }
-  deriving (Show)
-
-data Operand
-  = Var Identifier
-  | ImmVal Imm
-  deriving (Show)
-
-typeOfOpd :: Operand -&gt; Type
-typeOfOpd (ImmVal (Int64Imm _)) = Int64Type
-typeOfOpd (ImmVal (Int8Imm _)) = Int8Type
-typeOfOpd (Var (Identifier _ tpe)) = tpe
-
-data BinaryOperator
-  = Add
-  | Minus
-  | Mul
-  | Div
-  | Mod
-  | LT'
-  | LE'
-  | GT'
-  | GE'
-  | EQ'
-  | NE'
-  | And
-  | Or
-  deriving (Show)
-
-convertArithOp :: IR.ArithOp -&gt; BinaryOperator
-convertArithOp IR.Plus = Add
-convertArithOp IR.Minus = Minus
-convertArithOp IR.Multiply = Mul
-convertArithOp IR.Division = Div
-convertArithOp IR.Modulo = Mod
-
-convertRelOp :: IR.RelOp -&gt; BinaryOperator
-convertRelOp IR.LessThan = LT'
-convertRelOp IR.LessEqual = LE'
-convertRelOp IR.GreaterThan = GT'
-convertRelOp IR.GreaterEqual = GE'
-
-convertEqOp :: IR.EqOp -&gt; BinaryOperator
-convertEqOp IR.Equal = EQ'
-convertEqOp IR.NotEqual = NE'
-
-convertCondOp :: IR.CondOp -&gt; BinaryOperator
-convertCondOp IR.AND = And
-convertCondOp IR.OR = Or
-
-data UnaryOperator
-  = Not
-  deriving (Show)
-
-type MethodID = Text
-
-data Operation
-  = BinaryOperation
-      { result :: Identifier,
-        binaryOp :: BinaryOperator,
-        operands :: (Operand, Operand)
-      }
-  | UnaryOperation
-      { result :: Identifier,
-        unaryOp :: UnaryOperator,
-        operand :: Operand
-      }
-  | CallOperation
-      { method :: MethodID,
-        ret :: Identifier,
-        args :: [Operand]
-      }
-  | Return
-      { val :: Operand
-      }
-  | Alloc
-      { ptr :: Identifier,
-        tpe :: Type,
-        size :: Int64
-      }
-  | Store
-      { ptr :: Identifier,
-        val :: Operand
-      }
-  | Load
-      { var :: Identifier,
-        ptr :: Identifier
-      }
-  deriving (Show)
-
-data Block = Block
-  { label :: BlockLabel,
-    arguments :: [Identifier],
-    operations :: [Operation]
-  }
-  deriving (Show)
-
-data Method = Method
-  { name :: Text,
-    retType :: Type,
-    params :: [Identifier]
-  }
-  deriving (Show)
-
-data SSAState = SSAState
-  { nextBlockLabel :: BlockLabel,
-    nextIdentifier :: Int64,
-    symbolToId :: Map IR.ScopeID (Map IR.Name Identifier),
-    scopeID :: IR.ScopeID
-  }
-
-data SSAInfo = SSAInfo
-  { symbolTables :: Map SE.ScopeID SE.SymbolTable
-  }
-
-data SSAException = SSAException Text
-
-newtype SSAGen a = SSAGen {runSSAGen :: (ExceptT SSAException (WriterT [Operation] (ReaderT SSAInfo (State SSAState)))) a}
-  deriving (Functor, Applicative, Monad, MonadError SSAException, MonadWriter [Operation], MonadReader SSAInfo, MonadState SSAState)
-
-throw :: Text -&gt; SSAGen a
-throw msg = do
-  throwError $ SSAException msg
-
-throwIf :: Bool -&gt; Text -&gt; SSAGen ()
-throwIf cond msg = when cond $ throw msg
-
-genBlockLabel :: SSAGen BlockLabel
-genBlockLabel = do
-  l &lt;- gets nextBlockLabel
-  modify (\s -&gt; s {nextBlockLabel = l + 1})
-  return l
-
-genIdentifier :: Type -&gt; SSAGen Identifier
-genIdentifier t = do
-  id &lt;- gets nextIdentifier
-  modify (\s -&gt; s {nextIdentifier = id + 1})
-  return $ Identifier id t
-
-lookupIdentifier' :: IR.ScopeID -&gt; IR.Name -&gt; SSAGen Identifier
-lookupIdentifier' scope nm = do
-  s2id &lt;- gets symbolToId
-  case Map.lookup scope s2id of
-    Nothing -&gt; throw $ sformat (&quot;Cannot find scope &quot; % int) scope
-    Just m -&gt; case Map.lookup nm m of
-      Nothing -&gt; throw $ sformat (&quot;Cannot find id for var &quot; % stext) nm
-      Just id -&gt; return id
-
-getSymbolTable' :: SSAGen SE.SymbolTable
-getSymbolTable' = do
-  scope &lt;- gets scopeID
-  sts &lt;- asks symbolTables
-  let st = Map.lookup scope sts
-  case st of
-    Nothing -&gt; throw $ sformat (&quot;Cannot find symbole table for scope &quot; % int) scope
-    Just st' -&gt; return st'
-
-lookupVariable' :: IR.Name -&gt; SSAGen (IR.ScopeID, Either IR.Argument IR.FieldDecl)
-lookupVariable' nm = do
-  st &lt;- getSymbolTable'
-  case Just st &gt;&gt;= lookup nm of
-    Nothing -&gt; throw $ sformat (&quot;Cannot find variable &quot; % stext) nm
-    Just v -&gt; return v
-  where
-    checkST name st' = SE.lookupLocalVariableFromST name st' &lt;&amp;&gt; \v -&gt; (SE.scopeID st', v)
-    lookup name st' = checkST name st' &lt;|&gt; (SE.parent st' &gt;&gt;= lookup name)
-
-lookupMethod' :: IR.Name -&gt; SSAGen (IR.ScopeID, Either IR.ImportDecl IR.MethodDecl)
-lookupMethod' nm = do
-  st &lt;- getSymbolTable'
-  case Just st &gt;&gt;= lookup nm of
-    Nothing -&gt; throw $ sformat (&quot;Cannot find variable &quot; % stext) nm
-    Just v -&gt; return v
-  where
-    checkST name st' = SE.lookupLocalMethodFromST name st' &lt;&amp;&gt; \v -&gt; (SE.scopeID st', v)
-    lookup name st' = checkST name st' &lt;|&gt; (SE.parent st' &gt;&gt;= lookup name)
-
-readSymbol :: IR.Name -&gt; SSAGen Identifier
-readSymbol nm = do
-  (scope, _) &lt;- lookupVariable' nm
-  id &lt;- lookupIdentifier' scope nm
-  if isGlobalScope scope
-    then generatePtrLoad id
-    else return id
-
-assocSymbolAndIdentifier :: IR.Name -&gt; Identifier -&gt; SSAGen ()
-assocSymbolAndIdentifier nm id = do
-  scope &lt;- gets scopeID
-  s2id &lt;- gets symbolToId
-  let s2id' = case Map.lookup scope s2id of
-        Just _ -&gt; s2id
-        Nothing -&gt; Map.insert scope Map.empty s2id
-  let s2id'' = Map.update (Just . Map.insert nm id) scope s2id'
-  s &lt;- get
-  put s {symbolToId = s2id''}
-
-addOperation :: Operation -&gt; SSAGen ()
-addOperation op = tell [op]
-
-isGlobalScope :: IR.ScopeID -&gt; Bool
-isGlobalScope scope = scope == globalScopeID
-
-methodID :: IR.ScopeID -&gt; Text -&gt; MethodID
-methodID = sformat (int % &quot;!&quot; % stext)
-
-alloc :: Type -&gt; Int64 -&gt; SSAGen Identifier
-alloc tpe size = do
-  id &lt;- genIdentifier $ PtrType tpe
-  addOperation $ Alloc id tpe size
-  return id
-
-load :: Identifier -&gt; SSAGen Identifier
-load ptr@(Identifier _ (PtrType tpe)) = do
-  id &lt;- genIdentifier tpe
-  addOperation $ Load id ptr
-  return id
-load (Identifier ptrID _) = throw $ sformat (&quot;Cannot load from non-pointer type, id: &quot; % int) ptrID
-
-store :: Identifier -&gt; Operand -&gt; SSAGen ()
-store ptr val = do
-  addOperation $ Store ptr val
-
-int64Imm :: Int64 -&gt; SSAGen Identifier
-int64Imm val = do
-  newID &lt;- genIdentifier Int64Type
-  addOperation $ BinaryOperation newID Add (ImmVal $ Int64Imm val, ImmVal $ Int64Imm 0)
-  return newID
-
-boolImm :: Bool -&gt; SSAGen Identifier
-boolImm val = do
-  id &lt;- genIdentifier Int8Type
-  let int8 = if val then 1 else 0
-  addOperation $ BinaryOperation id Add (ImmVal $ Int8Imm int8, ImmVal $ Int8Imm 0)
-  return id
-
-charImm :: Char -&gt; SSAGen Identifier
-charImm val = do
-  id &lt;- genIdentifier Int8Type
-  addOperation $ BinaryOperation id Add (ImmVal $ Int8Imm $ fromIntegral $ ord val, ImmVal $ Int8Imm 0)
-  return id
-
-stringLit :: Text -&gt; SSAGen Identifier
-stringLit s = do
-  id' &lt;- alloc Int8Type $ fromIntegral $ Text.length s
-  let chars = Text.foldl' (\l c -&gt; l ++ [c]) [] s
-  mapM_
-    ( \(idx, char) -&gt; do
-        ptr &lt;- ptrAdd id' (ImmVal $ Int64Imm $ fromIntegral idx)
-        store ptr $ ImmVal $ Int8Imm $ fromIntegral $ ord char
-    )
-    $ zip [1 .. length chars] chars
-  return id'
-
-checkBinaryOpType :: Operand -&gt; Operand -&gt; SSAGen Type
-checkBinaryOpType l r = do
-  let lType = typeOfOpd l
-      rType = typeOfOpd r
-  throwIf (lType /= rType) &quot;Operands of binary operation must have identical type!&quot;
-  throwIf (not (isIntegerType lType)) &quot;Operands of binary operation must be intergers!&quot;
-  return lType
-
-binOp :: BinaryOperator -&gt; Operand -&gt; Operand -&gt; SSAGen Identifier
-binOp op l r = do
-  rType &lt;- checkBinaryOpType l r
-  id &lt;- genIdentifier rType
-  addOperation $ BinaryOperation id op (l, r)
-  return id
-
-unOp :: UnaryOperator -&gt; Operand -&gt; SSAGen Identifier
-unOp op@Not v = do
-  let tpe = typeOfOpd v
-  throwIf (not (isIntegerType tpe)) &quot;Operands of binary operation must be intergers!&quot;
-  id &lt;- genIdentifier tpe
-  addOperation $ UnaryOperation id op v
-  return id
-
-ptrAdd :: Identifier -&gt; Operand -&gt; SSAGen Identifier
-ptrAdd ptr@(Identifier _ (PtrType t)) int = do
-  id &lt;- genIdentifier t
-  addOperation $ BinaryOperation id Add (Var ptr, int)
-  return id
-ptrAdd (Identifier id _) _ = throw $ sformat (&quot;Trying to add non-pointer type, id: &quot; % int) id
-
-mul :: Operand -&gt; Operand -&gt; SSAGen Identifier
-mul l r = do
-  rType &lt;- checkBinaryOpType l r
-  id &lt;- genIdentifier rType
-  addOperation $ BinaryOperation id Mul (l, r)
-  return id
-
-call :: MethodID -&gt; [Operand] -&gt; Type -&gt; SSAGen Identifier
-call method args tpe = do
-  id &lt;- genIdentifier tpe
-  addOperation $ CallOperation method id args
-  return id
-
-generatePtrLoad :: Identifier -&gt; SSAGen Identifier
-generatePtrLoad ptr@(Identifier i (PtrType t)) = do
-  newID &lt;- genIdentifier t
-  addOperation $ Load newID ptr
-  return newID
-generatePtrLoad id = throw $ sformat (&quot;Loading non pointer type &quot; % string) (show id)
-
-arrayLocToPtr :: IR.Location -&gt; SSAGen Identifier
-arrayLocToPtr (IR.Location nm (Just sz) def) = do
-  ptr &lt;- readSymbol nm
-  (_, def) &lt;- lookupVariable' nm
-  let tp = either (\(IR.Argument _ tpe) -&gt; tpe) (\(IR.FieldDecl _ tpe) -&gt; tpe) def
-  (eleSize, eleType) &lt;- case convertIRType tp of
-    ArrayType t _ -&gt; return (typeSize t, t)
-    _ -&gt; throw $ sformat (&quot;Symbol &quot; % stext % &quot;is not of a array type!&quot;) nm
-  idx &lt;- generateExpr sz
-  eleSizeID &lt;- int64Imm eleSize
-  offset &lt;- mul (Var eleSizeID) (Var idx)
-  ptrAdd ptr (Var offset)
-arrayLocToPtr _ = throw &quot;Indexing non array type!&quot;
-
-readLoc :: IR.Location -&gt; SSAGen Identifier
-readLoc (IR.Location nm Nothing def) = readSymbol nm
-readLoc loc@(IR.Location _ (Just _) _) = arrayLocToPtr loc &gt;&gt;= load
-
-writeLoc :: IR.Location -&gt; Identifier -&gt; SSAGen ()
-writeLoc (IR.Location nm Nothing def) v@(Identifier _ tpe) = do
-  (scope, _) &lt;- lookupVariable' nm
-  id &lt;- lookupIdentifier' scope nm
-  let defType = convertIRType $ IR.typeOfDef def
-  throwIf (tpe /= defType) $ sformat (&quot;Assign incompatible value to variable &quot; % stext) nm
-  if isGlobalScope scope
-    then store id (Var v)
-    else assocSymbolAndIdentifier nm v
-writeLoc loc@(IR.Location nm (Just _) def) v = do
-  ptr &lt;- arrayLocToPtr loc
-  store ptr (Var v)
-
-generateExpr :: IR.Expr -&gt; SSAGen Identifier
-generateExpr (IR.LocationExpr loc) = readLoc loc
-generateExpr (IR.MethodCallExpr (IR.MethodCall nm args)) = do
-  (methodScope, def) &lt;- lookupMethod' nm
-  retType &lt;- do
-    case def of
-      Left _ -&gt; throw $ sformat (&quot;Cannot use imported method &quot; % stext % &quot; in expression.&quot;) nm
-      Right (IR.MethodDecl (IR.MethodSig _ (Just tpe) _) _) -&gt; return $ convertIRType tpe
-      _ -&gt; throw $ sformat (&quot;Method &quot; % stext % &quot; with no return val cannot be used in expression.&quot;) nm
-  ids' &lt;- mapM (\(IR.WithType e _) -&gt; generateExpr e) args
-  args' &lt;- mapM (return . Var) ids'
-  call (methodID methodScope nm) args' retType
-
-generateExpr (IR.ExternCallExpr _ _) = throw &quot;External function call not supported yet!&quot;
-generateExpr (IR.IntLiteralExpr lit) = int64Imm lit
-generateExpr (IR.BoolLiteralExpr lit) = boolImm lit
-generateExpr (IR.CharLiteralExpr lit) = charImm lit
-generateExpr (IR.StringLiteralExpr lit) = stringLit lit
-generateExpr (IR.ArithOpExpr op (IR.WithType l _) (IR.WithType r _)) = do
-  l' &lt;- generateExpr l
-  r' &lt;- generateExpr r
-  binOp (convertArithOp op) (Var l') (Var r')
-generateExpr (IR.RelOpExpr op (IR.WithType l _) (IR.WithType r _)) = do
-  l' &lt;- generateExpr l
-  r' &lt;- generateExpr r
-  binOp (convertRelOp op) (Var l') (Var r')
-generateExpr (IR.CondOpExpr op (IR.WithType l _) (IR.WithType r _)) = do
-  l' &lt;- generateExpr l
-  r' &lt;- generateExpr r
-  binOp (convertCondOp op) (Var l') (Var r')
-generateExpr (IR.EqOpExpr op (IR.WithType l _) (IR.WithType r _)) = do
-  l' &lt;- generateExpr l
-  r' &lt;- generateExpr r
-  binOp (convertEqOp op) (Var l') (Var r')
-generateExpr (IR.NegOpExpr op (IR.WithType v _)) = do
-  v' &lt;- generateExpr v
-  binOp Minus (ImmVal $ Int64Imm 0) (Var v')
-generateExpr (IR.NotOpExpr op (IR.WithType v _)) = do
-  v' &lt;- generateExpr v
-  unOp Not (Var v')
-generateExpr (IR.ChoiceOpExpr op (IR.WithType cond _) (IR.WithType t _) (IR.WithType f _)) = do
-  -- convert to if statement ?
-  _
-generateExpr (IR.LengthExpr nm) = do
-  (scope, def) &lt;- lookupVariable' nm
-  sz &lt;- case def of
-    Left (IR.Argument _ (IR.ArrayType _ sz)) -&gt; return sz
-    Right (IR.FieldDecl _ (IR.ArrayType _ sz)) -&gt; return sz
-    _nonArray -&gt; throw $ sformat (&quot;Trying to get length of non array type &quot; % stext) nm
-  int64Imm sz
-
-generateStmt :: IR.Statement -&gt; SSAGen ()
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.EqlAssign (Just (IR.WithType expr _)))) = do
-  v' &lt;- generateExpr expr
-  writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.PlusPlus Nothing)) = do
-  v &lt;- readSymbol nm
-  v' &lt;- binOp Add (Var v) (ImmVal $ Int64Imm 1)
-  writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.MinusMinus Nothing)) = do
-  v &lt;- readSymbol nm
-  v' &lt;- binOp Minus (Var v) (ImmVal $ Int64Imm 1)
-  writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.IncAssign (Just (IR.WithType expr _)))) = do
-  v &lt;- readSymbol nm
-  inc &lt;- generateExpr expr
-  v' &lt;- binOp Add (Var v) (Var inc)
-  writeLoc loc v'
-generateStmt (IR.AssignStmt (IR.Assignment (IR.WithType loc@(IR.Location nm _ _) _) IR.DecAssign (Just (IR.WithType expr _)))) = do
-  v &lt;- readSymbol nm
-  inc &lt;- generateExpr expr
-  v' &lt;- binOp Minus (Var v) (Var inc)
-  writeLoc loc v'
-generateStmt (IR.AssignStmt _) = throw &quot;Invalid assign statement!&quot;
-generateStmt (IR.IfStmt (IR.WithType pred _) thenBlock elseBlock) = do
-  _
-
-generateBlock :: [(IR.Name, Identifier)] -&gt; IR.Block -&gt; SSAGen Block
-generateBlock envVars block@(IR.Block fileds stmts scope) = do
-  parentScope &lt;- gets scopeID
-  modify' (\s -&gt; s {scopeID = scope})
-  forM_ envVars (uncurry assocSymbolAndIdentifier)
-  mapM_ generateStmt stmts
-  modify' (\s -&gt; s {scopeID = parentScope})
-  _
-
-methodParams :: IR.MethodSig -&gt; SSAGen [(IR.Name, Identifier)]
-methodParams sig@(IR.MethodSig _ _ args) =
-  foldM convertArg [] args
-  where
-    convertArg = \l (IR.Argument nm tpe) -&gt; do
-      let tpe' = convertIRType tpe
-      id &lt;- genIdentifier tpe'
-      return $ l ++ [(nm, id)]
-
--- generateMethod :: IR.MethodDecl -&gt; SSAGen Method
--- generateMethod md@(IR.MethodDecl sig@(IR.MethodSig nm tpe args) block) = do
---   let retType = maybe VoidType convertIRType tpe
---   params &lt;- methodParams sig
---   body &lt;- generateBlock params block
---   return $ Method nm retType (snd &lt;$&gt; params) body
-
---generateSSA :: IR.IRRoot -&gt; Map IR.ScopeID SE.SymbolTable -&gt; SSAForm
---generateSSA ir st = _
-
--}</span><span>
-</span><span id="line-514"></span></pre></body></html>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">SSA</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="AST.html#ArithOp"><span class="hs-identifier">ArithOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#AssignOp"><span class="hs-identifier">AssignOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#ChoiceOp"><span class="hs-identifier">ChoiceOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#CondOp"><span class="hs-identifier">CondOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#EqOp"><span class="hs-identifier">EqOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#NegOp"><span class="hs-identifier">NegOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#NotOp"><span class="hs-identifier">NotOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#RelOp"><span class="hs-identifier">RelOp</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="AST.html#Type"><span class="hs-identifier">Type</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="SourceLoc.html"><span class="hs-identifier">SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
+</span><span id="line-19"></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="VID"><span class="annot"><a href="SSA.html#VID"><span class="hs-identifier hs-var">VID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Atpe%3AVar"><span class="annot"><span class="annottext">Var -&gt; Type
+</span><a href="SSA.html#%24sel%3Atpe%3AVar"><span class="hs-identifier hs-var hs-var">tpe</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-24"></span><span>    </span><span id="%24sel%3AastDecl%3AVar"><span class="annot"><span class="annottext">Var -&gt; Maybe FieldDecl
+</span><a href="SSA.html#%24sel%3AastDecl%3AVar"><span class="hs-identifier hs-var hs-var">astDecl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="AST.html#FieldDecl"><span class="hs-identifier hs-type">AST.FieldDecl</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-25"></span><span>    </span><span id="%24sel%3Aloc%3AVar"><span class="annot"><span class="annottext">Var -&gt; Maybe Range
+</span><a href="SSA.html#%24sel%3Aloc%3AVar"><span class="hs-identifier hs-var hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">SL.Range</span></a></span><span>
+</span><span id="line-26"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180251"><span id="local-6989586621679180262"><span id="local-6989586621679180266"><span class="annot"><span class="annottext">Int -&gt; Var -&gt; ShowS
+[Var] -&gt; ShowS
+Var -&gt; String
+(Int -&gt; Var -&gt; ShowS)
+-&gt; (Var -&gt; String) -&gt; ([Var] -&gt; ShowS) -&gt; Show Var
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; Var -&gt; ShowS
+showsPrec :: Int -&gt; Var -&gt; ShowS
+$cshow :: Var -&gt; String
+show :: Var -&gt; String
+$cshowList :: [Var] -&gt; ShowS
+showList :: [Var] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">data</span><span> </span><span id="VarOrImm"><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-var">VarOrImm</span></a></span></span><span>
+</span><span id="line-30"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="BoolImm"><span class="annot"><a href="SSA.html#BoolImm"><span class="hs-identifier hs-var">BoolImm</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
+</span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IntImm"><span class="annot"><a href="SSA.html#IntImm"><span class="hs-identifier hs-var">IntImm</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="StringImm"><span class="annot"><a href="SSA.html#StringImm"><span class="hs-identifier hs-var">StringImm</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Variable"><span class="annot"><a href="SSA.html#Variable"><span class="hs-identifier hs-var">Variable</span></a></span></span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180276"><span id="local-6989586621679180289"><span id="local-6989586621679180293"><span class="annot"><span class="annottext">Int -&gt; VarOrImm -&gt; ShowS
+[VarOrImm] -&gt; ShowS
+VarOrImm -&gt; String
+(Int -&gt; VarOrImm -&gt; ShowS)
+-&gt; (VarOrImm -&gt; String) -&gt; ([VarOrImm] -&gt; ShowS) -&gt; Show VarOrImm
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; VarOrImm -&gt; ShowS
+showsPrec :: Int -&gt; VarOrImm -&gt; ShowS
+$cshow :: VarOrImm -&gt; String
+show :: VarOrImm -&gt; String
+$cshowList :: [VarOrImm] -&gt; ShowS
+showList :: [VarOrImm] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">type</span><span> </span><span id="VarList"><span class="annot"><a href="SSA.html#VarList"><span class="hs-identifier hs-var">VarList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-37"></span><span>
+</span><span id="line-38"></span><span class="hs-keyword">data</span><span> </span><span id="SSA"><span class="annot"><a href="SSA.html#SSA"><span class="hs-identifier hs-var">SSA</span></a></span></span><span>
+</span><span id="line-39"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Assignment"><span class="annot"><a href="SSA.html#Assignment"><span class="hs-identifier hs-var">Assignment</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Var
+</span><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Asrc%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Asrc%3AAssignment"><span class="hs-identifier hs-var hs-var">src</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="MethodCall"><span class="annot"><a href="SSA.html#MethodCall"><span class="hs-identifier hs-var">MethodCall</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aarguments%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; [Var]
+</span><a href="SSA.html#%24sel%3Aarguments%3AAssignment"><span class="hs-identifier hs-var hs-var">arguments</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-special">[</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">]</span><span class="hs-special">}</span><span>
+</span><span id="line-41"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Return"><span class="annot"><a href="SSA.html#Return"><span class="hs-identifier hs-var">Return</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Aret%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Var
+</span><a href="SSA.html#%24sel%3Aret%3AAssignment"><span class="hs-identifier hs-var hs-var">ret</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="ArrayDeref"><span class="annot"><a href="SSA.html#ArrayDeref"><span class="hs-identifier hs-var">ArrayDeref</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aarr%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Var
+</span><a href="SSA.html#%24sel%3Aarr%3AAssignment"><span class="hs-identifier hs-var hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aidx%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Aidx%3AAssignment"><span class="hs-identifier hs-var hs-var">idx</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-43"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Arith"><span class="annot"><a href="SSA.html#Arith"><span class="hs-identifier hs-var">Arith</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AarithOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; ArithOp
+</span><a href="SSA.html#%24sel%3AarithOp%3AAssignment"><span class="hs-identifier hs-var hs-var">arithOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ArithOp"><span class="hs-identifier hs-type">ArithOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Rel"><span class="annot"><a href="SSA.html#Rel"><span class="hs-identifier hs-var">Rel</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3ArelOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; RelOp
+</span><a href="SSA.html#%24sel%3ArelOp%3AAssignment"><span class="hs-identifier hs-var hs-var">relOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#RelOp"><span class="hs-identifier hs-type">RelOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Cond"><span class="annot"><a href="SSA.html#Cond"><span class="hs-identifier hs-var">Cond</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AcondOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; CondOp
+</span><a href="SSA.html#%24sel%3AcondOp%3AAssignment"><span class="hs-identifier hs-var hs-var">condOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#CondOp"><span class="hs-identifier hs-type">CondOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Eq"><span class="annot"><a href="SSA.html#Eq"><span class="hs-identifier hs-var">Eq</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AeqOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; EqOp
+</span><a href="SSA.html#%24sel%3AeqOp%3AAssignment"><span class="hs-identifier hs-var hs-var">eqOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#EqOp"><span class="hs-identifier hs-type">EqOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Neg"><span class="annot"><a href="SSA.html#Neg"><span class="hs-identifier hs-var">Neg</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AnegOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; NegOp
+</span><a href="SSA.html#%24sel%3AnegOp%3AAssignment"><span class="hs-identifier hs-var hs-var">negOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#NegOp"><span class="hs-identifier hs-type">NegOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aoprand%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Aoprand%3AAssignment"><span class="hs-identifier hs-var hs-var">oprand</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Not"><span class="annot"><a href="SSA.html#Not"><span class="hs-identifier hs-var">Not</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AnotOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; NotOp
+</span><a href="SSA.html#%24sel%3AnotOp%3AAssignment"><span class="hs-identifier hs-var hs-var">notOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#NotOp"><span class="hs-identifier hs-type">NotOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aoprand%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aoprand%3AAssignment"><span class="hs-identifier hs-var">oprand</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-49"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Choice"><span class="annot"><a href="SSA.html#Choice"><span class="hs-identifier hs-var">Choice</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AchoiceOp%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; ChoiceOp
+</span><a href="SSA.html#%24sel%3AchoiceOp%3AAssignment"><span class="hs-identifier hs-var hs-var">choiceOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ChoiceOp"><span class="hs-identifier hs-type">ChoiceOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Apred%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
+</span><a href="SSA.html#%24sel%3Apred%3AAssignment"><span class="hs-identifier hs-var hs-var">pred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Len"><span class="annot"><a href="SSA.html#Len"><span class="hs-identifier hs-var">Len</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aarr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aarr%3AAssignment"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">}</span><span>
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679180326"><span id="local-6989586621679180385"><span id="local-6989586621679180389"><span class="annot"><span class="annottext">Int -&gt; SSA -&gt; ShowS
+[SSA] -&gt; ShowS
+SSA -&gt; String
+(Int -&gt; SSA -&gt; ShowS)
+-&gt; (SSA -&gt; String) -&gt; ([SSA] -&gt; ShowS) -&gt; Show SSA
+forall a.
+(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: Int -&gt; SSA -&gt; ShowS
+showsPrec :: Int -&gt; SSA -&gt; ShowS
+$cshow :: SSA -&gt; String
+show :: SSA -&gt; String
+$cshowList :: [SSA] -&gt; ShowS
+showList :: [SSA] -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span></pre></body></html>

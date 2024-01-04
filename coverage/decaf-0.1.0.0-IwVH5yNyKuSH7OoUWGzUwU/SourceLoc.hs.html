@@ -17,45 +17,42 @@ span.spaces    { background: white }
 <span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
 </pre>
 <pre>
-<span class="lineno">    1 </span>{-# LANGUAGE OverloadedStrings #-}
-<span class="lineno">    2 </span>{-# LANGUAGE DeriveFunctor #-}
-<span class="lineno">    3 </span>
-<span class="lineno">    4 </span>module SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
+<span class="lineno">    1 </span>module SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
+<span class="lineno">    2 </span>
+<span class="lineno">    3 </span>import Formatting (formatToString, int, shown, (%))
+<span class="lineno">    4 </span>import Control.Monad.State
 <span class="lineno">    5 </span>
-<span class="lineno">    6 </span>import Formatting (formatToString, int, shown, (%))
-<span class="lineno">    7 </span>import Control.Monad.State
-<span class="lineno">    8 </span>
-<span class="lineno">    9 </span>data Posn = Posn
-<span class="lineno">   10 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">offset</span></span></span> :: !Int,
-<span class="lineno">   11 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">row</span></span></span> :: !Int,
-<span class="lineno">   12 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">col</span></span></span> :: !Int
-<span class="lineno">   13 </span>  }
-<span class="lineno">   14 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>)
+<span class="lineno">    6 </span>data Posn = Posn
+<span class="lineno">    7 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">offset</span></span></span> :: !Int,
+<span class="lineno">    8 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">row</span></span></span> :: !Int,
+<span class="lineno">    9 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">col</span></span></span> :: !Int
+<span class="lineno">   10 </span>  }
+<span class="lineno">   11 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>)
+<span class="lineno">   12 </span>
+<span class="lineno">   13 </span>posn0 :: Posn
+<span class="lineno">   14 </span><span class="decl"><span class="nottickedoff">posn0 = Posn 0 0 0</span></span>
 <span class="lineno">   15 </span>
-<span class="lineno">   16 </span>posn0 :: Posn
-<span class="lineno">   17 </span><span class="decl"><span class="nottickedoff">posn0 = Posn 0 0 0</span></span>
+<span class="lineno">   16 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Posn</span></span></span></span> where
+<span class="lineno">   17 </span>  <span class="decl"><span class="nottickedoff">show (Posn _ row col) = formatToString (&quot;(&quot; % int % &quot;:&quot; % int % &quot;)&quot;) row col</span></span>
 <span class="lineno">   18 </span>
-<span class="lineno">   19 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Posn</span></span></span></span> where
-<span class="lineno">   20 </span>  <span class="decl"><span class="nottickedoff">show (Posn _ row col) = formatToString (&quot;(&quot; % int % &quot;:&quot; % int % &quot;)&quot;) row col</span></span>
-<span class="lineno">   21 </span>
-<span class="lineno">   22 </span>data Range = Range
-<span class="lineno">   23 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">start</span></span></span> :: Posn,
-<span class="lineno">   24 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">stop</span></span></span> :: Posn
-<span class="lineno">   25 </span>  }
-<span class="lineno">   26 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>)
+<span class="lineno">   19 </span>data Range = Range
+<span class="lineno">   20 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">start</span></span></span> :: Posn,
+<span class="lineno">   21 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">stop</span></span></span> :: Posn
+<span class="lineno">   22 </span>  }
+<span class="lineno">   23 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Ord</span></span></span></span></span></span></span></span></span></span></span></span></span></span>)
+<span class="lineno">   24 </span>
+<span class="lineno">   25 </span>range0 :: Range
+<span class="lineno">   26 </span><span class="decl"><span class="nottickedoff">range0 = Range posn0 posn0</span></span>
 <span class="lineno">   27 </span>
-<span class="lineno">   28 </span>range0 :: Range
-<span class="lineno">   29 </span><span class="decl"><span class="nottickedoff">range0 = Range posn0 posn0</span></span>
+<span class="lineno">   28 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Range</span></span></span></span> where
+<span class="lineno">   29 </span>  <span class="decl"><span class="nottickedoff">show (Range start stop) = formatToString (&quot;[&quot; % shown % &quot;-&quot; % shown % &quot;]&quot;) start stop</span></span>
 <span class="lineno">   30 </span>
-<span class="lineno">   31 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Range</span></span></span></span> where
-<span class="lineno">   32 </span>  <span class="decl"><span class="nottickedoff">show (Range start stop) = formatToString (&quot;[&quot; % shown % &quot;-&quot; % shown % &quot;]&quot;) start stop</span></span>
-<span class="lineno">   33 </span>
+<span class="lineno">   31 </span>
+<span class="lineno">   32 </span>data Located a = LocatedAt Range a
+<span class="lineno">   33 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Functor</span></span></span></span>)
 <span class="lineno">   34 </span>
-<span class="lineno">   35 </span>data Located a = LocatedAt Range a
-<span class="lineno">   36 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Functor</span></span></span></span>)
-<span class="lineno">   37 </span>
-<span class="lineno">   38 </span>unLocate :: Located a -&gt; a
-<span class="lineno">   39 </span><span class="decl"><span class="istickedoff">unLocate (LocatedAt _ a) = a</span></span>
+<span class="lineno">   35 </span>unLocate :: Located a -&gt; a
+<span class="lineno">   36 </span><span class="decl"><span class="istickedoff">unLocate (LocatedAt _ a) = a</span></span>
 
 </pre>
 </body>

@@ -93,8 +93,8 @@ addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed (Node ni)
 addEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> ed -> GraphBuilder ni nd ed ()
 deleteNode :: (Eq ni, Ord ni) => Node ni -> GraphBuilder ni nd ed ()
 deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
-update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either String (Graph ni nd ed)
-build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either String (Graph ni nd ed)
+update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either Text (Graph ni nd ed)
+build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either Text (Graph ni nd ed)
 instance GHC.Show.Show a => GHC.Show.Show (Graph.Node a)
 instance GHC.Classes.Ord a => GHC.Classes.Ord (Graph.Node a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Graph.Node a)
@@ -630,8 +630,8 @@ type Label = Text
 type BBID = Int
 type VID = Int
 data Condition
-Pred :: Expr -> Condition
-[$sel:pred:Pred] :: Condition -> Expr
+Pred :: Typed Expr -> Condition
+[$sel:pred:Pred] :: Condition -> Typed Expr
 Complement :: Condition
 data CFGContext
 CFGContext :: Map ScopeID SymbolTable -> CFGContext
@@ -650,10 +650,10 @@ SeqEdge :: CFGEdge
 CondEdge :: Condition -> CFGEdge
 type CFG = Graph BBID CFGNode CFGEdge
 data CFGState
-CFGState :: CFG -> Maybe CFGNode -> BBID -> ScopeID -> CFGState
+CFGState :: CFG -> CFGNode -> Maybe CFGNode -> ScopeID -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> CFG
-[$sel:currentNode:CFGState] :: CFGState -> Maybe CFGNode
-[$sel:nextBbid:CFGState] :: CFGState -> BBID
+[$sel:currentNode:CFGState] :: CFGState -> CFGNode
+[$sel:previousNode:CFGState] :: CFGState -> Maybe CFGNode
 [$sel:astScope:CFGState] :: CFGState -> ScopeID
 newtype CFGExcept
 CFGExcept :: Text -> CFGExcept
@@ -663,7 +663,9 @@ CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuil
 initialCFGState :: ScopeID -> CFGState
 buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 buildMethod :: MethodDecl -> CFGBuild CFG
-buildStatement :: Located Statement -> CFGBuild ()
+buildBlock :: Block -> CFGBuild (CFGNode, CFGNode)
+appendStatement :: Statement -> CFGBuild ()
+buildStatement :: Located Statement -> CFGBuild CFGNode
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock

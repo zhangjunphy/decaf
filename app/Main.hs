@@ -29,6 +29,7 @@ import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Scanner
 import qualified Semantic
+import qualified CFG
 import System.Environment (getProgName)
 import qualified System.Exit
 import System.IO
@@ -97,6 +98,7 @@ process configuration input =
   case Configuration.target configuration of
     Scan -> scan configuration input
     Parse -> parse configuration input
+    Cfg -> cfg configuration input
     -- Inter -> irgen configuration input
     phase -> Left $ show phase <> " not implemented\n"
 
@@ -142,3 +144,15 @@ parse configuration input =
         Right (_, err, _) | not (null err) -> Left $ show <$> err
         Right (root, _, _) -> Right $ show root
   in outputStageResult configuration result
+
+cfg :: Configuration -> ByteString -> Either String [IO ()]
+cfg configuration input =
+  let irAndError = do
+        tree <- Parser.parse input
+        Semantic.runSemanticAnalysis tree
+      result = case irAndError of
+        Left exception -> Left [exception]
+        Right (_, err, _) | not (null err) -> Left $ show <$> err
+        Right (root, _, st) -> Right (root, st)
+      dot = result >>= \(root, st) -> CFG.plot root st
+  in outputStageResult configuration dot

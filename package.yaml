@@ -43,6 +43,8 @@ dependencies:
 - formatting ==7.2.*
 - lens ==5.2.*
 - generic-lens ==2.2.*
+- fgl ==5.8.*
+- graphviz ==2999.20.*
 
 library:
   source-dirs:

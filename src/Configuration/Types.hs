@@ -33,17 +33,20 @@ defaultConfiguration = Configuration { input = undefined
 
 data CompilerStage = Scan
                    | Parse
+                   | Cfg
                    | Inter
                    | Assembly
                    deriving (Eq, Ord)
 instance Show CompilerStage where
   show Scan = "scan"
   show Parse = "parse"
+  show Cfg = "cfg"
   show Inter = "inter"
   show Assembly = "assembly"
 instance Read CompilerStage where
   readsPrec _ "scan" = [(Scan, "")]
   readsPrec _ "parse" = [(Parse, "")]
+  readsPrec _ "cfg" = [(Cfg, "")]
   readsPrec _ "inter" = [(Inter, "")]
   readsPrec _ "assembly" = [(Assembly, "")]
   readsPrec _ _ = []

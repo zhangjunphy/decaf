@@ -9,10 +9,11 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+{- DuplicateFieldRecords -}
 module CFG where
 
 import AST qualified
-import Control.Lens (view, (^.))
+import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.))
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -20,8 +21,11 @@ import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (isJust, fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
 import Data.Text (Text)
+import Data.Text qualified as Text
+import Data.Text.Encoding (encodeUtf8)
+import Formatting
 import GHC.Generics (Generic)
 import Graph qualified as G
 import Semantic qualified as SE
@@ -52,8 +56,7 @@ data BasicBlock = BasicBlock
   deriving (Generic, Show)
 
 data CFGNode = CFGNode
-  { bbid :: BBID,
-    bb :: BasicBlock
+  { bb :: BasicBlock
   }
   deriving (Generic, Show)
 
@@ -64,12 +67,15 @@ data CFGEdge
 
 type CFG = G.Graph BBID CFGNode CFGEdge
 
+type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge
+
 data CFGState = CFGState
   { cfg :: CFG,
-    currentNode :: CFGNode,
-    previousNode :: Maybe CFGNode,
-    astScope :: AST.ScopeID
+    astScope :: AST.ScopeID,
+    nextBBID :: BBID,
+    statements :: [AST.Statement]
   }
+  deriving (Generic, Show)
 
 newtype CFGExcept = CFGExcept Text
   deriving (Show)
@@ -94,9 +100,9 @@ initialCFGState :: AST.ScopeID -> CFGState
 initialCFGState sid =
   CFGState
     { cfg = G.empty,
-      currentNode = CFGNode 0 (BasicBlock 0 sid []),
-      previousNode = Nothing,
-      astScope = sid
+      astScope = sid,
+      nextBBID = 0,
+      statements = []
     }
 
 buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map AST.Name CFG)
@@ -113,66 +119,188 @@ buildCFG (AST.ASTRoot _ _ methods) context =
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
    in foldM updateMap Map.empty methods
 
-buildMethod :: AST.MethodDecl -> CFGBuild CFG
-buildMethod method@AST.MethodDecl {sig = sig, block = (AST.Block _ stmts sid)} = do
-  mapM_ buildStatement stmts
-  gets cfg
+-- Helps for CFGBuild monad
+consumeBBID :: CFGBuild BBID
+consumeBBID = do
+  bbid <- use #nextBBID
+  #nextBBID += 1
+  return bbid
 
-buildBlock :: AST.Block -> CFGBuild (CFGNode, CFGNode)
-buildBlock block = do
-  let stmts = block ^. #stmts
-      sid = block ^. #blockID
-  previousBB <- gets previousNode
-  currentBB <- gets currentNode
-  let bbid = currentBB ^. #bbid
-  let nextBB = CFGNode (bbid + 1) (BasicBlock (bbid + 1) sid [])
-  g <- gets cfg
-  let gUpdate = do
-        mapM_ (\node -> G.addEdge (node ^. #bbid) bbid SeqEdge) previousBB
-      g' = G.update gUpdate g
+updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
+updateCFG update = do
+  g <- use #cfg
+  let g' = G.update update g
   case g' of
     Left m -> throwError $ CFGExcept m
-    Right g -> modify (\s -> s {currentNode = nextBB, cfg = g})
-  last <- foldM (\_ s -> do
-            n <- buildStatement s
-            return $ Just n) Nothing stmts
-  return (nextBB, fromMaybe nextBB last)
+    Right g -> #cfg .= g
 
 appendStatement :: AST.Statement -> CFGBuild ()
-appendStatement stmt = do
-  node <- gets currentNode
-  let block = bb node
-      stmts = statements block
-      node' = node {bb = block {statements = stmts ++ [stmt]}}
-  modify (\s -> s {currentNode = node'})
+appendStatement stmt = #statements %= (++ [stmt])
 
-buildStatement :: SL.Located AST.Statement -> CFGBuild CFGNode
-buildStatement (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = do
+createIsolateBB :: CFGBuild BBID
+createIsolateBB = do
+  bbid <- consumeBBID
+  stmts <- use #statements
+  sid <- use #astScope
+  #statements .= []
+  let bb = BasicBlock bbid sid stmts
+  updateCFG (G.addNode bbid (CFGNode bb))
+  return bbid
+
+checkStmts :: CFGBuild ()
+checkStmts = do
+  stmts <- use #statements
+  unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
+
+removeEmptySeqNode :: CFGBuild ()
+removeEmptySeqNode = do
+  g@G.Graph {nodes = nodes} <- gets cfg
+  let emptySeqNodes =
+        filter
+          (\(G.Node ni, nd) -> isEmptyNode nd && isSeqOut ni g)
+          $ Map.assocs nodes
+  let gUpdate =
+        mapM_
+          ( \(G.Node ni, _) -> do
+              let inEdges = G.inBound ni g
+                  outEdge = head $ G.outBound ni g
+               in bridgeEdges ni inEdges outEdge
+          )
+          emptySeqNodes
+  updateCFG gUpdate
+  where
+    isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
+    isSeqOut ni g =
+      let outEdges = G.outBound ni g
+       in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
+    bridgeEdges mid inEdges (G.Node out, _) =
+      forM_
+        inEdges
+        ( \(G.Node ni, ed) -> do
+            G.deleteNode mid
+            G.addEdge ni out ed
+        )
+    isSeqEdge SeqEdge = True
+    isSeqEdge _ = False
+
+-- CFG Builders
+buildMethod :: AST.MethodDecl -> CFGBuild CFG
+buildMethod method@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
+  checkStmts
+  buildBlock block
+  removeEmptySeqNode
+  gets cfg
+
+buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
+buildBlock block@AST.Block {stmts = stmts} = do
+  checkStmts
+  -- always create an empty BB at the start
+  head <- createIsolateBB
+  stmtTail <- foldM buildStatement head stmts
+  tail <-
+    if stmtTail == head
+      then do
+        id <- createIsolateBB
+        updateCFG (G.addEdge head id SeqEdge)
+        return id
+      else return stmtTail
+  return (head, tail)
+
+buildStatement :: BBID -> SL.Located AST.Statement -> CFGBuild BBID
+buildStatement prev (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = do
   appendStatement stmt
-  previousBB <- gets previousNode
-  currentBB <- gets currentNode
-  g <- gets cfg
-  let bbid = currentBB ^. #bbid
-  let sid = currentBB ^. (#bb . #sid)
-  let nextBB = CFGNode (bbid + 1) (BasicBlock (bbid + 1) sid [])
-  (ifNodeStart, ifNodeEnd) <- buildBlock ifBlock
-  (elseNodeStart, elseNodeEnd) <- buildBlock ifBlock
+  head <- createIsolateBB
+  (ifStart, ifEnd) <- buildBlock ifBlock
+  (elseStart, elseEnd) <- buildBlock ifBlock
+  tail <- createIsolateBB
   let gUpdate = do
-        node <- G.addNode bbid currentBB
-        let ifStartID = ifNodeStart ^. #bbid
-            ifEndID = ifNodeEnd ^. #bbid
-            elseStartID = elseNodeStart ^. #bbid
-            elseEndID = elseNodeEnd ^. #bbid
-        G.addEdge bbid ifStartID $ CondEdge $ Pred $ SL.unLocate pred
-        G.addEdge bbid elseStartID $ CondEdge Complement
-        G.addEdge ifEndID (bbid + 1) SeqEdge
-        G.addEdge elseEndID (bbid + 1) SeqEdge
-        mapM_ (\node -> G.addEdge (node ^. #bbid) bbid SeqEdge) previousBB
-      g' = G.update gUpdate g
-  case g' of
-    Left m -> throwError $ CFGExcept m
-    Right g -> modify (\s -> s {currentNode = nextBB, cfg = g})
-  return nextBB
-buildStatement (SL.LocatedAt _ stmt) = do
+        G.addEdge prev head SeqEdge
+        G.addEdge head ifStart $ CondEdge $ Pred $ SL.unLocate pred
+        G.addEdge head elseStart $ CondEdge Complement
+        G.addEdge ifEnd tail SeqEdge
+        G.addEdge elseEnd tail SeqEdge
+  updateCFG gUpdate
+  return tail
+buildStatement prev (SL.LocatedAt _ stmt@AST.ForStmt {pred = pred, block = body}) = do
+  head <- createIsolateBB
   appendStatement stmt
-  gets currentNode
+  predBB <- createIsolateBB
+  (bodyHead, bodyTail) <- buildBlock body
+  tail <- createIsolateBB
+  let gUpdate = do
+        G.addEdge prev head SeqEdge
+        G.addEdge head predBB SeqEdge
+        G.addEdge predBB bodyHead $ CondEdge $ Pred $ SL.unLocate pred
+        G.addEdge predBB tail $ CondEdge Complement
+        G.addEdge bodyTail predBB SeqEdge
+  updateCFG gUpdate
+  return tail
+buildStatement prev (SL.LocatedAt _ stmt@AST.WhileStmt {pred = pred, block = body}) = do
+  head <- createIsolateBB
+  appendStatement stmt
+  predBB <- createIsolateBB
+  (bodyHead, bodyTail) <- buildBlock body
+  tail <- createIsolateBB
+  let gUpdate = do
+        G.addEdge prev head SeqEdge
+        G.addEdge head predBB SeqEdge
+        G.addEdge predBB bodyHead $ CondEdge $ Pred $ SL.unLocate pred
+        G.addEdge predBB tail $ CondEdge Complement
+        G.addEdge bodyTail predBB SeqEdge
+  updateCFG gUpdate
+  return tail
+buildStatement head (SL.LocatedAt _ stmt) = do
+  appendStatement stmt
+  return head
+
+prettyPrintNode :: CFGNode -> Text
+prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =
+  let idText = [sformat ("id: " % int) id]
+      segments = stmts <&> \s -> sformat shown s
+   in Text.intercalate "\n" $ idText ++ segments
+
+escape :: Text -> Text
+escape str =
+  Text.concatMap
+    ( \w -> case w of
+        '\\' -> "\\\\"
+        '"' -> "\\\""
+        c -> Text.singleton c
+    )
+    str
+
+prettyPrintEdge :: CFGEdge -> Text
+prettyPrintEdge SeqEdge = ""
+prettyPrintEdge (CondEdge (Pred AST.Typed {ele = ele})) = sformat shown ele
+prettyPrintEdge (CondEdge Complement) = "otherwise"
+
+generateDotPlot :: G.Graph BBID CFGNode CFGEdge -> Text
+generateDotPlot G.Graph {nodes = nodes, edges = edges} =
+  let preamble = "digraph G {\n"
+      postamble = "}"
+      nodeBoxes = Map.assocs nodes <&> (\(G.Node i, d) -> nodeBox i d)
+      edgeLines =
+        concatMap
+          (\(G.Node from, tos) -> tos <&> \(G.Node to, d) -> edgeLine from to d)
+          $ Map.assocs edges
+   in mconcat $ [preamble] ++ nodeBoxes ++ edgeLines ++ [postamble]
+  where
+    nodeBox idx d =
+      sformat
+        (int % " [shape=box, label=\"" % stext % "\"];\n")
+        idx
+        (escape (prettyPrintNode d))
+    edgeLine from to d =
+      sformat
+        (int % " -> " % int % " [label=\"" % stext % "\"];\n")
+        from
+        to
+        (escape (prettyPrintEdge d))
+
+plot :: AST.ASTRoot -> Map AST.ScopeID SE.SymbolTable -> Either [String] String
+plot root st =
+  let context = CFGContext st
+      res = buildCFG root context
+   in case res of
+        Left (CFGExcept msg) -> Left [Text.unpack msg]
+        Right cfgs -> Right $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot

@@ -20,6 +20,7 @@ import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import Data.Map qualified as Map
+import Data.Maybe (isJust, fromMaybe)
 import Data.Text (Text)
 import GHC.Generics (Generic)
 import Graph qualified as G
@@ -35,7 +36,7 @@ type BBID = Int
 type VID = Int
 
 data Condition
-  = Pred {pred :: AST.Expr}
+  = Pred {pred :: AST.Typed AST.Expr}
   | Complement
   deriving (Show)
 
@@ -65,8 +66,8 @@ type CFG = G.Graph BBID CFGNode CFGEdge
 
 data CFGState = CFGState
   { cfg :: CFG,
-    currentNode :: Maybe CFGNode,
-    nextBbid :: BBID,
+    currentNode :: CFGNode,
+    previousNode :: Maybe CFGNode,
     astScope :: AST.ScopeID
   }
 
@@ -93,8 +94,8 @@ initialCFGState :: AST.ScopeID -> CFGState
 initialCFGState sid =
   CFGState
     { cfg = G.empty,
-      currentNode = Nothing,
-      nextBbid = 0,
+      currentNode = CFGNode 0 (BasicBlock 0 sid []),
+      previousNode = Nothing,
       astScope = sid
     }
 
@@ -117,19 +118,62 @@ buildMethod method@AST.MethodDecl {sig = sig, block = (AST.Block _ stmts sid)} =
   mapM_ buildStatement stmts
   gets cfg
 
-buildStatement :: SL.Located AST.Statement -> CFGBuild ()
-buildStatement (SL.LocatedAt _ stmt) = do
+buildBlock :: AST.Block -> CFGBuild (CFGNode, CFGNode)
+buildBlock block = do
+  let stmts = block ^. #stmts
+      sid = block ^. #blockID
+  previousBB <- gets previousNode
+  currentBB <- gets currentNode
+  let bbid = currentBB ^. #bbid
+  let nextBB = CFGNode (bbid + 1) (BasicBlock (bbid + 1) sid [])
   g <- gets cfg
+  let gUpdate = do
+        mapM_ (\node -> G.addEdge (G.Node $ node ^. #bbid) (G.Node bbid) SeqEdge) previousBB
+      g' = G.update gUpdate g
+  case g' of
+    Left m -> throwError $ CFGExcept m
+    Right g -> modify (\s -> s {currentNode = nextBB, cfg = g})
+  last <- foldM (\_ s -> do
+            n <- buildStatement s
+            return $ Just n) Nothing stmts
+  return (nextBB, fromMaybe nextBB last)
+
+appendStatement :: AST.Statement -> CFGBuild ()
+appendStatement stmt = do
   node <- gets currentNode
-  node' <- insertStmt node stmt
-  modify (\s -> s {currentNode = Just node'})
-  where
-    insertStmt :: Maybe CFGNode -> AST.Statement -> CFGBuild CFGNode
-    insertStmt (Just nd) stmt = do
-      let block = bb nd
-      let stmts = statements block
-      return nd {bb = block {statements = stmts ++ [stmt]}}
-    insertStmt Nothing stmt = do
-      bbid <- gets nextBbid
-      sid <- gets astScope
-      return $ CFGNode bbid (BasicBlock bbid sid [stmt])
+  let block = bb node
+      stmts = statements block
+      node' = node {bb = block {statements = stmts ++ [stmt]}}
+  modify (\s -> s {currentNode = node'})
+
+buildStatement :: SL.Located AST.Statement -> CFGBuild CFGNode
+buildStatement (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = do
+  appendStatement stmt
+  previousBB <- gets previousNode
+  currentBB <- gets currentNode
+  g <- gets cfg
+  let bbid = currentBB ^. #bbid
+  let sid = currentBB ^. (#bb . #sid)
+  let nextBB = CFGNode (bbid + 1) (BasicBlock (bbid + 1) sid [])
+  (ifNodeStart, ifNodeEnd) <- buildBlock ifBlock
+  (elseNodeStart, elseNodeEnd) <- buildBlock ifBlock
+  let gUpdate = do
+        node <- G.addNode bbid currentBB
+        let ifStartID = ifNodeStart ^. #bbid
+            ifEndID = ifNodeEnd ^. #bbid
+            elseStartID = elseNodeStart ^. #bbid
+            elseEndID = elseNodeEnd ^. #bbid
+        G.addEdge (G.Node bbid) (G.Node ifStartID) $ CondEdge $ Pred $ SL.unLocate pred
+        G.addEdge (G.Node bbid) (G.Node elseStartID) $ CondEdge Complement
+        G.addEdge (G.Node ifEndID) (G.Node $ bbid + 1) SeqEdge
+        G.addEdge (G.Node elseEndID) (G.Node $ bbid + 1) SeqEdge
+        mapM_ (\node -> G.addEdge (G.Node $ node ^. #bbid) (G.Node bbid) SeqEdge) previousBB
+      g' = G.update gUpdate g
+  case g' of
+    Left m -> throwError $ CFGExcept m
+    Right g -> modify (\s -> s {currentNode = nextBB, cfg = g})
+  return nextBB
+
+buildStatement (SL.LocatedAt _ stmt) = do
+  appendStatement stmt
+  gets currentNode

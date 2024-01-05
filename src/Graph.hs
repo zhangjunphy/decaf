@@ -100,12 +100,12 @@ deleteEdge start end = do
   let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges g)
   modify $ \g -> g{edges = edges'}
 
-update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either String (Graph ni nd ed)
+update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either Text (Graph ni nd ed)
 update bd init =
   let (except, g) = (runState $ runExceptT $ buildGraph bd) init
    in case except of
-    Left except -> Left $ show except
+    Left except -> Left except
     Right _ -> Right g
 
-build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either String (Graph ni nd ed)
+build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either Text (Graph ni nd ed)
 build bd = update bd Graph.empty

@@ -74,30 +74,30 @@ newtype GraphBuilder ni nd ed a = GraphBuilder
       MonadState (Graph ni nd ed)
     )
 
-addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed (Node ni)
+addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ni
 addNode idx dt = do
   let n = Node idx
   modify $ \g -> g{nodes = Map.insert n dt (nodes g)}
-  return n
+  return idx
 
-addEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> ed -> GraphBuilder ni nd ed ()
+addEdge :: (Eq ni, Ord ni) => ni -> ni -> ed -> GraphBuilder ni nd ed ()
 addEdge start end dt = do
   g <- get
-  let edges' = Map.insertWith (++) start [(end, dt)] (edges g)
+  let edges' = Map.insertWith (++) (Node start) [(Node end, dt)] (edges g)
   modify $ \g -> g{edges = edges'}
 
-deleteNode :: (Eq ni, Ord ni) => Node ni -> GraphBuilder ni nd ed ()
-deleteNode node = do 
+deleteNode :: (Eq ni, Ord ni) => ni -> GraphBuilder ni nd ed ()
+deleteNode n = do 
   g <- get
-  let nodes' = Map.delete node (nodes g)
-      edges' = Map.filterWithKey (\k v -> k /= node) (edges g)
-      edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= node)) edges'
+  let nodes' = Map.delete (Node n) (nodes g)
+      edges' = Map.filterWithKey (\k v -> k /= Node n) (edges g)
+      edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= Node n)) edges'
   modify $ \g -> g{nodes = nodes', edges = edges''}
 
-deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
+deleteEdge :: (Eq ni, Ord ni) => ni -> ni -> GraphBuilder ni nd ed ()
 deleteEdge start end = do
   g <- get
-  let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges g)
+  let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= Node end)) (Node start) (edges g)
   modify $ \g -> g{edges = edges'}
 
 update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either Text (Graph ni nd ed)

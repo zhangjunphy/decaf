@@ -128,7 +128,7 @@ buildBlock block = do
   let nextBB = CFGNode (bbid + 1) (BasicBlock (bbid + 1) sid [])
   g <- gets cfg
   let gUpdate = do
-        mapM_ (\node -> G.addEdge (G.Node $ node ^. #bbid) (G.Node bbid) SeqEdge) previousBB
+        mapM_ (\node -> G.addEdge (node ^. #bbid) bbid SeqEdge) previousBB
       g' = G.update gUpdate g
   case g' of
     Left m -> throwError $ CFGExcept m
@@ -163,17 +163,16 @@ buildStatement (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = do
             ifEndID = ifNodeEnd ^. #bbid
             elseStartID = elseNodeStart ^. #bbid
             elseEndID = elseNodeEnd ^. #bbid
-        G.addEdge (G.Node bbid) (G.Node ifStartID) $ CondEdge $ Pred $ SL.unLocate pred
-        G.addEdge (G.Node bbid) (G.Node elseStartID) $ CondEdge Complement
-        G.addEdge (G.Node ifEndID) (G.Node $ bbid + 1) SeqEdge
-        G.addEdge (G.Node elseEndID) (G.Node $ bbid + 1) SeqEdge
-        mapM_ (\node -> G.addEdge (G.Node $ node ^. #bbid) (G.Node bbid) SeqEdge) previousBB
+        G.addEdge bbid ifStartID $ CondEdge $ Pred $ SL.unLocate pred
+        G.addEdge bbid elseStartID $ CondEdge Complement
+        G.addEdge ifEndID (bbid + 1) SeqEdge
+        G.addEdge elseEndID (bbid + 1) SeqEdge
+        mapM_ (\node -> G.addEdge (node ^. #bbid) bbid SeqEdge) previousBB
       g' = G.update gUpdate g
   case g' of
     Left m -> throwError $ CFGExcept m
     Right g -> modify (\s -> s {currentNode = nextBB, cfg = g})
   return nextBB
-
 buildStatement (SL.LocatedAt _ stmt) = do
   appendStatement stmt
   gets currentNode

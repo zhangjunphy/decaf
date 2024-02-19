@@ -32,14 +32,15 @@ import Data.Generics.Labels ()
 import Data.Int (Int64)
 import Data.List (find)
 import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Map qualified as Map
 import Data.Maybe (isJust, isNothing)
 import Data.Text (Text)
-import qualified Data.Text as T
-import qualified Data.Text.Read as T
+import Data.Text qualified as T
+import Data.Text.Read qualified as T
 import Formatting
-import qualified Parser as P
-import qualified SourceLoc as SL
+import Parser qualified as P
+import Types
+import Util.SourceLoc qualified as SL
 
 ---------------------------------------
 -- Semantic informations and errors

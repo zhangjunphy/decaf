@@ -15,12 +15,12 @@ import AST (ArithOp, AssignOp, ChoiceOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type
 import AST qualified
 import Control.Monad.State
 import Data.Text (Text)
-import SourceLoc qualified as SL
-
-type VID = Int
+import Util.SourceLoc qualified as SL
+import Types
 
 data Var = Var
-  { tpe :: Type,
+  { id :: VID,
+    tpe :: Type,
     astDecl :: Maybe AST.FieldDecl,
     loc :: Maybe SL.Range
   }

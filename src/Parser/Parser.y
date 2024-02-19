@@ -10,31 +10,32 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
-module Parser ( parse
-              , Program(..)
-              , ImportDecl(..)
-              , FieldDecl(..)
-              , MethodDecl(..)
-              , FieldElem(..)
-              , Type(..)
-              , Argument(..)
-              , Block(..)
-              , Statement(..)
-              , Location(..)
-              , AssignExpr(..)
-              , MethodCall(..)
-              , ImportArg(..)
-              , CounterUpdate(..)
-              , Expr(..)
-              ) where
+module Parser.Parser
+  ( parse
+  , Program(..)
+  , ImportDecl(..)
+  , FieldDecl(..)
+  , MethodDecl(..)
+  , FieldElem(..)
+  , Type(..)
+  , Argument(..)
+  , Block(..)
+  , Statement(..)
+  , Location(..)
+  , AssignExpr(..)
+  , MethodCall(..)
+  , ImportArg(..)
+  , CounterUpdate(..)
+  , Expr(..)
+  ) where
 
-import Scanner ( Token(..)
-               , Alex(..)
-               , runAlex
-               , alexMonadScan
-               )
+import Parser.Scanner ( Token(..)
+                      , Alex(..)
+                      , runAlex
+                      , alexMonadScan
+                      )
 
-import SourceLoc as SL
+import Util.SourceLoc as SL
 
 import Text.Printf (printf)
 import Data.Text (Text)
@@ -329,10 +330,10 @@ data Expr = LocationExpr { location :: Location }
           | ChoiceExpr { choicePredExpr :: SL.Located Expr, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
           deriving (Show)
 
-parse :: ByteString -> Either String Program
-parse input = runAlex input parseInternal
-
 parseError :: SL.Located Token -> Alex a
 parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do
   Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" row col (show tok)
+
+parse :: ByteString -> Either String Program
+parse input = runAlex input parseInternal
 }

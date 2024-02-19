@@ -13,7 +13,7 @@ PARTICULAR PURPOSE.  See the X11 license for more details. -}
 
 module Main where
 
-import qualified CLI
+import qualified Util.CLI as CLI
 import Configuration (CompilerStage (..), Configuration)
 import qualified Configuration
 import Control.Exception (bracket)
@@ -27,9 +27,9 @@ import Data.List
 import Data.Text (Text)
 import GHC.IO.Handle (hDuplicate)
 import qualified Parser
-import qualified Scanner
+import qualified Parser.Scanner as Scanner
 import qualified Semantic
-import qualified CFG
+import qualified CFG.PartialCFG as PartialCFG
 import System.Environment (getProgName)
 import qualified System.Exit
 import System.IO
@@ -154,5 +154,5 @@ cfg configuration input =
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err
         Right (root, _, st) -> Right (root, st)
-      dot = result >>= \(root, st) -> CFG.plot root st
+      dot = result >>= \(root, st) -> PartialCFG.plot root st
   in outputStageResult configuration dot

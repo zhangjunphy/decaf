@@ -16,14 +16,9 @@ import GHC.Generics (Generic)
 import Data.Int (Int64)
 import Data.Text (Text)
 import Text.Printf (printf)
+import Types
 
-import qualified SourceLoc as SL
-
-type Name = Text
-
-type Index = Int64
-
-type ScopeID = Int
+import qualified Util.SourceLoc as SL
 
 -- operators
 data RelOp

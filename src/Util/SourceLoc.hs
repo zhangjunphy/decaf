@@ -1,4 +1,4 @@
-module SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
+module Util.SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
 
 import Formatting (formatToString, int, shown, (%))
 import Control.Monad.State

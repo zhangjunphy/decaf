@@ -11,17 +11,17 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 {
 {-# OPTIONS_GHC -w #-}
-module Scanner ( Token(..)
-               , Alex(..)
-               , scan
-               , formatTokenOrError
-               , alexMonadScan
-               , runAlex
-               ) where
+module Parser.Scanner ( Token(..)
+                      , Alex(..)
+                      , scan
+                      , formatTokenOrError
+                      , alexMonadScan
+                      , runAlex
+                      ) where
 
 import Debug.Trace
 
-import qualified SourceLoc as SL
+import qualified Util.SourceLoc as SL
 
 import Data.Maybe
 import Data.List.Split

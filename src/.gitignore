@@ -1,8 +1,0 @@
-# .gitignore for src/                                              -*- conf -*-
-
-# Alex
-Scanner.hs
-
-# Happy
-Parser.hs
-Parser.info

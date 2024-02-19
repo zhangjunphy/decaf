@@ -9,7 +9,7 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
-module Graph where
+module Util.Graph where
 
 import Control.Monad
 import Control.Monad.Except
@@ -115,4 +115,4 @@ update bd init =
         Right _ -> Right g
 
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
-build bd = update bd Graph.empty
+build bd = update bd empty

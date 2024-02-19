@@ -21,6 +21,7 @@ defaultConfiguration :: Configuration
 data CompilerStage
 Scan :: CompilerStage
 Parse :: CompilerStage
+Cfg :: CompilerStage
 Inter :: CompilerStage
 Assembly :: CompilerStage
 data OptimizationSpecification
@@ -48,6 +49,7 @@ defaultConfiguration :: Configuration
 data CompilerStage
 Scan :: CompilerStage
 Parse :: CompilerStage
+Cfg :: CompilerStage
 Inter :: CompilerStage
 Assembly :: CompilerStage
 data OptimizationSpecification
@@ -75,10 +77,9 @@ module Graph
 newtype Node a
 Node :: a -> Node a
 data Graph ni nd ed
-Graph :: Map (Node ni) nd -> Map (Node ni) [(Node ni, ed)] -> Maybe (Node ni) -> Graph ni nd ed
+Graph :: Map (Node ni) nd -> Map (Node ni) [(Node ni, ed)] -> Graph ni nd ed
 [$sel:nodes:Graph] :: Graph ni nd ed -> Map (Node ni) nd
 [$sel:edges:Graph] :: Graph ni nd ed -> Map (Node ni) [(Node ni, ed)]
-[$sel:start:Graph] :: Graph ni nd ed -> Maybe (Node ni)
 type GraphException = Text
 empty :: Graph ni nd ed
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
@@ -86,15 +87,16 @@ inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
 updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
 updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
+union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
 newtype GraphBuilder ni nd ed a
 GraphBuilder :: ExceptT GraphException (State (Graph ni nd ed)) a -> GraphBuilder ni nd ed a
 [$sel:buildGraph:GraphBuilder] :: GraphBuilder ni nd ed a -> ExceptT GraphException (State (Graph ni nd ed)) a
-addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed (Node ni)
-addEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> ed -> GraphBuilder ni nd ed ()
-deleteNode :: (Eq ni, Ord ni) => Node ni -> GraphBuilder ni nd ed ()
-deleteEdge :: (Eq ni, Ord ni) => Node ni -> Node ni -> GraphBuilder ni nd ed ()
-update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Graph ni nd ed -> Either Text (Graph ni nd ed)
-build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed () -> Either Text (Graph ni nd ed)
+addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ni
+addEdge :: (Eq ni, Ord ni) => ni -> ni -> ed -> GraphBuilder ni nd ed ()
+deleteNode :: (Eq ni, Ord ni) => ni -> GraphBuilder ni nd ed ()
+deleteEdge :: (Eq ni, Ord ni) => ni -> ni -> GraphBuilder ni nd ed ()
+update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either Text (Graph ni nd ed)
+build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 instance GHC.Show.Show a => GHC.Show.Show (Graph.Node a)
 instance GHC.Classes.Ord a => GHC.Classes.Ord (Graph.Node a)
 instance GHC.Classes.Eq a => GHC.Classes.Eq (Graph.Node a)
@@ -642,19 +644,19 @@ BasicBlock :: BBID -> ScopeID -> [Statement] -> BasicBlock
 [$sel:sid:BasicBlock] :: BasicBlock -> ScopeID
 [$sel:statements:BasicBlock] :: BasicBlock -> [Statement]
 data CFGNode
-CFGNode :: BBID -> BasicBlock -> CFGNode
-[$sel:bbid:CFGNode] :: CFGNode -> BBID
+CFGNode :: BasicBlock -> CFGNode
 [$sel:bb:CFGNode] :: CFGNode -> BasicBlock
 data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: Condition -> CFGEdge
 type CFG = Graph BBID CFGNode CFGEdge
+type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
 data CFGState
-CFGState :: CFG -> CFGNode -> Maybe CFGNode -> ScopeID -> CFGState
+CFGState :: CFG -> ScopeID -> BBID -> [Statement] -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> CFG
-[$sel:currentNode:CFGState] :: CFGState -> CFGNode
-[$sel:previousNode:CFGState] :: CFGState -> Maybe CFGNode
 [$sel:astScope:CFGState] :: CFGState -> ScopeID
+[$sel:nextBBID:CFGState] :: CFGState -> BBID
+[$sel:statements:CFGState] :: CFGState -> [Statement]
 newtype CFGExcept
 CFGExcept :: Text -> CFGExcept
 newtype CFGBuild a
@@ -662,16 +664,28 @@ CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuil
 [$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
 initialCFGState :: ScopeID -> CFGState
 buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
-buildMethod :: MethodDecl -> CFGBuild CFG
-buildBlock :: Block -> CFGBuild (CFGNode, CFGNode)
+consumeBBID :: CFGBuild BBID
+updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
 appendStatement :: Statement -> CFGBuild ()
-buildStatement :: Located Statement -> CFGBuild CFGNode
+createIsolateBB :: CFGBuild BBID
+checkStmts :: CFGBuild ()
+removeEmptySeqNode :: CFGBuild ()
+buildMethod :: MethodDecl -> CFGBuild CFG
+buildBlock :: Block -> CFGBuild (BBID, BBID)
+buildStatement :: BBID -> Located Statement -> CFGBuild BBID
+prettyPrintNode :: CFGNode -> Text
+escape :: Text -> Text
+prettyPrintEdge :: CFGEdge -> Text
+generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
+plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock
 instance GHC.Show.Show CFG.CFGNode
 instance GHC.Generics.Generic CFG.CFGNode
 instance GHC.Show.Show CFG.CFGEdge
+instance GHC.Show.Show CFG.CFGState
+instance GHC.Generics.Generic CFG.CFGState
 instance GHC.Show.Show CFG.CFGExcept
 instance Control.Monad.State.Class.MonadState CFG.CFGState CFG.CFGBuild
 instance Control.Monad.Reader.Class.MonadReader CFG.CFGContext CFG.CFGBuild

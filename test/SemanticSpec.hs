@@ -27,14 +27,14 @@ typeCheckSpec = do
     checkSample program pred
   where
     typeOfAssignExpr stmt  = 
-      let (AST.AssignStmt (AST.Assignment _ _ (Just expr))) = SL.unLocate stmt
-      in view #tpe $ SL.unLocate expr
+      let (AST.Statement (AST.AssignStmt (AST.Assignment _ _ (Just expr) _)) _) = stmt
+      in view #tpe expr
     pred program =
       let (Right p) = Parser.parse program
           (Right (AST.ASTRoot imports vars methods, _, st)) = Semantic.runSemanticAnalysis p
-          stmts = view #stmts $ view #block (SL.unLocate $ head methods)
-          (AST.AssignStmt (AST.Assignment _ _ (Just expr))) = SL.unLocate $ head stmts
-          tpe = view #tpe $ SL.unLocate expr
+          stmts = view #stmts $ view #block $ head methods
+          AST.Statement (AST.AssignStmt (AST.Assignment _ _ (Just expr) _)) _ = head stmts
+          tpe = view #tpe expr
        in typeOfAssignExpr (stmts!!0) == AST.IntType &&
           typeOfAssignExpr (stmts!!1) == AST.BoolType && 
           typeOfAssignExpr (stmts!!2) == AST.BoolType 

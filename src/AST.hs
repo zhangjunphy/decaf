@@ -118,98 +118,114 @@ parseAssignOp s = case s of
 data Location = Location
   { name :: Name,
     idx :: Maybe Expr,
-    variableDef :: Either Argument FieldDecl
-  }
+    variableDef :: Either Argument FieldDecl,
+    tpe :: Type,
+    loc :: SL.Range
+  } deriving (Generic)
 
 typeOfDef :: Either Argument FieldDecl -> Type
-typeOfDef (Left (Argument _ tpe)) = tpe
-typeOfDef (Right (FieldDecl _ tpe)) = tpe
+typeOfDef (Left Argument{tpe=tpe}) = tpe
+typeOfDef (Right FieldDecl{tpe=tpe}) = tpe
 
 instance Show Location where
-  show (Location nm idx _) = printf "Location {name=%s, idx=%s}" nm (show idx)
+  show Location{name=nm, idx=idx} = printf "Location {name=%s, idx=%s}" nm (show idx)
 
 data Assignment = Assignment
-  { location :: Typed Location,
+  { location :: Location,
     op :: AssignOp,
-    expr :: Maybe (SL.Located (Typed Expr))
-  }
-  deriving (Generic, Show)
+    expr :: Maybe Expr,
+    loc :: SL.Range
+  } deriving (Generic, Show)
 
 data MethodCall = MethodCall
   { name :: Name,
-    args :: [SL.Located (Typed Expr)]
-  }
-  deriving (Generic, Show)
+    args :: [Expr],
+    loc :: SL.Range
+  } deriving (Generic, Show)
 
 -- AST nodes
 data ASTRoot = ASTRoot
-  { imports :: [SL.Located ImportDecl],
-    vars :: [SL.Located FieldDecl],
-    methods :: [SL.Located MethodDecl]
-  }
-  deriving (Generic, Show)
+  { imports :: [ImportDecl],
+    vars :: [FieldDecl],
+    methods :: [MethodDecl]
+  } deriving (Generic, Show)
 
-data ImportDecl = ImportDecl {name :: Name}
-  deriving (Generic, Show)
+data ImportDecl = ImportDecl
+  { name :: Name
+  , loc :: SL.Range
+  } deriving (Generic, Show)
 
 data FieldDecl = FieldDecl
   { name :: Name,
-    tpe :: Type
+    tpe :: Type,
+    loc :: SL.Range
   }
   deriving (Generic, Show)
 
 data Argument = Argument
   { name :: Name,
-    tpe :: Type
+    tpe :: Type,
+    loc :: SL.Range
   }
   deriving (Generic, Show)
 
 data MethodSig = MethodSig
   { name :: Name,
     tpe :: Maybe Type,
-    args :: [SL.Located Argument]
+    args :: [Argument]
   }
   deriving (Generic, Show)
 
 data MethodDecl = MethodDecl
   { sig :: MethodSig,
-    block :: Block
+    block :: Block,
+    loc :: SL.Range
   }
   deriving (Generic, Show)
 
-data Statement
+data Statement = Statement
+  { statement_ :: Statement_
+  , loc :: SL.Range
+  } deriving (Generic, Show)
+data Statement_
   = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: SL.Located (Typed Expr), ifBlock :: Block, elseBlock :: Maybe Block}
+  | IfStmt {pred :: Expr, ifBlock :: Block, elseBlock :: Maybe Block}
   | ForStmt
       { counter :: Name,
-        initCounter :: SL.Located (Typed Expr),
-        pred :: SL.Located (Typed Expr),
+        initCounter :: Expr,
+        pred :: Expr,
         update :: Assignment,
         block :: Block
       }
-  | WhileStmt {pred :: SL.Located (Typed Expr), block :: Block}
-  | ReturnStmt {expr :: Maybe (SL.Located (Typed Expr))}
+  | WhileStmt {pred :: Expr, block :: Block}
+  | ReturnStmt {expr :: Maybe Expr}
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
   | VarDeclStmt {field :: FieldDecl} -- TODO: Decide if we are going to use this.
   deriving (Generic, Show)
 
-data Expr
+data Expr = Expr
+  { expr_ :: Expr_
+  , tpe :: Type
+  , loc :: SL.Range
+  } deriving (Generic, Show)
+
+data Expr_
   = LocationExpr {location :: Location}
   | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [SL.Located (Typed Expr)]}
+  | ExternCallExpr {name :: Name, args :: [Expr]}
   | IntLiteralExpr {intVal :: Int64}
   | BoolLiteralExpr {boolVal :: Bool}
   | CharLiteralExpr {charVal :: Char}
   | StringLiteralExpr {strVal :: Text}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
-  | RelOpExpr {relOp :: RelOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
-  | CondOpExpr {condOp :: CondOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
-  | EqOpExpr {eqOp :: EqOp, lhs :: SL.Located (Typed Expr), rhs :: SL.Located (Typed Expr)}
-  | NegOpExpr {negOp :: NegOp, expr :: SL.Located (Typed Expr)}
-  | NotOpExpr {notOp :: NotOp, expr :: SL.Located (Typed Expr)}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: SL.Located (Typed Expr), expr2 :: SL.Located (Typed Expr), expr3 :: SL.Located (Typed Expr)}
+  | ArithOpExpr {arithOp :: ArithOp, lhs :: Expr, rhs :: Expr}
+  | RelOpExpr {relOp :: RelOp, lhs :: Expr, rhs :: Expr}
+  | CondOpExpr {condOp :: CondOp, lhs :: Expr, rhs :: Expr}
+  | EqOpExpr {eqOp :: EqOp, lhs :: Expr, rhs :: Expr}
+  | NegOpExpr {negOp :: NegOp, expr :: Expr}
+  | NotOpExpr {notOp :: NotOp, expr :: Expr}
+  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: Expr, expr2 :: Expr, expr3 :: Expr}
   | LengthExpr {name :: Name}
   deriving (Generic, Show)
 
@@ -217,8 +233,8 @@ data Typed a = Typed {ele :: a, tpe :: Type}
   deriving (Generic, Show)
 
 data Block = Block
-  { vars :: [SL.Located FieldDecl],
-    stmts :: [SL.Located Statement],
+  { vars :: [FieldDecl],
+    stmts :: [Statement],
     blockID :: ScopeID
   }
   deriving (Generic, Show)

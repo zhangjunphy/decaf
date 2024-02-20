@@ -22,7 +22,7 @@ data Var = Var
   { id :: VID,
     tpe :: Type,
     astDecl :: Maybe AST.FieldDecl,
-    loc :: Maybe SL.Range
+    loc :: SL.Range
   }
   deriving (Show)
 

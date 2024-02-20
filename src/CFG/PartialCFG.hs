@@ -32,7 +32,7 @@ import Util.SourceLoc qualified as SL
 import Types
 
 data Condition
-  = Pred {pred :: AST.Typed AST.Expr}
+  = Pred {pred :: AST.Expr}
   | Complement
   deriving (Show)
 
@@ -104,7 +104,7 @@ buildCFG (AST.ASTRoot _ _ methods) context =
           flip runReaderT context $
             runExceptT $
               runCFGBuild (buildMethod method)
-      updateMap map (SL.LocatedAt _ m) =
+      updateMap map m =
         let (r, _) = build m $ initialCFGState $ m ^. (#block . #blockID)
          in case r of
               Left e -> Left e
@@ -199,8 +199,8 @@ buildBlock block@AST.Block {stmts = stmts} = do
       else return stmtTail
   return (head, tail)
 
-buildStatement :: BBID -> SL.Located AST.Statement -> CFGBuild BBID
-buildStatement prev (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = do
+buildStatement :: BBID -> AST.Statement -> CFGBuild BBID
+buildStatement prev stmt@(AST.Statement (AST.IfStmt pred ifBlock elseBlock) _) = do
   appendStatement stmt
   head <- createIsolateBB
   (ifStart, ifEnd) <- buildBlock ifBlock
@@ -209,13 +209,13 @@ buildStatement prev (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = 
   sid <- use #astScope
   let gUpdate = do
         G.addEdge prev head $ SeqEdge sid
-        G.addEdge head ifStart $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge head ifStart $ CondEdge sid $ Pred pred
         G.addEdge head elseStart $ CondEdge sid Complement
         G.addEdge ifEnd tail $ SeqEdge sid
         G.addEdge elseEnd tail $ SeqEdge sid
   updateCFG gUpdate
   return tail
-buildStatement prev (SL.LocatedAt _ stmt@AST.ForStmt {pred = pred, block = body}) = do
+buildStatement prev stmt@(AST.Statement AST.ForStmt{pred = pred, block = body} _) = do
   head <- createIsolateBB
   appendStatement stmt
   predBB <- createIsolateBB
@@ -225,12 +225,12 @@ buildStatement prev (SL.LocatedAt _ stmt@AST.ForStmt {pred = pred, block = body}
   let gUpdate = do
         G.addEdge prev head $ SeqEdge sid
         G.addEdge head predBB $ SeqEdge sid
-        G.addEdge predBB bodyHead $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge predBB bodyHead $ CondEdge sid $ Pred pred
         G.addEdge predBB tail $ CondEdge sid Complement
         G.addEdge bodyTail predBB $ SeqEdge sid
   updateCFG gUpdate
   return tail
-buildStatement prev (SL.LocatedAt _ stmt@AST.WhileStmt {pred = pred, block = body}) = do
+buildStatement prev stmt@(AST.Statement AST.WhileStmt {pred = pred, block = body} _) = do
   head <- createIsolateBB
   appendStatement stmt
   predBB <- createIsolateBB
@@ -240,12 +240,12 @@ buildStatement prev (SL.LocatedAt _ stmt@AST.WhileStmt {pred = pred, block = bod
   let gUpdate = do
         G.addEdge prev head $ SeqEdge sid
         G.addEdge head predBB $ SeqEdge sid
-        G.addEdge predBB bodyHead $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge predBB bodyHead $ CondEdge sid $ Pred pred
         G.addEdge predBB tail $ CondEdge sid Complement
         G.addEdge bodyTail predBB $ SeqEdge sid
   updateCFG gUpdate
   return tail
-buildStatement head (SL.LocatedAt _ stmt) = do
+buildStatement head stmt = do
   appendStatement stmt
   return head
 
@@ -267,7 +267,7 @@ escape str =
 
 prettyPrintEdge :: CFGEdge -> Text
 prettyPrintEdge (SeqEdge _) = ""
-prettyPrintEdge (CondEdge _ (Pred AST.Typed {ele = ele})) = sformat shown ele
+prettyPrintEdge (CondEdge _ (Pred AST.Expr{expr_=ele})) = sformat shown ele
 prettyPrintEdge (CondEdge _ Complement) = "otherwise"
 
 generateDotPlot :: G.Graph BBID CFGNode CFGEdge -> Text

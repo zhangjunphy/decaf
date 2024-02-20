@@ -15,20 +15,19 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Functor
+import Data.Graph.Inductive.Graph qualified as FGL
+import Data.List qualified as List
 import Data.Map (Map, mapWithKey)
 import Data.Map.Strict qualified as Map
+import Data.Maybe qualified as Maybe
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.Lazy.Builder qualified as Text
-import Data.Graph.Inductive.Graph qualified as FGL
-
-newtype Node a = Node a
-  deriving (Eq, Ord, Show)
 
 data Graph ni nd ed = Graph
-  { nodes :: Map (Node ni) nd,
-    edges :: Map (Node ni) [(Node ni, ed)]
+  { nodes :: Map ni nd,
+    edges :: Map ni [(ni, ed)]
   }
   deriving (Show)
 
@@ -37,31 +36,31 @@ type GraphException = Text
 empty :: Graph ni nd ed
 empty = Graph Map.empty Map.empty
 
-outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
-outBound idx g = concat $ Map.lookup (Node idx) (edges g)
+outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
+outBound idx g = concat $ Map.lookup idx (edges g)
 
-inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
 inBound idx cfg =
-  let edges' = Map.mapMaybe (Just <$> filter (\(end, _) -> end == Node idx)) (edges cfg)
+  let edges' = Map.mapMaybe (Just <$> filter (\(end, _) -> end == idx)) (edges cfg)
       nodes' =
         concat (Map.assocs edges' <&> \(src, dsts) -> zip (repeat src) dsts)
           <&> \(src, (_, ed)) -> (src, ed)
    in nodes'
 
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
-lookupNode nid g = Map.lookup (Node nid) $ nodes g
+lookupNode nid g = Map.lookup nid $ nodes g
 
 updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
 updateNodeWith nid g f =
   let nds = nodes g
       nd = lookupNode nid g
-      nds' = Map.alter (const $ Just $ f nd) (Node nid) nds
+      nds' = Map.alter (const $ Just $ f nd) nid nds
    in g {nodes = nds'}
 
 updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
 updateNode nid d g =
   let nds = nodes g
-      nds' = Map.alter (const $ Just d) (Node nid) nds
+      nds' = Map.alter (const $ Just d) nid nds
    in g {nodes = nds'}
 
 union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
@@ -83,28 +82,27 @@ newtype GraphBuilder ni nd ed a = GraphBuilder
 
 addNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ni
 addNode idx dt = do
-  let n = Node idx
-  modify $ \g -> g {nodes = Map.insert n dt (nodes g)}
+  modify $ \g -> g {nodes = Map.insert idx dt (nodes g)}
   return idx
 
 addEdge :: (Eq ni, Ord ni) => ni -> ni -> ed -> GraphBuilder ni nd ed ()
 addEdge start end dt = do
   g <- get
-  let edges' = Map.insertWith (++) (Node start) [(Node end, dt)] (edges g)
+  let edges' = Map.insertWith (++) start [(end, dt)] (edges g)
   modify $ \g -> g {edges = edges'}
 
 deleteNode :: (Eq ni, Ord ni) => ni -> GraphBuilder ni nd ed ()
 deleteNode n = do
   g <- get
-  let nodes' = Map.delete (Node n) (nodes g)
-      edges' = Map.filterWithKey (\k v -> k /= Node n) (edges g)
-      edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= Node n)) edges'
+  let nodes' = Map.delete n (nodes g)
+      edges' = Map.filterWithKey (\k v -> k /= n) (edges g)
+      edges'' = Map.mapMaybe (Just <$> filter (\(end, dt) -> end /= n)) edges'
   modify $ \g -> g {nodes = nodes', edges = edges''}
 
 deleteEdge :: (Eq ni, Ord ni) => ni -> ni -> GraphBuilder ni nd ed ()
 deleteEdge start end = do
   g <- get
-  let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= Node end)) (Node start) (edges g)
+  let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges g)
   modify $ \g -> g {edges = edges'}
 
 update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either Text (Graph ni nd ed)
@@ -116,3 +114,22 @@ update bd init =
 
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 build bd = update bd empty
+
+traverseM_ :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m ()
+traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g
+  where
+    initIndegree = Map.mapWithKey (\i d -> length $ inBound i g) nodes
+    findZeroIndegree :: Map ni Int -> [ni]
+    findZeroIndegree m = fmap fst $ Map.toList $ Map.filter (== 0) m
+    updateIndegree i m g =
+      let m' = List.foldl' (\m (ni, _) -> Map.adjust (\x -> x - 1) ni m) m $ outBound i g
+          m'' = Map.delete i m'
+       in m''
+    recurse indegree g = do
+      let zeroIndegree = findZeroIndegree indegree
+      case zeroIndegree of
+        [] -> return ()
+        (n : ns) -> do
+          f n (Maybe.fromJust $ lookupNode n g)
+          let indegree' = updateIndegree n indegree g
+          recurse indegree' g

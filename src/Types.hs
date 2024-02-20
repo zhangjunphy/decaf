@@ -21,3 +21,6 @@ type Name = Text
 
 -- Scope of function, basic block, etc.
 type ScopeID = Int
+
+-- Basic block ID
+type BBID = Int

@@ -9,7 +9,7 @@ import Data.ByteString.Lazy (ByteString)
 import Data.Generics.Labels ()
 import qualified Parser
 import qualified Semantic
-import qualified SourceLoc as SL
+import qualified Util.SourceLoc as SL
 import Test.Hspec
 import Util
 

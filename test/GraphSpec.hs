@@ -2,10 +2,12 @@
 
 module GraphSpec where
 
-import qualified Data.Map.Strict as Map
+import Control.Monad.State
+import Data.Map.Strict qualified as Map
 import Data.Text (Text)
-import qualified Graph
 import Test.Hspec
+import Util.Graph (Graph)
+import Util.Graph qualified as Graph
 
 type NodeData = Text
 
@@ -17,6 +19,7 @@ spec = do
     specEmptyGraph
     specTrivialGraph
     specCyclicGraph
+    traverseGraph
 
 specEmptyGraph :: SpecWith ()
 specEmptyGraph = do
@@ -57,3 +60,33 @@ specCyclicGraph = do
              )
   where
     getNodeData n g = Map.lookup n (Graph.nodes g)
+
+newtype TraverseMonad ni a = TraverseMonad
+  {runTraverse :: State [ni] a}
+  deriving
+    ( Functor,
+      Applicative,
+      Monad,
+      MonadState [ni]
+    )
+
+sortedList :: (Ord ni) => Graph ni nd ed -> [ni]
+sortedList g =
+  let (_, s) = (runState $ runTraverse (Graph.traverseM_ (\ni _ -> modify' (\l -> l ++ [ni])) g)) []
+   in s
+
+traverseGraph :: SpecWith ()
+traverseGraph = do
+  it "traverse graph in topological order" $
+    let constructG = do
+          n1 <- Graph.addNode "1" "d1"
+          n2 <- Graph.addNode "2" "d2"
+          n3 <- Graph.addNode "3" "d3"
+          n4 <- Graph.addNode "4" "d4"
+          Graph.addEdge n4 n2 "4-2"
+          Graph.addEdge n4 n3 "4-3"
+          Graph.addEdge n2 n1 "2-1"
+          Graph.addEdge n3 n1 "3-1"
+        (Right graph) = Graph.build constructG
+        lst = sortedList graph
+     in head lst == "4" && last lst == "1"

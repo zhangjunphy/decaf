@@ -31,11 +31,6 @@ import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
 import Types
 
-type Label = Text
-
--- Basic block ID
-type BBID = Int
-
 data Condition
   = Pred {pred :: AST.Typed AST.Expr}
   | Complement
@@ -58,9 +53,9 @@ data CFGNode = CFGNode
   deriving (Generic, Show)
 
 data CFGEdge
-  = SeqEdge
-  | CondEdge Condition
-  deriving (Show)
+  = SeqEdge { sid :: ScopeID }
+  | CondEdge { sid :: ScopeID, cond :: Condition}
+  deriving (Generic, Show)
 
 type CFG = G.Graph BBID CFGNode CFGEdge
 
@@ -154,11 +149,11 @@ removeEmptySeqNode = do
   g@G.Graph {nodes = nodes} <- gets cfg
   let emptySeqNodes =
         filter
-          (\(G.Node ni, nd) -> isEmptyNode nd && isSeqOut ni g)
+          (\(ni, nd) -> isEmptyNode nd && isSeqOut ni g)
           $ Map.assocs nodes
   let gUpdate =
         mapM_
-          ( \(G.Node ni, _) -> do
+          ( \(ni, _) -> do
               let inEdges = G.inBound ni g
                   outEdge = head $ G.outBound ni g
                in bridgeEdges ni inEdges outEdge
@@ -170,14 +165,14 @@ removeEmptySeqNode = do
     isSeqOut ni g =
       let outEdges = G.outBound ni g
        in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
-    bridgeEdges mid inEdges (G.Node out, _) =
+    bridgeEdges mid inEdges (out, _) =
       forM_
         inEdges
-        ( \(G.Node ni, ed) -> do
+        ( \(ni, ed) -> do
             G.deleteNode mid
             G.addEdge ni out ed
         )
-    isSeqEdge SeqEdge = True
+    isSeqEdge (SeqEdge _) = True
     isSeqEdge _ = False
 
 -- CFG Builders
@@ -198,7 +193,8 @@ buildBlock block@AST.Block {stmts = stmts} = do
     if stmtTail == head
       then do
         id <- createIsolateBB
-        updateCFG (G.addEdge head id SeqEdge)
+        sid <- use #astScope
+        updateCFG (G.addEdge head id $ SeqEdge sid)
         return id
       else return stmtTail
   return (head, tail)
@@ -210,12 +206,13 @@ buildStatement prev (SL.LocatedAt _ stmt@(AST.IfStmt pred ifBlock elseBlock)) = 
   (ifStart, ifEnd) <- buildBlock ifBlock
   (elseStart, elseEnd) <- buildBlock ifBlock
   tail <- createIsolateBB
+  sid <- use #astScope
   let gUpdate = do
-        G.addEdge prev head SeqEdge
-        G.addEdge head ifStart $ CondEdge $ Pred $ SL.unLocate pred
-        G.addEdge head elseStart $ CondEdge Complement
-        G.addEdge ifEnd tail SeqEdge
-        G.addEdge elseEnd tail SeqEdge
+        G.addEdge prev head $ SeqEdge sid
+        G.addEdge head ifStart $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge head elseStart $ CondEdge sid Complement
+        G.addEdge ifEnd tail $ SeqEdge sid
+        G.addEdge elseEnd tail $ SeqEdge sid
   updateCFG gUpdate
   return tail
 buildStatement prev (SL.LocatedAt _ stmt@AST.ForStmt {pred = pred, block = body}) = do
@@ -224,12 +221,13 @@ buildStatement prev (SL.LocatedAt _ stmt@AST.ForStmt {pred = pred, block = body}
   predBB <- createIsolateBB
   (bodyHead, bodyTail) <- buildBlock body
   tail <- createIsolateBB
+  sid <- use #astScope
   let gUpdate = do
-        G.addEdge prev head SeqEdge
-        G.addEdge head predBB SeqEdge
-        G.addEdge predBB bodyHead $ CondEdge $ Pred $ SL.unLocate pred
-        G.addEdge predBB tail $ CondEdge Complement
-        G.addEdge bodyTail predBB SeqEdge
+        G.addEdge prev head $ SeqEdge sid
+        G.addEdge head predBB $ SeqEdge sid
+        G.addEdge predBB bodyHead $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge predBB tail $ CondEdge sid Complement
+        G.addEdge bodyTail predBB $ SeqEdge sid
   updateCFG gUpdate
   return tail
 buildStatement prev (SL.LocatedAt _ stmt@AST.WhileStmt {pred = pred, block = body}) = do
@@ -238,12 +236,13 @@ buildStatement prev (SL.LocatedAt _ stmt@AST.WhileStmt {pred = pred, block = bod
   predBB <- createIsolateBB
   (bodyHead, bodyTail) <- buildBlock body
   tail <- createIsolateBB
+  sid <- use #astScope
   let gUpdate = do
-        G.addEdge prev head SeqEdge
-        G.addEdge head predBB SeqEdge
-        G.addEdge predBB bodyHead $ CondEdge $ Pred $ SL.unLocate pred
-        G.addEdge predBB tail $ CondEdge Complement
-        G.addEdge bodyTail predBB SeqEdge
+        G.addEdge prev head $ SeqEdge sid
+        G.addEdge head predBB $ SeqEdge sid
+        G.addEdge predBB bodyHead $ CondEdge sid $ Pred $ SL.unLocate pred
+        G.addEdge predBB tail $ CondEdge sid Complement
+        G.addEdge bodyTail predBB $ SeqEdge sid
   updateCFG gUpdate
   return tail
 buildStatement head (SL.LocatedAt _ stmt) = do
@@ -267,18 +266,18 @@ escape str =
     str
 
 prettyPrintEdge :: CFGEdge -> Text
-prettyPrintEdge SeqEdge = ""
-prettyPrintEdge (CondEdge (Pred AST.Typed {ele = ele})) = sformat shown ele
-prettyPrintEdge (CondEdge Complement) = "otherwise"
+prettyPrintEdge (SeqEdge _) = ""
+prettyPrintEdge (CondEdge _ (Pred AST.Typed {ele = ele})) = sformat shown ele
+prettyPrintEdge (CondEdge _ Complement) = "otherwise"
 
 generateDotPlot :: G.Graph BBID CFGNode CFGEdge -> Text
 generateDotPlot G.Graph {nodes = nodes, edges = edges} =
   let preamble = "digraph G {\n"
       postamble = "}"
-      nodeBoxes = Map.assocs nodes <&> (\(G.Node i, d) -> nodeBox i d)
+      nodeBoxes = Map.assocs nodes <&> uncurry nodeBox
       edgeLines =
         concatMap
-          (\(G.Node from, tos) -> tos <&> \(G.Node to, d) -> edgeLine from to d)
+          (\(from, tos) -> tos <&> \(to, d) -> edgeLine from to d)
           $ Map.assocs edges
    in mconcat $ [preamble] ++ nodeBoxes ++ edgeLines ++ [postamble]
   where

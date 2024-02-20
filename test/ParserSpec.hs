@@ -9,8 +9,8 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Either (isRight)
 import Parser (Expr (choicePredExpr))
 import qualified Parser
-import SourceLoc (unLocate)
-import qualified SourceLoc as SL
+import Util.SourceLoc (unLocate)
+import qualified Util.SourceLoc as SL
 import Test.Hspec
 import Util
 

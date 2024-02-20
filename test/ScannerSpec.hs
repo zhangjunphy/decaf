@@ -4,8 +4,8 @@ module ScannerSpec where
 
 import Data.ByteString.Lazy (ByteString)
 import Data.Either (isLeft)
-import Scanner
-import qualified SourceLoc as SL
+import Parser.Scanner
+import qualified Util.SourceLoc as SL
 import Test.Hspec
 
 spec :: Spec
@@ -22,17 +22,17 @@ getTokens = fmap $ \(Right (SL.LocatedAt _ t)) -> t
 
 compareTokenStream :: ByteString -> [Token] -> Bool
 compareTokenStream inp toks =
-  let res = Scanner.scan inp
+  let res = scan inp
    in getTokens res == toks
 
 shouldErrorOut :: ByteString -> Bool
 shouldErrorOut inp =
-  let res = Scanner.scan inp
+  let res = scan inp
    in length res == 1 && isLeft (head res)
 
 checkLoc :: ByteString -> Int -> SL.Range -> Bool
 checkLoc inp idxEle range =
-  let res = Scanner.scan inp
+  let res = scan inp
       (Right (SL.LocatedAt pos _)) = res !! idxEle
    in pos == range
 

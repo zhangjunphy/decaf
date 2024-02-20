@@ -79,7 +79,7 @@ data CFGState = CFGState
     scope :: ScopeID,
     vars :: VarList,
     symMap :: VarBiMap,
-    exitVar :: Map BBID Var
+    statements :: [SSA]
   }
   deriving (Generic)
 
@@ -133,6 +133,11 @@ newVar (Just name) sl tpe = do
   #vars .= vars ++ [var]
   return var
 
+addSSA :: SSA -> CFGBuild ()
+addSSA ssa = do
+  stmts <- use #statements
+  #statements .= stmts ++ [ssa]
+
 findVarOfSym :: Name -> CFGBuild (Maybe Var)
 findVarOfSym name = do
   sid <- use #scope
@@ -151,31 +156,32 @@ findVarOfSym' name = do
 -- buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 -- buildCFG (AST.ASTRoot _ _ methods) context = _
 
--- buildMethod :: PCFG.CFG -> CFGBuild ()
--- buildMethod g@(G.Graph nodes edges) = G.traverseM_ buildNode g
+buildMethod :: PCFG.CFG -> CFGBuild ()
+buildMethod g@(G.Graph nodes edges) = G.traverseM_ buildNode g
 
--- buildNode :: BBID -> PCFG.CFGNode -> CFGBuild ()
--- buildNode _ PCFG.CFGNode {bb = (PCFG.BasicBlock bbid sid stmts)} = do
---   cfg <- use #cfg
---   setScope sid
---   let bb = BasicBlock bbid sid _
---   _
+buildNode :: BBID -> PCFG.CFGNode -> CFGBuild CFGNode
+buildNode _ PCFG.CFGNode {bb = (PCFG.BasicBlock bbid sid stmts)} = do
+  cfg <- use #cfg
+  setScope sid
+  forM_ stmts buildStatement
+  stmts <- use #statements
+  let bb = BasicBlock bbid sid stmts
+  return $ CFGNode bb
 
--- buildStatement :: AST.Statement -> CFGBuild SSA
--- buildStatement (AST.AssignStmt (AST.Assignment (AST.Typed (AST.Location name Nothing def) tpe) op expr)) = do
---   _
+buildStatement :: AST.Statement -> CFGBuild ()
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
+  dst <- newVar (Just name) loc tpe
+  src <- buildExpr expr
+  addSSA $ Assignment dst (Variable src)
 
--- buildExpr :: AST.Expr -> CFGBuild Var
--- buildExpr (AST.LocationExpr (AST.Location name Nothing def)) = do
---   var <- findVarOfSym name
---   case var of
---     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable " % stext) name
---     Just var' -> return var'
+buildExpr :: AST.Expr -> CFGBuild Var
+buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildLocation location
 
--- buildLocation :: AST.Location -> CFGBuild (Maybe Var)
--- buildLocation (AST.Location name Nothing def) = findVarOfSym' name
--- buildLocation (AST.Location name (Just expr) def) = do
---   idxVar <- buildExpr expr
---   arrayVar <- findVarOfSym' name
---   let tpe = AST.typeOfDef def
---   _
+buildLocation :: AST.Location -> CFGBuild Var
+buildLocation (AST.Location name Nothing def tpe loc) = findVarOfSym' name
+buildLocation (AST.Location name (Just expr) def tpe loc) = do
+  idx <- buildExpr expr
+  array <- findVarOfSym' name
+  dst <- newVar (Just name) loc tpe
+  addSSA $ ArrayDeref dst array (Variable idx)
+  return dst

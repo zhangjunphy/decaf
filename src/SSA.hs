@@ -40,6 +40,7 @@ data SSA
   | MethodCall {dst :: Var, arguments :: [Var]}
   | Return {ret :: Var}
   | ArrayDeref {dst :: Var, arr :: Var, idx :: VarOrImm}
+  | Store {arr :: Var, idx :: VarOrImm, src :: VarOrImm}
   | Arith {dst :: Var, arithOp :: ArithOp, opl :: VarOrImm, opr :: VarOrImm}
   | Rel {dst :: Var, relOp :: RelOp, opl :: VarOrImm, opr :: VarOrImm}
   | Cond {dst :: Var, condOp :: CondOp, opl :: VarOrImm, opr :: VarOrImm}

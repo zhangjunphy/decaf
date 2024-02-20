@@ -15,27 +15,28 @@
 </span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
 </span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
 </span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
-</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="SourceLoc.html"><span class="hs-identifier">SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
-</span><span id="line-19"></span><span>
-</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="VID"><span class="annot"><a href="SSA.html#VID"><span class="hs-identifier hs-var">VID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
-</span><span id="line-21"></span><span>
-</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span>
-</span><span id="line-23"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Atpe%3AVar"><span class="annot"><span class="annottext">Var -&gt; Type
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.SourceLoc.html"><span class="hs-identifier">Util.SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
+</span><span id="line-20"></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">data</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="Var"><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-var">Var</span></a></span></span><span>
+</span><span id="line-22"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aid%3AVar"><span class="annot"><span class="annottext">Var -&gt; VID
+</span><a href="SSA.html#%24sel%3Aid%3AVar"><span class="hs-identifier hs-var hs-var">id</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Types.html#VID"><span class="hs-identifier hs-type">VID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-23"></span><span>    </span><span id="%24sel%3Atpe%3AVar"><span class="annot"><span class="annottext">Var -&gt; Type
 </span><a href="SSA.html#%24sel%3Atpe%3AVar"><span class="hs-identifier hs-var hs-var">tpe</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#Type"><span class="hs-identifier hs-type">Type</span></a></span><span class="hs-special">,</span><span>
 </span><span id="line-24"></span><span>    </span><span id="%24sel%3AastDecl%3AVar"><span class="annot"><span class="annottext">Var -&gt; Maybe FieldDecl
 </span><a href="SSA.html#%24sel%3AastDecl%3AVar"><span class="hs-identifier hs-var hs-var">astDecl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="AST.html#FieldDecl"><span class="hs-identifier hs-type">AST.FieldDecl</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-25"></span><span>    </span><span id="%24sel%3Aloc%3AVar"><span class="annot"><span class="annottext">Var -&gt; Maybe Range
-</span><a href="SSA.html#%24sel%3Aloc%3AVar"><span class="hs-identifier hs-var hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="SourceLoc.html#Range"><span class="hs-identifier hs-type">SL.Range</span></a></span><span>
+</span><span id="line-25"></span><span>    </span><span id="%24sel%3Aloc%3AVar"><span class="annot"><span class="annottext">Var -&gt; Range
+</span><a href="SSA.html#%24sel%3Aloc%3AVar"><span class="hs-identifier hs-var hs-var">loc</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Util.SourceLoc.html#Range"><span class="hs-identifier hs-type">SL.Range</span></a></span><span>
 </span><span id="line-26"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679183845"><span id="local-6989586621679183856"><span id="local-6989586621679183860"><span class="annot"><span class="annottext">Int -&gt; Var -&gt; ShowS
+</span><span id="line-27"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679189197"><span id="local-6989586621679189210"><span id="local-6989586621679189214"><span class="annot"><span class="annottext">VID -&gt; Var -&gt; ShowS
 [Var] -&gt; ShowS
 Var -&gt; String
-(Int -&gt; Var -&gt; ShowS)
+(VID -&gt; Var -&gt; ShowS)
 -&gt; (Var -&gt; String) -&gt; ([Var] -&gt; ShowS) -&gt; Show Var
 forall a.
-(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-$cshowsPrec :: Int -&gt; Var -&gt; ShowS
-showsPrec :: Int -&gt; Var -&gt; ShowS
+(VID -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: VID -&gt; Var -&gt; ShowS
+showsPrec :: VID -&gt; Var -&gt; ShowS
 $cshow :: Var -&gt; String
 show :: Var -&gt; String
 $cshowList :: [Var] -&gt; ShowS
@@ -47,15 +48,15 @@ showList :: [Var] -&gt; ShowS
 </span><span id="line-31"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="IntImm"><span class="annot"><a href="SSA.html#IntImm"><span class="hs-identifier hs-var">IntImm</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
 </span><span id="line-32"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="StringImm"><span class="annot"><a href="SSA.html#StringImm"><span class="hs-identifier hs-var">StringImm</span></a></span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
 </span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Variable"><span class="annot"><a href="SSA.html#Variable"><span class="hs-identifier hs-var">Variable</span></a></span></span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span>
-</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679183870"><span id="local-6989586621679183883"><span id="local-6989586621679183887"><span class="annot"><span class="annottext">Int -&gt; VarOrImm -&gt; ShowS
+</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679189223"><span id="local-6989586621679189235"><span id="local-6989586621679189239"><span class="annot"><span class="annottext">VID -&gt; VarOrImm -&gt; ShowS
 [VarOrImm] -&gt; ShowS
 VarOrImm -&gt; String
-(Int -&gt; VarOrImm -&gt; ShowS)
+(VID -&gt; VarOrImm -&gt; ShowS)
 -&gt; (VarOrImm -&gt; String) -&gt; ([VarOrImm] -&gt; ShowS) -&gt; Show VarOrImm
 forall a.
-(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-$cshowsPrec :: Int -&gt; VarOrImm -&gt; ShowS
-showsPrec :: Int -&gt; VarOrImm -&gt; ShowS
+(VID -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: VID -&gt; VarOrImm -&gt; ShowS
+showsPrec :: VID -&gt; VarOrImm -&gt; ShowS
 $cshow :: VarOrImm -&gt; String
 show :: VarOrImm -&gt; String
 $cshowList :: [VarOrImm] -&gt; ShowS
@@ -94,15 +95,15 @@ showList :: [VarOrImm] -&gt; ShowS
 </span><a href="SSA.html#%24sel%3AchoiceOp%3AAssignment"><span class="hs-identifier hs-var hs-var">choiceOp</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="AST.html#ChoiceOp"><span class="hs-identifier hs-type">ChoiceOp</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Apred%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; VarOrImm
 </span><a href="SSA.html#%24sel%3Apred%3AAssignment"><span class="hs-identifier hs-var hs-var">pred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopl%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopl%3AAssignment"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aopr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aopr%3AAssignment"><span class="hs-identifier hs-var">opr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
 </span><span id="line-50"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Len"><span class="annot"><a href="SSA.html#Len"><span class="hs-identifier hs-var">Len</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Adst%3AAssignment"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3Aarr%3AAssignment"><span class="annot"><a href="SSA.html#%24sel%3Aarr%3AAssignment"><span class="hs-identifier hs-var">arr</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679183920"><span id="local-6989586621679183979"><span id="local-6989586621679183983"><span class="annot"><span class="annottext">Int -&gt; SSA -&gt; ShowS
+</span><span id="line-51"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679189272"><span id="local-6989586621679189331"><span id="local-6989586621679189335"><span class="annot"><span class="annottext">VID -&gt; SSA -&gt; ShowS
 [SSA] -&gt; ShowS
 SSA -&gt; String
-(Int -&gt; SSA -&gt; ShowS)
+(VID -&gt; SSA -&gt; ShowS)
 -&gt; (SSA -&gt; String) -&gt; ([SSA] -&gt; ShowS) -&gt; Show SSA
 forall a.
-(Int -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
-$cshowsPrec :: Int -&gt; SSA -&gt; ShowS
-showsPrec :: Int -&gt; SSA -&gt; ShowS
+(VID -&gt; a -&gt; ShowS) -&gt; (a -&gt; String) -&gt; ([a] -&gt; ShowS) -&gt; Show a
+$cshowsPrec :: VID -&gt; SSA -&gt; ShowS
+showsPrec :: VID -&gt; SSA -&gt; ShowS
 $cshow :: SSA -&gt; String
 show :: SSA -&gt; String
 $cshowList :: [SSA] -&gt; ShowS

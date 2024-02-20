@@ -59,31 +59,34 @@ data OptimizationName
 Enable :: String -> OptimizationName
 Disable :: String -> OptimizationName
 
-module CLI
+module Constants
+globalScopeID :: Int
+mainMethodName :: Text
+
+module DominatorTree
+
+module Types
+type VID = Int
+type Name = Text
+type ScopeID = Int
+type BBID = Int
+
+module Util.CLI
 generateUsage :: IO String
 
 -- | Parses command-line options, returning a <a>Configuration</a>
 --   describing the behavior of the compiler.
 getConfiguration :: IO (Either String Configuration)
 
-module Constants
-globalScopeID :: Int
-topLevelLabel :: Text
-mainMethodName :: Text
-
-module DominatorTree
-
-module Graph
-newtype Node a
-Node :: a -> Node a
+module Util.Graph
 data Graph ni nd ed
-Graph :: Map (Node ni) nd -> Map (Node ni) [(Node ni, ed)] -> Graph ni nd ed
-[$sel:nodes:Graph] :: Graph ni nd ed -> Map (Node ni) nd
-[$sel:edges:Graph] :: Graph ni nd ed -> Map (Node ni) [(Node ni, ed)]
+Graph :: Map ni nd -> Map ni [(ni, ed)] -> Graph ni nd ed
+[$sel:nodes:Graph] :: Graph ni nd ed -> Map ni nd
+[$sel:edges:Graph] :: Graph ni nd ed -> Map ni [(ni, ed)]
 type GraphException = Text
 empty :: Graph ni nd ed
-outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
-inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(Node ni, ed)]
+outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
+inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
 updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
 updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
@@ -97,17 +100,15 @@ deleteNode :: (Eq ni, Ord ni) => ni -> GraphBuilder ni nd ed ()
 deleteEdge :: (Eq ni, Ord ni) => ni -> ni -> GraphBuilder ni nd ed ()
 update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either Text (Graph ni nd ed)
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
-instance GHC.Show.Show a => GHC.Show.Show (Graph.Node a)
-instance GHC.Classes.Ord a => GHC.Classes.Ord (Graph.Node a)
-instance GHC.Classes.Eq a => GHC.Classes.Eq (Graph.Node a)
-instance (GHC.Show.Show ni, GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Graph.Graph ni nd ed)
-instance Control.Monad.State.Class.MonadState (Graph.Graph ni nd ed) (Graph.GraphBuilder ni nd ed)
-instance Control.Monad.Error.Class.MonadError Graph.GraphException (Graph.GraphBuilder ni nd ed)
-instance GHC.Base.Monad (Graph.GraphBuilder ni nd ed)
-instance GHC.Base.Applicative (Graph.GraphBuilder ni nd ed)
-instance GHC.Base.Functor (Graph.GraphBuilder ni nd ed)
+traverseM_ :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m ()
+instance (GHC.Show.Show ni, GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Util.Graph.Graph ni nd ed)
+instance Control.Monad.State.Class.MonadState (Util.Graph.Graph ni nd ed) (Util.Graph.GraphBuilder ni nd ed)
+instance Control.Monad.Error.Class.MonadError Util.Graph.GraphException (Util.Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Monad (Util.Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Applicative (Util.Graph.GraphBuilder ni nd ed)
+instance GHC.Base.Functor (Util.Graph.GraphBuilder ni nd ed)
 
-module SourceLoc
+module Util.SourceLoc
 data Posn
 Posn :: !Int -> !Int -> !Int -> Posn
 [$sel:offset:Posn] :: Posn -> !Int
@@ -120,16 +121,16 @@ Range :: Posn -> Posn -> Range
 data Located a
 LocatedAt :: Range -> a -> Located a
 unLocate :: Located a -> a
-instance GHC.Classes.Ord SourceLoc.Posn
-instance GHC.Classes.Eq SourceLoc.Posn
-instance GHC.Classes.Ord SourceLoc.Range
-instance GHC.Classes.Eq SourceLoc.Range
-instance GHC.Base.Functor SourceLoc.Located
-instance GHC.Show.Show a => GHC.Show.Show (SourceLoc.Located a)
-instance GHC.Show.Show SourceLoc.Range
-instance GHC.Show.Show SourceLoc.Posn
+instance GHC.Classes.Ord Util.SourceLoc.Posn
+instance GHC.Classes.Eq Util.SourceLoc.Posn
+instance GHC.Classes.Ord Util.SourceLoc.Range
+instance GHC.Classes.Eq Util.SourceLoc.Range
+instance GHC.Base.Functor Util.SourceLoc.Located
+instance GHC.Show.Show a => GHC.Show.Show (Util.SourceLoc.Located a)
+instance GHC.Show.Show Util.SourceLoc.Range
+instance GHC.Show.Show Util.SourceLoc.Posn
 
-module Scanner
+module Parser.Scanner
 
 -- | A token.
 data Token
@@ -166,14 +167,159 @@ scan :: ByteString -> [Either String (Located Token)]
 formatTokenOrError :: Either String (Located Token) -> Either String String
 alexMonadScan :: Alex (Located Token)
 runAlex :: ByteString -> Alex a -> Either String a
-instance GHC.Classes.Ord Scanner.AlexPosn
-instance GHC.Show.Show Scanner.AlexPosn
-instance GHC.Classes.Eq Scanner.AlexPosn
-instance GHC.Classes.Eq Scanner.Token
-instance GHC.Base.Functor Scanner.Alex
-instance GHC.Base.Applicative Scanner.Alex
-instance GHC.Base.Monad Scanner.Alex
-instance GHC.Show.Show Scanner.Token
+instance GHC.Classes.Ord Parser.Scanner.AlexPosn
+instance GHC.Show.Show Parser.Scanner.AlexPosn
+instance GHC.Classes.Eq Parser.Scanner.AlexPosn
+instance GHC.Classes.Eq Parser.Scanner.Token
+instance GHC.Base.Functor Parser.Scanner.Alex
+instance GHC.Base.Applicative Parser.Scanner.Alex
+instance GHC.Base.Monad Parser.Scanner.Alex
+instance GHC.Show.Show Parser.Scanner.Token
+
+module Parser.Parser
+parse :: ByteString -> Either String Program
+data Program
+Program :: [Located ImportDecl] -> [Located FieldDecl] -> [Located MethodDecl] -> Program
+[$sel:importDecls:Program] :: Program -> [Located ImportDecl]
+[$sel:fieldDecls:Program] :: Program -> [Located FieldDecl]
+[$sel:methodDecls:Program] :: Program -> [Located MethodDecl]
+data ImportDecl
+ImportDecl :: Text -> ImportDecl
+[$sel:importId:ImportDecl] :: ImportDecl -> Text
+data FieldDecl
+FieldDecl :: Type -> [Located FieldElem] -> FieldDecl
+[$sel:fieldType:FieldDecl] :: FieldDecl -> Type
+[$sel:elems:FieldDecl] :: FieldDecl -> [Located FieldElem]
+data MethodDecl
+MethodDecl :: Text -> Maybe Type -> [Located Argument] -> Block -> MethodDecl
+[$sel:methodId:MethodDecl] :: MethodDecl -> Text
+[$sel:returnType:MethodDecl] :: MethodDecl -> Maybe Type
+[$sel:arguments:MethodDecl] :: MethodDecl -> [Located Argument]
+[$sel:block:MethodDecl] :: MethodDecl -> Block
+data FieldElem
+ScalarField :: Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> Text
+VectorField :: Text -> Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> Text
+[$sel:size:ScalarField] :: FieldElem -> Text
+data Type
+IntType :: Type
+BoolType :: Type
+data Argument
+Argument :: Text -> Type -> Argument
+[$sel:argumentId:Argument] :: Argument -> Text
+[$sel:argumentType:Argument] :: Argument -> Type
+data Block
+Block :: [Located FieldDecl] -> [Located Statement] -> Block
+[$sel:blockFieldDecls:Block] :: Block -> [Located FieldDecl]
+[$sel:blockStatements:Block] :: Block -> [Located Statement]
+data Statement
+AssignStatement :: Location -> AssignExpr -> Statement
+[$sel:assignLocation:AssignStatement] :: Statement -> Location
+[$sel:assignExpr:AssignStatement] :: Statement -> AssignExpr
+MethodCallStatement :: MethodCall -> Statement
+[$sel:methodCallStatement:AssignStatement] :: Statement -> MethodCall
+IfStatement :: Located Expr -> Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> Block
+IfElseStatement :: Located Expr -> Block -> Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> Block
+[$sel:elseBlock:AssignStatement] :: Statement -> Block
+ForStatement :: Text -> Located Expr -> Located Expr -> CounterUpdate -> Block -> Statement
+[$sel:counterId:AssignStatement] :: Statement -> Text
+[$sel:counterExpr:AssignStatement] :: Statement -> Located Expr
+[$sel:forPredExpr:AssignStatement] :: Statement -> Located Expr
+[$sel:counterUpdate:AssignStatement] :: Statement -> CounterUpdate
+[$sel:forBlock:AssignStatement] :: Statement -> Block
+WhileStatement :: Located Expr -> Block -> Statement
+[$sel:whileExpr:AssignStatement] :: Statement -> Located Expr
+[$sel:whileBlock:AssignStatement] :: Statement -> Block
+ReturnVoidStatement :: Statement
+ReturnExprStatement :: Located Expr -> Statement
+[$sel:returnExpr:AssignStatement] :: Statement -> Located Expr
+BreakStatement :: Statement
+ContinueStatement :: Statement
+ErrorStatement :: Statement
+data Location
+ScalarLocation :: Text -> Location
+[$sel:locationId:ScalarLocation] :: Location -> Text
+VectorLocation :: Text -> Located Expr -> Location
+[$sel:locationId:ScalarLocation] :: Location -> Text
+[$sel:arrayIndexExpr:ScalarLocation] :: Location -> Located Expr
+data AssignExpr
+AssignExpr :: Text -> Located Expr -> AssignExpr
+[$sel:assignOp:AssignExpr] :: AssignExpr -> Text
+[$sel:assignSourceExpr:AssignExpr] :: AssignExpr -> Located Expr
+IncrementExpr :: Text -> AssignExpr
+[$sel:incrementOp:AssignExpr] :: AssignExpr -> Text
+data MethodCall
+MethodCall :: Text -> [Located ImportArg] -> MethodCall
+[$sel:methodName:MethodCall] :: MethodCall -> Text
+[$sel:importArguments:MethodCall] :: MethodCall -> [Located ImportArg]
+data ImportArg
+ExprImportArg :: Located Expr -> ImportArg
+[$sel:argumentExpr:ExprImportArg] :: ImportArg -> Located Expr
+StringImportArg :: Text -> ImportArg
+[$sel:argumentString:ExprImportArg] :: ImportArg -> Text
+data CounterUpdate
+CounterUpdate :: Location -> AssignExpr -> CounterUpdate
+[$sel:counterLocation:CounterUpdate] :: CounterUpdate -> Location
+[$sel:updateExpr:CounterUpdate] :: CounterUpdate -> AssignExpr
+data Expr
+LocationExpr :: Location -> Expr
+[$sel:location:LocationExpr] :: Expr -> Location
+MethodCallExpr :: MethodCall -> Expr
+[$sel:methodCallExpr:LocationExpr] :: Expr -> MethodCall
+IntLiteralExpr :: Text -> Expr
+[$sel:intLiteral:LocationExpr] :: Expr -> Text
+CharLiteralExpr :: Text -> Expr
+[$sel:charLiteral:LocationExpr] :: Expr -> Text
+BoolLiteralExpr :: Text -> Expr
+[$sel:boolLiteral:LocationExpr] :: Expr -> Text
+LenExpr :: Text -> Expr
+[$sel:lenId:LocationExpr] :: Expr -> Text
+ArithOpExpr :: Text -> Located Expr -> Located Expr -> Expr
+[$sel:arithOp:LocationExpr] :: Expr -> Text
+[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+RelOpExpr :: Text -> Located Expr -> Located Expr -> Expr
+[$sel:relOp:LocationExpr] :: Expr -> Text
+[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+EqOpExpr :: Text -> Located Expr -> Located Expr -> Expr
+[$sel:eqOp:LocationExpr] :: Expr -> Text
+[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+CondOpExpr :: Text -> Located Expr -> Located Expr -> Expr
+[$sel:condOp:LocationExpr] :: Expr -> Text
+[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+NegativeExpr :: Located Expr -> Expr
+[$sel:negativeExpr:LocationExpr] :: Expr -> Located Expr
+NegateExpr :: Located Expr -> Expr
+[$sel:negateExpr:LocationExpr] :: Expr -> Located Expr
+ParenExpr :: Located Expr -> Expr
+[$sel:parenExpr:LocationExpr] :: Expr -> Located Expr
+ChoiceExpr :: Located Expr -> Located Expr -> Located Expr -> Expr
+[$sel:choicePredExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+instance GHC.Show.Show Parser.Parser.ImportDecl
+instance GHC.Show.Show Parser.Parser.FieldElem
+instance GHC.Show.Show Parser.Parser.Type
+instance GHC.Show.Show Parser.Parser.FieldDecl
+instance GHC.Show.Show Parser.Parser.Argument
+instance GHC.Show.Show Parser.Parser.Location
+instance GHC.Show.Show Parser.Parser.ImportArg
+instance GHC.Show.Show Parser.Parser.MethodCall
+instance GHC.Show.Show Parser.Parser.Expr
+instance GHC.Show.Show Parser.Parser.AssignExpr
+instance GHC.Show.Show Parser.Parser.CounterUpdate
+instance GHC.Show.Show Parser.Parser.Block
+instance GHC.Show.Show Parser.Parser.Statement
+instance GHC.Show.Show Parser.Parser.MethodDecl
+instance GHC.Show.Show Parser.Parser.Program
 
 module Parser
 parse :: ByteString -> Either String Program
@@ -304,26 +450,8 @@ ChoiceExpr :: Located Expr -> Located Expr -> Located Expr -> Expr
 [$sel:choicePredExpr:LocationExpr] :: Expr -> Located Expr
 [$sel:lExpr:LocationExpr] :: Expr -> Located Expr
 [$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-instance GHC.Show.Show Parser.ImportDecl
-instance GHC.Show.Show Parser.FieldElem
-instance GHC.Show.Show Parser.Type
-instance GHC.Show.Show Parser.FieldDecl
-instance GHC.Show.Show Parser.Argument
-instance GHC.Show.Show Parser.Location
-instance GHC.Show.Show Parser.ImportArg
-instance GHC.Show.Show Parser.MethodCall
-instance GHC.Show.Show Parser.Expr
-instance GHC.Show.Show Parser.AssignExpr
-instance GHC.Show.Show Parser.CounterUpdate
-instance GHC.Show.Show Parser.Block
-instance GHC.Show.Show Parser.Statement
-instance GHC.Show.Show Parser.MethodDecl
-instance GHC.Show.Show Parser.Program
 
 module AST
-type Name = Text
-type Index = Int64
-type ScopeID = Int
 data RelOp
 LessThan :: RelOp
 GreaterThan :: RelOp
@@ -366,122 +494,139 @@ parseNegOp :: Text -> NegOp
 parseNotOp :: Text -> NotOp
 parseAssignOp :: Text -> AssignOp
 data Location
-Location :: Name -> Maybe Expr -> Either Argument FieldDecl -> Location
+Location :: Name -> Maybe Expr -> Either Argument FieldDecl -> Type -> Range -> Location
 [$sel:name:Location] :: Location -> Name
 [$sel:idx:Location] :: Location -> Maybe Expr
 [$sel:variableDef:Location] :: Location -> Either Argument FieldDecl
+[$sel:tpe:Location] :: Location -> Type
+[$sel:loc:Location] :: Location -> Range
 typeOfDef :: Either Argument FieldDecl -> Type
 data Assignment
-Assignment :: Typed Location -> AssignOp -> Maybe (Located (Typed Expr)) -> Assignment
-[$sel:location:Assignment] :: Assignment -> Typed Location
+Assignment :: Location -> AssignOp -> Maybe Expr -> Range -> Assignment
+[$sel:location:Assignment] :: Assignment -> Location
 [$sel:op:Assignment] :: Assignment -> AssignOp
-[$sel:expr:Assignment] :: Assignment -> Maybe (Located (Typed Expr))
+[$sel:expr:Assignment] :: Assignment -> Maybe Expr
+[$sel:loc:Assignment] :: Assignment -> Range
 data MethodCall
-MethodCall :: Name -> [Located (Typed Expr)] -> MethodCall
+MethodCall :: Name -> [Expr] -> Range -> MethodCall
 [$sel:name:MethodCall] :: MethodCall -> Name
-[$sel:args:MethodCall] :: MethodCall -> [Located (Typed Expr)]
+[$sel:args:MethodCall] :: MethodCall -> [Expr]
+[$sel:loc:MethodCall] :: MethodCall -> Range
 data ASTRoot
-ASTRoot :: [Located ImportDecl] -> [Located FieldDecl] -> [Located MethodDecl] -> ASTRoot
-[$sel:imports:ASTRoot] :: ASTRoot -> [Located ImportDecl]
-[$sel:vars:ASTRoot] :: ASTRoot -> [Located FieldDecl]
-[$sel:methods:ASTRoot] :: ASTRoot -> [Located MethodDecl]
+ASTRoot :: [ImportDecl] -> [FieldDecl] -> [MethodDecl] -> ASTRoot
+[$sel:imports:ASTRoot] :: ASTRoot -> [ImportDecl]
+[$sel:vars:ASTRoot] :: ASTRoot -> [FieldDecl]
+[$sel:methods:ASTRoot] :: ASTRoot -> [MethodDecl]
 data ImportDecl
-ImportDecl :: Name -> ImportDecl
+ImportDecl :: Name -> Range -> ImportDecl
 [$sel:name:ImportDecl] :: ImportDecl -> Name
+[$sel:loc:ImportDecl] :: ImportDecl -> Range
 data FieldDecl
-FieldDecl :: Name -> Type -> FieldDecl
+FieldDecl :: Name -> Type -> Range -> FieldDecl
 [$sel:name:FieldDecl] :: FieldDecl -> Name
 [$sel:tpe:FieldDecl] :: FieldDecl -> Type
+[$sel:loc:FieldDecl] :: FieldDecl -> Range
 data Argument
-Argument :: Name -> Type -> Argument
+Argument :: Name -> Type -> Range -> Argument
 [$sel:name:Argument] :: Argument -> Name
 [$sel:tpe:Argument] :: Argument -> Type
+[$sel:loc:Argument] :: Argument -> Range
 data MethodSig
-MethodSig :: Name -> Maybe Type -> [Located Argument] -> MethodSig
+MethodSig :: Name -> Maybe Type -> [Argument] -> MethodSig
 [$sel:name:MethodSig] :: MethodSig -> Name
 [$sel:tpe:MethodSig] :: MethodSig -> Maybe Type
-[$sel:args:MethodSig] :: MethodSig -> [Located Argument]
+[$sel:args:MethodSig] :: MethodSig -> [Argument]
 data MethodDecl
-MethodDecl :: MethodSig -> Block -> MethodDecl
+MethodDecl :: MethodSig -> Block -> Range -> MethodDecl
 [$sel:sig:MethodDecl] :: MethodDecl -> MethodSig
 [$sel:block:MethodDecl] :: MethodDecl -> Block
+[$sel:loc:MethodDecl] :: MethodDecl -> Range
 data Statement
-AssignStmt :: Assignment -> Statement
-[$sel:assign:AssignStmt] :: Statement -> Assignment
-IfStmt :: Located (Typed Expr) -> Block -> Maybe Block -> Statement
-[$sel:pred:AssignStmt] :: Statement -> Located (Typed Expr)
-[$sel:ifBlock:AssignStmt] :: Statement -> Block
-[$sel:elseBlock:AssignStmt] :: Statement -> Maybe Block
-ForStmt :: Name -> Located (Typed Expr) -> Located (Typed Expr) -> Assignment -> Block -> Statement
-[$sel:counter:AssignStmt] :: Statement -> Name
-[$sel:initCounter:AssignStmt] :: Statement -> Located (Typed Expr)
-[$sel:pred:AssignStmt] :: Statement -> Located (Typed Expr)
-[$sel:update:AssignStmt] :: Statement -> Assignment
-[$sel:block:AssignStmt] :: Statement -> Block
-WhileStmt :: Located (Typed Expr) -> Block -> Statement
-[$sel:pred:AssignStmt] :: Statement -> Located (Typed Expr)
-[$sel:block:AssignStmt] :: Statement -> Block
-ReturnStmt :: Maybe (Located (Typed Expr)) -> Statement
-[$sel:expr:AssignStmt] :: Statement -> Maybe (Located (Typed Expr))
-MethodCallStmt :: MethodCall -> Statement
-[$sel:methodCall:AssignStmt] :: Statement -> MethodCall
-BreakStmt :: Statement
-ContinueStmt :: Statement
-VarDeclStmt :: FieldDecl -> Statement
-[$sel:field:AssignStmt] :: Statement -> FieldDecl
+Statement :: Statement_ -> Range -> Statement
+[$sel:statement_:Statement] :: Statement -> Statement_
+[$sel:loc:Statement] :: Statement -> Range
+data Statement_
+AssignStmt :: Assignment -> Statement_
+[$sel:assign:AssignStmt] :: Statement_ -> Assignment
+IfStmt :: Expr -> Block -> Maybe Block -> Statement_
+[$sel:pred:AssignStmt] :: Statement_ -> Expr
+[$sel:ifBlock:AssignStmt] :: Statement_ -> Block
+[$sel:elseBlock:AssignStmt] :: Statement_ -> Maybe Block
+ForStmt :: Name -> Expr -> Expr -> Assignment -> Block -> Statement_
+[$sel:counter:AssignStmt] :: Statement_ -> Name
+[$sel:initCounter:AssignStmt] :: Statement_ -> Expr
+[$sel:pred:AssignStmt] :: Statement_ -> Expr
+[$sel:update:AssignStmt] :: Statement_ -> Assignment
+[$sel:block:AssignStmt] :: Statement_ -> Block
+WhileStmt :: Expr -> Block -> Statement_
+[$sel:pred:AssignStmt] :: Statement_ -> Expr
+[$sel:block:AssignStmt] :: Statement_ -> Block
+ReturnStmt :: Maybe Expr -> Statement_
+[$sel:expr:AssignStmt] :: Statement_ -> Maybe Expr
+MethodCallStmt :: MethodCall -> Statement_
+[$sel:methodCall:AssignStmt] :: Statement_ -> MethodCall
+BreakStmt :: Statement_
+ContinueStmt :: Statement_
+VarDeclStmt :: FieldDecl -> Statement_
+[$sel:field:AssignStmt] :: Statement_ -> FieldDecl
 data Expr
-LocationExpr :: Location -> Expr
-[$sel:location:LocationExpr] :: Expr -> Location
-MethodCallExpr :: MethodCall -> Expr
-[$sel:methodCall:LocationExpr] :: Expr -> MethodCall
-ExternCallExpr :: Name -> [Located (Typed Expr)] -> Expr
-[$sel:name:LocationExpr] :: Expr -> Name
-[$sel:args:LocationExpr] :: Expr -> [Located (Typed Expr)]
-IntLiteralExpr :: Int64 -> Expr
-[$sel:intVal:LocationExpr] :: Expr -> Int64
-BoolLiteralExpr :: Bool -> Expr
-[$sel:boolVal:LocationExpr] :: Expr -> Bool
-CharLiteralExpr :: Char -> Expr
-[$sel:charVal:LocationExpr] :: Expr -> Char
-StringLiteralExpr :: Text -> Expr
-[$sel:strVal:LocationExpr] :: Expr -> Text
-ArithOpExpr :: ArithOp -> Located (Typed Expr) -> Located (Typed Expr) -> Expr
-[$sel:arithOp:LocationExpr] :: Expr -> ArithOp
-[$sel:lhs:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:rhs:LocationExpr] :: Expr -> Located (Typed Expr)
-RelOpExpr :: RelOp -> Located (Typed Expr) -> Located (Typed Expr) -> Expr
-[$sel:relOp:LocationExpr] :: Expr -> RelOp
-[$sel:lhs:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:rhs:LocationExpr] :: Expr -> Located (Typed Expr)
-CondOpExpr :: CondOp -> Located (Typed Expr) -> Located (Typed Expr) -> Expr
-[$sel:condOp:LocationExpr] :: Expr -> CondOp
-[$sel:lhs:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:rhs:LocationExpr] :: Expr -> Located (Typed Expr)
-EqOpExpr :: EqOp -> Located (Typed Expr) -> Located (Typed Expr) -> Expr
-[$sel:eqOp:LocationExpr] :: Expr -> EqOp
-[$sel:lhs:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:rhs:LocationExpr] :: Expr -> Located (Typed Expr)
-NegOpExpr :: NegOp -> Located (Typed Expr) -> Expr
-[$sel:negOp:LocationExpr] :: Expr -> NegOp
-[$sel:expr:LocationExpr] :: Expr -> Located (Typed Expr)
-NotOpExpr :: NotOp -> Located (Typed Expr) -> Expr
-[$sel:notOp:LocationExpr] :: Expr -> NotOp
-[$sel:expr:LocationExpr] :: Expr -> Located (Typed Expr)
-ChoiceOpExpr :: ChoiceOp -> Located (Typed Expr) -> Located (Typed Expr) -> Located (Typed Expr) -> Expr
-[$sel:choiceOp:LocationExpr] :: Expr -> ChoiceOp
-[$sel:expr1:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:expr2:LocationExpr] :: Expr -> Located (Typed Expr)
-[$sel:expr3:LocationExpr] :: Expr -> Located (Typed Expr)
-LengthExpr :: Name -> Expr
-[$sel:name:LocationExpr] :: Expr -> Name
+Expr :: Expr_ -> Type -> Range -> Expr
+[$sel:expr_:Expr] :: Expr -> Expr_
+[$sel:tpe:Expr] :: Expr -> Type
+[$sel:loc:Expr] :: Expr -> Range
+data Expr_
+LocationExpr :: Location -> Expr_
+[$sel:location:LocationExpr] :: Expr_ -> Location
+MethodCallExpr :: MethodCall -> Expr_
+[$sel:methodCall:LocationExpr] :: Expr_ -> MethodCall
+ExternCallExpr :: Name -> [Expr] -> Expr_
+[$sel:name:LocationExpr] :: Expr_ -> Name
+[$sel:args:LocationExpr] :: Expr_ -> [Expr]
+IntLiteralExpr :: Int64 -> Expr_
+[$sel:intVal:LocationExpr] :: Expr_ -> Int64
+BoolLiteralExpr :: Bool -> Expr_
+[$sel:boolVal:LocationExpr] :: Expr_ -> Bool
+CharLiteralExpr :: Char -> Expr_
+[$sel:charVal:LocationExpr] :: Expr_ -> Char
+StringLiteralExpr :: Text -> Expr_
+[$sel:strVal:LocationExpr] :: Expr_ -> Text
+ArithOpExpr :: ArithOp -> Expr -> Expr -> Expr_
+[$sel:arithOp:LocationExpr] :: Expr_ -> ArithOp
+[$sel:lhs:LocationExpr] :: Expr_ -> Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> Expr
+RelOpExpr :: RelOp -> Expr -> Expr -> Expr_
+[$sel:relOp:LocationExpr] :: Expr_ -> RelOp
+[$sel:lhs:LocationExpr] :: Expr_ -> Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> Expr
+CondOpExpr :: CondOp -> Expr -> Expr -> Expr_
+[$sel:condOp:LocationExpr] :: Expr_ -> CondOp
+[$sel:lhs:LocationExpr] :: Expr_ -> Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> Expr
+EqOpExpr :: EqOp -> Expr -> Expr -> Expr_
+[$sel:eqOp:LocationExpr] :: Expr_ -> EqOp
+[$sel:lhs:LocationExpr] :: Expr_ -> Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> Expr
+NegOpExpr :: NegOp -> Expr -> Expr_
+[$sel:negOp:LocationExpr] :: Expr_ -> NegOp
+[$sel:expr:LocationExpr] :: Expr_ -> Expr
+NotOpExpr :: NotOp -> Expr -> Expr_
+[$sel:notOp:LocationExpr] :: Expr_ -> NotOp
+[$sel:expr:LocationExpr] :: Expr_ -> Expr
+ChoiceOpExpr :: ChoiceOp -> Expr -> Expr -> Expr -> Expr_
+[$sel:choiceOp:LocationExpr] :: Expr_ -> ChoiceOp
+[$sel:expr1:LocationExpr] :: Expr_ -> Expr
+[$sel:expr2:LocationExpr] :: Expr_ -> Expr
+[$sel:expr3:LocationExpr] :: Expr_ -> Expr
+LengthExpr :: Name -> Expr_
+[$sel:name:LocationExpr] :: Expr_ -> Name
 data Typed a
 Typed :: a -> Type -> Typed a
 [$sel:ele:Typed] :: Typed a -> a
 [$sel:tpe:Typed] :: Typed a -> Type
 data Block
-Block :: [Located FieldDecl] -> [Located Statement] -> ScopeID -> Block
-[$sel:vars:Block] :: Block -> [Located FieldDecl]
-[$sel:stmts:Block] :: Block -> [Located Statement]
+Block :: [FieldDecl] -> [Statement] -> ScopeID -> Block
+[$sel:vars:Block] :: Block -> [FieldDecl]
+[$sel:stmts:Block] :: Block -> [Statement]
 [$sel:blockID:Block] :: Block -> ScopeID
 instance GHC.Classes.Eq AST.RelOp
 instance GHC.Show.Show AST.RelOp
@@ -509,14 +654,19 @@ instance GHC.Show.Show AST.Argument
 instance GHC.Generics.Generic AST.Argument
 instance GHC.Show.Show AST.MethodSig
 instance GHC.Generics.Generic AST.MethodSig
-instance GHC.Show.Show a => GHC.Show.Show (AST.Typed a)
-instance GHC.Generics.Generic (AST.Typed a)
-instance GHC.Show.Show AST.Expr
-instance GHC.Generics.Generic AST.Expr
+instance GHC.Generics.Generic AST.Location
 instance GHC.Show.Show AST.MethodCall
 instance GHC.Generics.Generic AST.MethodCall
+instance GHC.Show.Show AST.Expr
+instance GHC.Generics.Generic AST.Expr
+instance GHC.Show.Show AST.Expr_
+instance GHC.Generics.Generic AST.Expr_
 instance GHC.Show.Show AST.Assignment
 instance GHC.Generics.Generic AST.Assignment
+instance GHC.Show.Show a => GHC.Show.Show (AST.Typed a)
+instance GHC.Generics.Generic (AST.Typed a)
+instance GHC.Show.Show AST.Statement_
+instance GHC.Generics.Generic AST.Statement_
 instance GHC.Show.Show AST.Statement
 instance GHC.Generics.Generic AST.Statement
 instance GHC.Show.Show AST.Block
@@ -549,6 +699,7 @@ lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe MethodSig -> Maybe (Ei
 lookupLocalMethodFromST :: Name -> SymbolTable -> Maybe (Either ImportDecl MethodDecl)
 instance GHC.Classes.Eq Semantic.BlockType
 instance GHC.Show.Show Semantic.BlockType
+instance GHC.Generics.Generic Semantic.SymbolTable
 instance GHC.Show.Show Semantic.SemanticState
 instance Control.Monad.State.Class.MonadState Semantic.SemanticState Semantic.Semantic
 instance Control.Monad.Writer.Class.MonadWriter [Semantic.SemanticError] Semantic.Semantic
@@ -561,12 +712,12 @@ instance GHC.Show.Show Semantic.SemanticException
 instance GHC.Show.Show Semantic.SemanticError
 
 module SSA
-type VID = Int
 data Var
-Var :: Type -> Maybe FieldDecl -> Maybe Range -> Var
+Var :: VID -> Type -> Maybe FieldDecl -> Range -> Var
+[$sel:id:Var] :: Var -> VID
 [$sel:tpe:Var] :: Var -> Type
 [$sel:astDecl:Var] :: Var -> Maybe FieldDecl
-[$sel:loc:Var] :: Var -> Maybe Range
+[$sel:loc:Var] :: Var -> Range
 data VarOrImm
 BoolImm :: Bool -> VarOrImm
 IntImm :: Int -> VarOrImm
@@ -627,13 +778,10 @@ instance GHC.Show.Show SSA.Var
 instance GHC.Show.Show SSA.VarOrImm
 instance GHC.Show.Show SSA.SSA
 
-module CFG
-type Label = Text
-type BBID = Int
-type VID = Int
+module CFG.PartialCFG
 data Condition
-Pred :: Typed Expr -> Condition
-[$sel:pred:Pred] :: Condition -> Typed Expr
+Pred :: Expr -> Condition
+[$sel:pred:Pred] :: Condition -> Expr
 Complement :: Condition
 data CFGContext
 CFGContext :: Map ScopeID SymbolTable -> CFGContext
@@ -647,8 +795,11 @@ data CFGNode
 CFGNode :: BasicBlock -> CFGNode
 [$sel:bb:CFGNode] :: CFGNode -> BasicBlock
 data CFGEdge
-SeqEdge :: CFGEdge
-CondEdge :: Condition -> CFGEdge
+SeqEdge :: ScopeID -> CFGEdge
+[$sel:sid:SeqEdge] :: CFGEdge -> ScopeID
+CondEdge :: ScopeID -> Condition -> CFGEdge
+[$sel:sid:SeqEdge] :: CFGEdge -> ScopeID
+[$sel:cond:SeqEdge] :: CFGEdge -> Condition
 type CFG = Graph BBID CFGNode CFGEdge
 type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
 data CFGState
@@ -672,20 +823,82 @@ checkStmts :: CFGBuild ()
 removeEmptySeqNode :: CFGBuild ()
 buildMethod :: MethodDecl -> CFGBuild CFG
 buildBlock :: Block -> CFGBuild (BBID, BBID)
-buildStatement :: BBID -> Located Statement -> CFGBuild BBID
+buildStatement :: BBID -> Statement -> CFGBuild BBID
 prettyPrintNode :: CFGNode -> Text
 escape :: Text -> Text
 prettyPrintEdge :: CFGEdge -> Text
 generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
 plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
+instance GHC.Show.Show CFG.PartialCFG.Condition
+instance GHC.Show.Show CFG.PartialCFG.BasicBlock
+instance GHC.Generics.Generic CFG.PartialCFG.BasicBlock
+instance GHC.Show.Show CFG.PartialCFG.CFGNode
+instance GHC.Generics.Generic CFG.PartialCFG.CFGNode
+instance GHC.Show.Show CFG.PartialCFG.CFGEdge
+instance GHC.Generics.Generic CFG.PartialCFG.CFGEdge
+instance GHC.Show.Show CFG.PartialCFG.CFGState
+instance GHC.Generics.Generic CFG.PartialCFG.CFGState
+instance GHC.Show.Show CFG.PartialCFG.CFGExcept
+instance Control.Monad.State.Class.MonadState CFG.PartialCFG.CFGState CFG.PartialCFG.CFGBuild
+instance Control.Monad.Reader.Class.MonadReader CFG.PartialCFG.CFGContext CFG.PartialCFG.CFGBuild
+instance Control.Monad.Error.Class.MonadError CFG.PartialCFG.CFGExcept CFG.PartialCFG.CFGBuild
+instance GHC.Base.Monad CFG.PartialCFG.CFGBuild
+instance GHC.Base.Applicative CFG.PartialCFG.CFGBuild
+instance GHC.Base.Functor CFG.PartialCFG.CFGBuild
+
+module CFG
+data VarBiMap
+VarBiMap :: Map VID (ScopeID, Name) -> Map (ScopeID, Name) VID -> VarBiMap
+[$sel:varToSym:VarBiMap] :: VarBiMap -> Map VID (ScopeID, Name)
+[$sel:symToVar:VarBiMap] :: VarBiMap -> Map (ScopeID, Name) VID
+addVarSym :: ScopeID -> Name -> VID -> VarBiMap -> VarBiMap
+lookupVar :: VID -> VarBiMap -> Maybe (ScopeID, Name)
+lookupSym :: ScopeID -> Name -> VarBiMap -> Maybe VID
+data Condition
+Pred :: VarOrImm -> Condition
+[$sel:pred:Pred] :: Condition -> VarOrImm
+Complement :: Condition
+data BasicBlock
+BasicBlock :: BBID -> ScopeID -> [SSA] -> BasicBlock
+[$sel:bbid:BasicBlock] :: BasicBlock -> BBID
+[$sel:sid:BasicBlock] :: BasicBlock -> ScopeID
+[$sel:statements:BasicBlock] :: BasicBlock -> [SSA]
+data CFGNode
+CFGNode :: BasicBlock -> CFGNode
+[$sel:bb:CFGNode] :: CFGNode -> BasicBlock
+data CFGEdge
+SeqEdge :: CFGEdge
+CondEdge :: Condition -> CFGEdge
+type CFG = Graph BBID CFGNode CFGEdge
+type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
+data CFGState
+CFGState :: CFG -> ScopeID -> VarList -> VarBiMap -> Map BBID Var -> CFGState
+[$sel:cfg:CFGState] :: CFGState -> CFG
+[$sel:scope:CFGState] :: CFGState -> ScopeID
+[$sel:vars:CFGState] :: CFGState -> VarList
+[$sel:symMap:CFGState] :: CFGState -> VarBiMap
+[$sel:exitVar:CFGState] :: CFGState -> Map BBID Var
+data CFGContext
+CFGContext :: Map ScopeID SymbolTable -> CFGContext
+[$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
+newtype CFGExcept
+CFGExcept :: Text -> CFGExcept
+newtype CFGBuild a
+CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuild a
+[$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
+setScope :: ScopeID -> CFGBuild ()
+getVarSymbol :: Name -> CFGBuild FieldDecl
+newVar :: Maybe Name -> Range -> Type -> CFGBuild Var
+findVarOfSym :: Name -> CFGBuild (Maybe Var)
+findVarOfSym' :: Name -> CFGBuild Var
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock
 instance GHC.Show.Show CFG.CFGNode
 instance GHC.Generics.Generic CFG.CFGNode
 instance GHC.Show.Show CFG.CFGEdge
-instance GHC.Show.Show CFG.CFGState
 instance GHC.Generics.Generic CFG.CFGState
+instance GHC.Generics.Generic CFG.CFGContext
 instance GHC.Show.Show CFG.CFGExcept
 instance Control.Monad.State.Class.MonadState CFG.CFGState CFG.CFGBuild
 instance Control.Monad.Reader.Class.MonadReader CFG.CFGContext CFG.CFGBuild

@@ -13,7 +13,7 @@ module CFG where
 
 import AST qualified
 import CFG.PartialCFG qualified as PCFG
-import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.))
+import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.), _1)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -30,6 +30,7 @@ import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
+import qualified Data.GraphViz.Types.Graph as G
 
 data VarBiMap = VarBiMap
   { varToSym :: Map VID (ScopeID, Name),
@@ -82,6 +83,9 @@ data CFGState = CFGState
     statements :: [SSA]
   }
   deriving (Generic)
+
+initialState :: CFGState
+initialState = CFGState G.empty 0 [] (VarBiMap Map.empty Map.empty) []
 
 data CFGContext = CFGContext
   { symbolTables :: Map ScopeID SE.SymbolTable
@@ -153,11 +157,21 @@ findVarOfSym' name = do
     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable " % stext) name
     Just v -> return v
 
--- buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
--- buildCFG (AST.ASTRoot _ _ methods) context = _
+buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
+buildCFG root@(AST.ASTRoot _ _ methods) context =
+  let pcfgs = PCFG.buildCFG root (PCFG.CFGContext $ context ^. #symbolTables)
+  in
+    case pcfgs of
+      Left (PCFG.CFGExcept msg) -> Left $ CFGExcept msg
+      Right cfgs -> let buildMethods = mapM buildMethod cfgs
+                        runBuild = runState $ flip runReaderT context $
+                          runExceptT $ runCFGBuild buildMethods
+                    in runBuild initialState ^. _1
 
-buildMethod :: PCFG.CFG -> CFGBuild ()
-buildMethod g@(G.Graph nodes edges) = G.traverseM_ buildNode g
+buildMethod :: PCFG.CFG -> CFGBuild CFG
+buildMethod g@(G.Graph nodes edges) = do
+  G.traverseM_ buildNode g
+  use #cfg
 
 buildNode :: BBID -> PCFG.CFGNode -> CFGBuild CFGNode
 buildNode _ PCFG.CFGNode {bb = (PCFG.BasicBlock bbid sid stmts)} = do

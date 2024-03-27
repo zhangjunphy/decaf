@@ -29,7 +29,7 @@ import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Parser.Scanner as Scanner
 import qualified Semantic
-import qualified CFG.PartialCFG as PartialCFG
+import qualified CFG
 import System.Environment (getProgName)
 import qualified System.Exit
 import System.IO
@@ -150,9 +150,12 @@ cfg configuration input =
   let irAndError = do
         tree <- Parser.parse input
         Semantic.runSemanticAnalysis tree
-      result = case irAndError of
+      ast = case irAndError of
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err
         Right (root, _, st) -> Right (root, st)
-      dot = result >>= \(root, st) -> PartialCFG.plot root st
+      cfg = ast >>= \(root, st) ->
+        case CFG.buildCFG root (CFG.CFGContext st) of
+          Left _ -> _
+      --dot = result >>= \(root, st) -> PartialCFG.plot root st
   in outputStageResult configuration dot

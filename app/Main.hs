@@ -25,6 +25,7 @@ import qualified Data.ByteString.Lazy as B
 import Data.Functor ((<&>))
 import Data.List
 import Data.Text (Text)
+import qualified Data.Text as Text
 import GHC.IO.Handle (hDuplicate)
 import qualified Parser
 import qualified Parser.Scanner as Scanner
@@ -154,8 +155,6 @@ cfg configuration input =
         Left exception -> Left [exception]
         Right (_, err, _) | not (null err) -> Left $ show <$> err
         Right (root, _, st) -> Right (root, st)
-      cfg = ast >>= \(root, st) ->
-        case CFG.buildCFG root (CFG.CFGContext st) of
-          Left _ -> _
+      cfg = ast >>= uncurry CFG.plot
       --dot = result >>= \(root, st) -> PartialCFG.plot root st
-  in outputStageResult configuration dot
+  in outputStageResult configuration cfg

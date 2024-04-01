@@ -49,4 +49,5 @@ data SSA
   | Not {dst :: Var, notOp :: NotOp, oprand :: VarOrImm}
   | Choice {dst :: Var, choiceOp :: ChoiceOp, pred :: VarOrImm, opl :: VarOrImm, opr :: VarOrImm}
   | Len {dst :: Var, arr :: Var}
+  | Phi {pred :: VarOrImm}
   deriving (Show)

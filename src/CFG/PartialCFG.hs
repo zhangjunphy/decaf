@@ -144,37 +144,6 @@ checkStmts = do
   stmts <- use #statements
   unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
 
-removeEmptySeqNode :: CFGBuild ()
-removeEmptySeqNode = do
-  g@G.Graph {nodes = nodes} <- gets cfg
-  let emptySeqNodes =
-        filter
-          (\(ni, nd) -> isEmptyNode nd && isSeqOut ni g)
-          $ Map.assocs nodes
-  let gUpdate =
-        mapM_
-          ( \(ni, _) -> do
-              let inEdges = G.inBound ni g
-                  outEdge = head $ G.outBound ni g
-               in bridgeEdges ni inEdges outEdge
-          )
-          emptySeqNodes
-  updateCFG gUpdate
-  where
-    isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
-    isSeqOut ni g =
-      let outEdges = G.outBound ni g
-       in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
-    bridgeEdges mid inEdges (out, _) =
-      forM_
-        inEdges
-        ( \(ni, ed) -> do
-            G.deleteNode mid
-            G.addEdge ni out ed
-        )
-    isSeqEdge (SeqEdge _) = True
-    isSeqEdge _ = False
-
 -- CFG Builders
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod method@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
@@ -249,54 +218,3 @@ buildStatement head stmt = do
   appendStatement stmt
   return head
 
-prettyPrintNode :: CFGNode -> Text
-prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =
-  let idText = [sformat ("id: " % int) id]
-      segments = stmts <&> \s -> sformat shown s
-   in Text.intercalate "\n" $ idText ++ segments
-
-escape :: Text -> Text
-escape str =
-  Text.concatMap
-    ( \w -> case w of
-        '\\' -> "\\\\"
-        '"' -> "\\\""
-        c -> Text.singleton c
-    )
-    str
-
-prettyPrintEdge :: CFGEdge -> Text
-prettyPrintEdge (SeqEdge _) = ""
-prettyPrintEdge (CondEdge _ (Pred AST.Expr{expr_=ele})) = sformat shown ele
-prettyPrintEdge (CondEdge _ Complement) = "otherwise"
-
-generateDotPlot :: G.Graph BBID CFGNode CFGEdge -> Text
-generateDotPlot G.Graph {nodes = nodes, edges = edges} =
-  let preamble = "digraph G {\n"
-      postamble = "}"
-      nodeBoxes = Map.assocs nodes <&> uncurry nodeBox
-      edgeLines =
-        concatMap
-          (\(from, tos) -> tos <&> \(to, d) -> edgeLine from to d)
-          $ Map.assocs edges
-   in mconcat $ [preamble] ++ nodeBoxes ++ edgeLines ++ [postamble]
-  where
-    nodeBox idx d =
-      sformat
-        (int % " [shape=box, label=\"" % stext % "\"];\n")
-        idx
-        (escape (prettyPrintNode d))
-    edgeLine from to d =
-      sformat
-        (int % " -> " % int % " [label=\"" % stext % "\"];\n")
-        from
-        to
-        (escape (prettyPrintEdge d))
-
-plot :: AST.ASTRoot -> Map ScopeID SE.SymbolTable -> Either [String] String
-plot root st =
-  let context = CFGContext st
-      res = buildCFG root context
-   in case res of
-        Left (CFGExcept msg) -> Left [Text.unpack msg]
-        Right cfgs -> Right $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot

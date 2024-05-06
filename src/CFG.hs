@@ -20,7 +20,7 @@ import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromJust)
+import Data.Maybe (fromJust, isJust, fromMaybe)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Formatting
@@ -85,8 +85,8 @@ data CFGState = CFGState
   }
   deriving (Generic)
 
-initialState :: CFGState
-initialState = CFGState G.empty 0 0 [] (VarBiMap Map.empty Map.empty) []
+initialState :: ScopeID -> CFGState
+initialState sid = CFGState G.empty sid 0 [] (VarBiMap Map.empty Map.empty) []
 
 -- Helps for CFGBuild monad
 consumeBBID :: CFGBuild BBID
@@ -228,7 +228,7 @@ buildCFG (AST.ASTRoot _ _ methods) context =
             runExceptT $
               runCFGBuild (buildMethod method)
       updateMap map m =
-        let (r, _) = build m $ initialCFGState $ m ^. (#block . #blockID)
+        let (r, _) = build m $ initialState $ m ^. (#block . #blockID)
          in case r of
               Left e -> Left e
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
@@ -254,22 +254,30 @@ buildBlock block@AST.Block {stmts = stmts} = do
     if stmtTail == head
       then do
         id <- createIsolateBB
-        sid <- use #astScope
-        updateCFG (G.addEdge head id $ SeqEdge sid)
+        updateCFG (G.addEdge head id SeqEdge)
         return id
       else return stmtTail
   return (head, tail)
 
 buildStatement :: BBID -> AST.Statement -> CFGBuild BBID 
-buildStatement prev (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
+buildStatement currentBB (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
   dst <- newVar (Just name) loc tpe
   src <- buildExpr expr
   addSSA $ Assignment dst (Variable src)
-buildStatement (AST.Statement (AST.IfStmt expr _ _) loc) =  do
+  return currentBB
+buildStatement currentBB (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) =  do
   let (AST.Expr _ predTpe predLoc) = expr
   predVar <- newVar Nothing predLoc predTpe
+  tail <- createIsolateBB
   addSSA $ Phi (Variable predVar)
-buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
+  (ifHead, ifTail) <- buildBlock ifBlock
+  do updateCFG (G.addEdge currentBB ifHead $ CondEdge (Pred $ Variable predVar))
+  case maybeElseBlock of
+    (Just elseBlock) -> do
+      (elseHead, elseTail) <- buildBlock elseBlock
+      do updateCFG (G.addEdge currentBB elseHead $ CondEdge Complement)
+    Nothing -> ()
+buildStatement prev (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
   _
 
 buildExpr :: AST.Expr -> CFGBuild Var

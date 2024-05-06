@@ -149,7 +149,7 @@ buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod method@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
   checkStmts
   buildBlock block
-  removeEmptySeqNode
+  -- removeEmptySeqNode
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)

@@ -14,21 +14,23 @@ module SSA where
 import AST (ArithOp, AssignOp, ChoiceOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified
 import Control.Monad.State
+import Data.Int (Int64)
 import Data.Text (Text)
-import Util.SourceLoc qualified as SL
 import Types
+import Util.SourceLoc qualified as SL
 
 data Var = Var
   { id :: VID,
     tpe :: Type,
-    astDecl :: Maybe AST.FieldDecl,
+    astDecl :: Maybe (Either AST.Argument AST.FieldDecl),
     loc :: SL.Range
   }
   deriving (Show)
 
 data VarOrImm
   = BoolImm Bool
-  | IntImm Int
+  | IntImm Int64
+  | CharImm Char
   | StringImm Text
   | Variable Var
   deriving (Show)
@@ -37,7 +39,7 @@ type VarList = [Var]
 
 data SSA
   = Assignment {dst :: Var, src :: VarOrImm}
-  | MethodCall {dst :: Var, arguments :: [Var]}
+  | MethodCall {dst :: Var, name :: Name, arguments :: [Var]}
   | Return {ret :: Var}
   | ArrayDeref {dst :: Var, arr :: Var, idx :: VarOrImm}
   | Store {arr :: Var, idx :: VarOrImm, src :: VarOrImm}

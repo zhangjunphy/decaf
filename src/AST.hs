@@ -67,7 +67,8 @@ data AssignOp
   deriving (Show, Eq)
 
 data Type
-  = IntType
+  = Void
+  | IntType
   | BoolType
   | StringType
   | ArrayType Type Int64

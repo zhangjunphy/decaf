@@ -12,30 +12,36 @@
 module CFG where
 
 import AST qualified
+import Control.Applicative ((<|>))
 import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.), _1)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Functor ((<&>))
+import Data.GraphViz.Types.Graph qualified as GV
 import Data.Map (Map)
 import Data.Map qualified as Map
-import Data.Maybe (fromJust, isJust, fromMaybe)
+import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Text qualified as Text
 import Formatting
 import GHC.Generics (Generic)
 import SSA
+import Semantic (lookupLocalMethodFromST)
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
-import qualified Data.GraphViz.Types.Graph as GV
+import Control.Exception (throw)
+import Data.Generics.Labels
+
+import Debug.Trace
 
 data VarBiMap = VarBiMap
   { varToSym :: Map VID (ScopeID, Name),
     symToVar :: Map (ScopeID, Name) VID
-  }
+  } deriving (Show)
 
 addVarSym :: ScopeID -> Name -> VID -> VarBiMap -> VarBiMap
 addVarSym sid name vid (VarBiMap varToSym symToVar) =
@@ -78,21 +84,22 @@ type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge
 data CFGState = CFGState
   { cfg :: CFG,
     astScope :: ScopeID,
-    nextBBID :: BBID,
+    sig :: AST.MethodSig,
+    currentBBID :: BBID,
     vars :: VarList,
     symMap :: VarBiMap,
     statements :: [SSA]
   }
   deriving (Generic)
 
-initialState :: ScopeID -> CFGState
-initialState sid = CFGState G.empty sid 0 [] (VarBiMap Map.empty Map.empty) []
+initialState :: ScopeID -> AST.MethodSig -> CFGState
+initialState sid sig = CFGState G.empty sid sig 0 [] (VarBiMap Map.empty Map.empty) []
 
 -- Helps for CFGBuild monad
 consumeBBID :: CFGBuild BBID
 consumeBBID = do
-  bbid <- use #nextBBID
-  #nextBBID += 1
+  bbid <- use #currentBBID
+  #currentBBID += 1
   return bbid
 
 updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
@@ -102,7 +109,6 @@ updateCFG update = do
   case g' of
     Left m -> throwError $ CFGExcept m
     Right g -> #cfg .= g
-
 
 data CFGContext = CFGContext
   { symbolTables :: Map ScopeID SE.SymbolTable
@@ -132,15 +138,21 @@ setASTScope :: ScopeID -> CFGBuild ()
 setASTScope sid = do
   #astScope .= sid
 
-getVarSymbol :: Name -> CFGBuild AST.FieldDecl
-getVarSymbol name = do
+getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
+getVarDecl name = do
   sid <- use #astScope
   sts <- view #symbolTables
-  let st = fromJust $ Map.lookup sid sts
-  return $ fromJust $ Map.lookup name (st ^. #variableSymbols)
+  sig <- use #sig
+  case Map.lookup sid sts of
+    Nothing -> throwError $ CFGExcept (sformat ("Unable to find scope " % int) sid)
+    Just st -> return $ lookup name st
+  where
+    lookup name st' =
+      (SE.lookupLocalVariableFromST name st')
+        <|> (SE.parent st' >>= lookup name)
 
-createIsolateBB :: CFGBuild BBID
-createIsolateBB = do
+finishCurrentBB :: CFGBuild BBID
+finishCurrentBB = do
   bbid <- consumeBBID
   stmts <- use #statements
   sid <- use #astScope
@@ -185,19 +197,23 @@ removeEmptySeqNode = do
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False
 
-newVar :: Maybe Name -> SL.Range -> AST.Type -> CFGBuild Var
-newVar Nothing sl tpe = do
+newVar :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
+newVar Nothing tpe sl = do
   vars <- use #vars
   let vid = length vars
   let var = Var vid tpe Nothing sl
   #vars .= vars ++ [var]
   return var
-newVar (Just name) sl tpe = do
+newVar (Just name) tpe sl = do
   vars <- use #vars
   let vid = length vars
-  decl <- getVarSymbol name
-  let var = Var vid tpe (Just decl) sl
+  decl <- getVarDecl name
+  sid <- use #astScope
+  when (isNothing decl) $ throwError (CFGExcept $ sformat ("Unable to find decl of variable " % stext) name)
+  let var = Var vid tpe decl sl
   #vars .= vars ++ [var]
+  symMap <- use #symMap
+  #symMap .= addVarSym sid name vid symMap
   return var
 
 addSSA :: SSA -> CFGBuild ()
@@ -210,8 +226,16 @@ findVarOfSym name = do
   sid <- use #astScope
   varBiMap <- use #symMap
   vars <- use #vars
-  let vid = lookupSym sid name varBiMap
+  sts <- view #symbolTables
+  st <- case Map.lookup sid sts of
+    Nothing -> throwError (CFGExcept $ sformat ("Unable to find scope " % int) sid)
+    Just st -> return st
+  let sidDef = lookupSid name st
+  let vid = sidDef >>= \id -> lookupSym id name varBiMap
   return $ vid <&> (vars !!)
+  where
+    lookupSid name st' = (SE.lookupLocalVariableFromST name st' <&> \_ -> st' ^. #scopeID)
+      <|> (SE.parent st' >>= lookupSid name)
 
 findVarOfSym' :: Name -> CFGBuild Var
 findVarOfSym' name = do
@@ -221,21 +245,27 @@ findVarOfSym' name = do
     Just v -> return v
 
 buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
-buildCFG (AST.ASTRoot _ _ methods) context =
+buildCFG root@(AST.ASTRoot _ _ methods) context =
   let build method =
         runState $
           flip runReaderT context $
             runExceptT $
-              runCFGBuild (buildMethod method)
+              runCFGBuild (populateGlobals root >> buildMethod method)
       updateMap map m =
-        let (r, _) = build m $ initialState $ m ^. (#block . #blockID)
+        let (r, _) = build m $ initialState (m ^. (#block . #blockID)) (m ^. #sig)
          in case r of
               Left e -> Left e
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
    in foldM updateMap Map.empty methods
 
-
 -- Build cfg from ast fragments
+
+populateGlobals :: AST.ASTRoot -> CFGBuild ()
+populateGlobals root@(AST.ASTRoot _ globals _) = do
+  sid <- use #astScope
+  setASTScope 0
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) globals
+  setASTScope sid
 
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
@@ -248,48 +278,149 @@ buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
 buildBlock block@AST.Block {stmts = stmts} = do
   checkStmts
   -- always create an empty BB at the start
-  head <- createIsolateBB
-  stmtTail <- foldM buildStatement head stmts
-  tail <-
-    if stmtTail == head
+  head <- finishCurrentBB
+  current <- use #currentBBID
+  -- handle variable definitions
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) (block ^. #vars)
+  -- handl statements
+  stmtTail <- mapM buildStatement stmts <&> \ids -> case ids of
+    [] -> current
+    _ -> last ids
+  tail <- if stmtTail == current
       then do
-        id <- createIsolateBB
+        id <- finishCurrentBB
         updateCFG (G.addEdge head id SeqEdge)
         return id
       else return stmtTail
   return (head, tail)
 
-buildStatement :: BBID -> AST.Statement -> CFGBuild BBID 
-buildStatement currentBB (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
-  dst <- newVar (Just name) loc tpe
+buildStatement :: AST.Statement -> CFGBuild BBID
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location op (Just expr) _)) _) = do
+  dst <- buildLocation location
   src <- buildExpr expr
   addSSA $ Assignment dst (Variable src)
-  return currentBB
-buildStatement currentBB (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) =  do
+  use #currentBBID
+buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
+  buildMethodCall call AST.Void
+  use #currentBBID
+buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   let (AST.Expr _ predTpe predLoc) = expr
-  predVar <- newVar Nothing predLoc predTpe
-  tail <- createIsolateBB
-  addSSA $ Phi (Variable predVar)
+  predVar <- newVar Nothing predTpe predLoc
+  -- addSSA $ Phi (Variable predVar)
+  prevBB <- finishCurrentBB
   (ifHead, ifTail) <- buildBlock ifBlock
-  do updateCFG (G.addEdge currentBB ifHead $ CondEdge (Pred $ Variable predVar))
+  g <- use #cfg
+  do updateCFG (G.addEdge prevBB ifHead $ CondEdge (Pred $ Variable predVar))
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
-      do updateCFG (G.addEdge currentBB elseHead $ CondEdge Complement)
-    Nothing -> ()
-buildStatement prev (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
-  _
+      tail <- finishCurrentBB
+      do
+        updateCFG (G.addEdge prevBB elseHead $ CondEdge Complement)
+        updateCFG (G.addEdge ifTail tail SeqEdge)
+        updateCFG (G.addEdge elseTail tail SeqEdge)
+      return tail
+    Nothing -> do
+      tail <- finishCurrentBB
+      do
+        updateCFG (G.addEdge prevBB tail $ CondEdge Complement)
+        updateCFG (G.addEdge ifTail tail SeqEdge)
+      return tail
+-- buildStatement prev (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
+--   _
+buildStatement _ = use #currentBBID
 
 buildExpr :: AST.Expr -> CFGBuild Var
 buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildLocation location
+buildExpr (AST.Expr (AST.MethodCallExpr call) tpe _) = buildMethodCall call tpe
+buildExpr (AST.Expr (AST.ExternCallExpr name args) tpe loc) =
+  buildMethodCall (AST.MethodCall name args loc) tpe
+buildExpr (AST.Expr (AST.IntLiteralExpr val) tpe loc) = do
+  dst <- newVar Nothing tpe loc
+  addSSA $ Assignment dst (IntImm val)
+  return dst
+buildExpr (AST.Expr (AST.BoolLiteralExpr val) tpe loc) = do
+  dst <- newVar Nothing tpe loc
+  addSSA $ Assignment dst (BoolImm val)
+  return dst
+buildExpr (AST.Expr (AST.CharLiteralExpr val) tpe loc) = do
+  dst <- newVar Nothing tpe loc
+  addSSA $ Assignment dst (CharImm val)
+  return dst
+buildExpr (AST.Expr (AST.StringLiteralExpr val) tpe loc) = do
+  dst <- newVar Nothing tpe loc
+  addSSA $ Assignment dst (StringImm val)
+  return dst
+buildExpr (AST.Expr (AST.ArithOpExpr op lhs rhs) tpe loc) = do
+  lhs' <- buildExpr lhs
+  rhs' <- buildExpr rhs
+  dst <- newVar Nothing tpe loc
+  addSSA $ Arith dst op (Variable lhs') (Variable rhs')
+  return dst
+buildExpr (AST.Expr (AST.RelOpExpr op lhs rhs) tpe loc) = do
+  lhs' <- buildExpr lhs
+  rhs' <- buildExpr rhs
+  dst <- newVar Nothing tpe loc
+  addSSA $ Rel dst op (Variable lhs') (Variable rhs')
+  return dst
+buildExpr (AST.Expr (AST.CondOpExpr op lhs rhs) tpe loc) = do
+  lhs' <- buildExpr lhs
+  rhs' <- buildExpr rhs
+  dst <- newVar Nothing tpe loc
+  addSSA $ Cond dst op (Variable lhs') (Variable rhs')
+  return dst
+buildExpr (AST.Expr (AST.EqOpExpr op lhs rhs) tpe loc) = do
+  lhs' <- buildExpr lhs
+  rhs' <- buildExpr rhs
+  dst <- newVar Nothing tpe loc
+  addSSA $ Eq dst op (Variable lhs') (Variable rhs')
+  return dst
+buildExpr (AST.Expr (AST.NegOpExpr op opr) tpe loc) = do
+  opr' <- buildExpr opr
+  dst <- newVar Nothing tpe loc
+  addSSA $ Neg dst op (Variable opr')
+  return dst
+buildExpr (AST.Expr (AST.NotOpExpr op opr) tpe loc) = do
+  opr' <- buildExpr opr
+  dst <- newVar Nothing tpe loc
+  addSSA $ Not dst op (Variable opr')
+  return dst
+buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
+  e1' <- buildExpr e1
+  e2' <- buildExpr e2
+  e3' <- buildExpr e3
+  dst <- newVar Nothing tpe loc
+  addSSA $ Choice dst op (Variable e1') (Variable e2') (Variable e3')
+  return dst
+buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
+  array <- findVarOfSym' name
+  arrType <- case astDecl array of
+    Nothing -> throwError $ CFGExcept "Unable to find array def"
+    Just (Left (AST.Argument _ arrTpe _)) -> return arrTpe
+    Just (Right (AST.FieldDecl _ arrTpe _)) -> return arrTpe
+  case arrType of
+    AST.ArrayType _ len -> do
+      dst <- newVar Nothing tpe loc
+      addSSA $ Assignment dst (IntImm len)
+      return dst
+    _ ->
+      throwError $
+        CFGExcept (sformat ("Variable is not an array: " % stext) name)
 
 buildLocation :: AST.Location -> CFGBuild Var
 buildLocation (AST.Location name Nothing def tpe loc) = findVarOfSym' name
 buildLocation (AST.Location name (Just expr) def tpe loc) = do
   idx <- buildExpr expr
   array <- findVarOfSym' name
-  dst <- newVar (Just name) loc tpe
+  dst <- newVar (Just name) tpe loc
   addSSA $ ArrayDeref dst array (Variable idx)
+  return dst
+
+buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var
+buildMethodCall (AST.MethodCall name args loc) tpe = do
+  dst <- newVar Nothing tpe loc
+  vars <- mapM buildExpr args
+  addSSA $ MethodCall dst name vars
   return dst
 
 -- Generate a dot plot for cfg
@@ -311,7 +442,7 @@ escape str =
     str
 
 prettyPrintEdge :: CFGEdge -> Text
-prettyPrintEdge (SeqEdge) = ""
+prettyPrintEdge SeqEdge = ""
 prettyPrintEdge (CondEdge (Pred var)) = sformat shown var
 prettyPrintEdge (CondEdge Complement) = "otherwise"
 

@@ -1,5 +1,6 @@
 import a;
 import print;
+
 int a[3];
 bool b;
 int c;

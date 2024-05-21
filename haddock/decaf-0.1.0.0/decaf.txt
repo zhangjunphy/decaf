@@ -482,6 +482,7 @@ DecAssign :: AssignOp
 PlusPlus :: AssignOp
 MinusMinus :: AssignOp
 data Type
+Void :: Type
 IntType :: Type
 BoolType :: Type
 StringType :: Type
@@ -567,8 +568,6 @@ MethodCallStmt :: MethodCall -> Statement_
 [$sel:methodCall:AssignStmt] :: Statement_ -> MethodCall
 BreakStmt :: Statement_
 ContinueStmt :: Statement_
-VarDeclStmt :: FieldDecl -> Statement_
-[$sel:field:AssignStmt] :: Statement_ -> FieldDecl
 data Expr
 Expr :: Expr_ -> Type -> Range -> Expr
 [$sel:expr_:Expr] :: Expr -> Expr_
@@ -629,21 +628,14 @@ Block :: [FieldDecl] -> [Statement] -> ScopeID -> Block
 [$sel:stmts:Block] :: Block -> [Statement]
 [$sel:blockID:Block] :: Block -> ScopeID
 instance GHC.Classes.Eq AST.RelOp
-instance GHC.Show.Show AST.RelOp
 instance GHC.Classes.Eq AST.ArithOp
-instance GHC.Show.Show AST.ArithOp
 instance GHC.Classes.Eq AST.EqOp
-instance GHC.Show.Show AST.EqOp
 instance GHC.Classes.Eq AST.CondOp
-instance GHC.Show.Show AST.CondOp
 instance GHC.Classes.Eq AST.NegOp
-instance GHC.Show.Show AST.NegOp
 instance GHC.Classes.Eq AST.NotOp
-instance GHC.Show.Show AST.NotOp
 instance GHC.Classes.Eq AST.ChoiceOp
 instance GHC.Show.Show AST.ChoiceOp
 instance GHC.Classes.Eq AST.AssignOp
-instance GHC.Show.Show AST.AssignOp
 instance GHC.Classes.Eq AST.Type
 instance GHC.Show.Show AST.Type
 instance GHC.Show.Show AST.ImportDecl
@@ -676,16 +668,24 @@ instance GHC.Generics.Generic AST.MethodDecl
 instance GHC.Show.Show AST.ASTRoot
 instance GHC.Generics.Generic AST.ASTRoot
 instance GHC.Show.Show AST.Location
+instance GHC.Show.Show AST.AssignOp
+instance GHC.Show.Show AST.NotOp
+instance GHC.Show.Show AST.NegOp
+instance GHC.Show.Show AST.CondOp
+instance GHC.Show.Show AST.EqOp
+instance GHC.Show.Show AST.ArithOp
+instance GHC.Show.Show AST.RelOp
 
 module Semantic
 runSemanticAnalysis :: Program -> Either String (ASTRoot, [SemanticError], Map ScopeID SymbolTable)
 data SymbolTable
-SymbolTable :: ScopeID -> Maybe SymbolTable -> Maybe (Map Name ImportDecl) -> Map Name FieldDecl -> Maybe (Map Name MethodDecl) -> BlockType -> Maybe MethodSig -> SymbolTable
+SymbolTable :: ScopeID -> Maybe SymbolTable -> Maybe (Map Name ImportDecl) -> Map Name FieldDecl -> Maybe (Map Name MethodDecl) -> Maybe (Map Name Argument) -> BlockType -> Maybe MethodSig -> SymbolTable
 [$sel:scopeID:SymbolTable] :: SymbolTable -> ScopeID
 [$sel:parent:SymbolTable] :: SymbolTable -> Maybe SymbolTable
 [$sel:importSymbols:SymbolTable] :: SymbolTable -> Maybe (Map Name ImportDecl)
 [$sel:variableSymbols:SymbolTable] :: SymbolTable -> Map Name FieldDecl
 [$sel:methodSymbols:SymbolTable] :: SymbolTable -> Maybe (Map Name MethodDecl)
+[$sel:arguments:SymbolTable] :: SymbolTable -> Maybe (Map Name Argument)
 [$sel:blockType:SymbolTable] :: SymbolTable -> BlockType
 [$sel:methodSig:SymbolTable] :: SymbolTable -> Maybe MethodSig
 type ScopeID = Int
@@ -695,7 +695,7 @@ IfBlock :: BlockType
 ForBlock :: BlockType
 WhileBlock :: BlockType
 MethodBlock :: BlockType
-lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe MethodSig -> Maybe (Either Argument FieldDecl)
+lookupLocalVariableFromST :: Name -> SymbolTable -> Maybe (Either Argument FieldDecl)
 lookupLocalMethodFromST :: Name -> SymbolTable -> Maybe (Either ImportDecl MethodDecl)
 instance GHC.Classes.Eq Semantic.BlockType
 instance GHC.Show.Show Semantic.BlockType
@@ -713,23 +713,25 @@ instance GHC.Show.Show Semantic.SemanticError
 
 module SSA
 data Var
-Var :: VID -> Type -> Maybe FieldDecl -> Range -> Var
+Var :: VID -> Type -> Maybe (Either Argument FieldDecl) -> Range -> Var
 [$sel:id:Var] :: Var -> VID
 [$sel:tpe:Var] :: Var -> Type
-[$sel:astDecl:Var] :: Var -> Maybe FieldDecl
+[$sel:astDecl:Var] :: Var -> Maybe (Either Argument FieldDecl)
 [$sel:loc:Var] :: Var -> Range
+type VarList = [Var]
 data VarOrImm
 BoolImm :: Bool -> VarOrImm
-IntImm :: Int -> VarOrImm
+IntImm :: Int64 -> VarOrImm
+CharImm :: Char -> VarOrImm
 StringImm :: Text -> VarOrImm
 Variable :: Var -> VarOrImm
-type VarList = [Var]
 data SSA
 Assignment :: Var -> VarOrImm -> SSA
 [$sel:dst:Assignment] :: SSA -> Var
 [$sel:src:Assignment] :: SSA -> VarOrImm
-MethodCall :: Var -> [Var] -> SSA
+MethodCall :: Var -> Name -> [Var] -> SSA
 [$sel:dst:Assignment] :: SSA -> Var
+[$sel:name:Assignment] :: SSA -> Name
 [$sel:arguments:Assignment] :: SSA -> [Var]
 Return :: Var -> SSA
 [$sel:ret:Assignment] :: SSA -> Var
@@ -737,6 +739,10 @@ ArrayDeref :: Var -> Var -> VarOrImm -> SSA
 [$sel:dst:Assignment] :: SSA -> Var
 [$sel:arr:Assignment] :: SSA -> Var
 [$sel:idx:Assignment] :: SSA -> VarOrImm
+Store :: Var -> VarOrImm -> VarOrImm -> SSA
+[$sel:arr:Assignment] :: SSA -> Var
+[$sel:idx:Assignment] :: SSA -> VarOrImm
+[$sel:src:Assignment] :: SSA -> VarOrImm
 Arith :: Var -> ArithOp -> VarOrImm -> VarOrImm -> SSA
 [$sel:dst:Assignment] :: SSA -> Var
 [$sel:arithOp:Assignment] :: SSA -> ArithOp
@@ -774,77 +780,12 @@ Choice :: Var -> ChoiceOp -> VarOrImm -> VarOrImm -> VarOrImm -> SSA
 Len :: Var -> Var -> SSA
 [$sel:dst:Assignment] :: SSA -> Var
 [$sel:arr:Assignment] :: SSA -> Var
-instance GHC.Show.Show SSA.Var
-instance GHC.Show.Show SSA.VarOrImm
+Phi :: VarOrImm -> SSA
+[$sel:pred:Assignment] :: SSA -> VarOrImm
+ppVars :: Format r ([Var] -> r)
 instance GHC.Show.Show SSA.SSA
-
-module CFG.PartialCFG
-data Condition
-Pred :: Expr -> Condition
-[$sel:pred:Pred] :: Condition -> Expr
-Complement :: Condition
-data CFGContext
-CFGContext :: Map ScopeID SymbolTable -> CFGContext
-[$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
-data BasicBlock
-BasicBlock :: BBID -> ScopeID -> [Statement] -> BasicBlock
-[$sel:bbid:BasicBlock] :: BasicBlock -> BBID
-[$sel:sid:BasicBlock] :: BasicBlock -> ScopeID
-[$sel:statements:BasicBlock] :: BasicBlock -> [Statement]
-data CFGNode
-CFGNode :: BasicBlock -> CFGNode
-[$sel:bb:CFGNode] :: CFGNode -> BasicBlock
-data CFGEdge
-SeqEdge :: ScopeID -> CFGEdge
-[$sel:sid:SeqEdge] :: CFGEdge -> ScopeID
-CondEdge :: ScopeID -> Condition -> CFGEdge
-[$sel:sid:SeqEdge] :: CFGEdge -> ScopeID
-[$sel:cond:SeqEdge] :: CFGEdge -> Condition
-type CFG = Graph BBID CFGNode CFGEdge
-type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
-data CFGState
-CFGState :: CFG -> ScopeID -> BBID -> [Statement] -> CFGState
-[$sel:cfg:CFGState] :: CFGState -> CFG
-[$sel:astScope:CFGState] :: CFGState -> ScopeID
-[$sel:nextBBID:CFGState] :: CFGState -> BBID
-[$sel:statements:CFGState] :: CFGState -> [Statement]
-newtype CFGExcept
-CFGExcept :: Text -> CFGExcept
-newtype CFGBuild a
-CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuild a
-[$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
-initialCFGState :: ScopeID -> CFGState
-buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
-consumeBBID :: CFGBuild BBID
-updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
-appendStatement :: Statement -> CFGBuild ()
-createIsolateBB :: CFGBuild BBID
-checkStmts :: CFGBuild ()
-removeEmptySeqNode :: CFGBuild ()
-buildMethod :: MethodDecl -> CFGBuild CFG
-buildBlock :: Block -> CFGBuild (BBID, BBID)
-buildStatement :: BBID -> Statement -> CFGBuild BBID
-prettyPrintNode :: CFGNode -> Text
-escape :: Text -> Text
-prettyPrintEdge :: CFGEdge -> Text
-generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
-plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
-instance GHC.Show.Show CFG.PartialCFG.Condition
-instance GHC.Show.Show CFG.PartialCFG.BasicBlock
-instance GHC.Generics.Generic CFG.PartialCFG.BasicBlock
-instance GHC.Show.Show CFG.PartialCFG.CFGNode
-instance GHC.Generics.Generic CFG.PartialCFG.CFGNode
-instance GHC.Show.Show CFG.PartialCFG.CFGEdge
-instance GHC.Generics.Generic CFG.PartialCFG.CFGEdge
-instance GHC.Show.Show CFG.PartialCFG.CFGState
-instance GHC.Generics.Generic CFG.PartialCFG.CFGState
-instance GHC.Show.Show CFG.PartialCFG.CFGExcept
-instance Control.Monad.State.Class.MonadState CFG.PartialCFG.CFGState CFG.PartialCFG.CFGBuild
-instance Control.Monad.Reader.Class.MonadReader CFG.PartialCFG.CFGContext CFG.PartialCFG.CFGBuild
-instance Control.Monad.Error.Class.MonadError CFG.PartialCFG.CFGExcept CFG.PartialCFG.CFGBuild
-instance GHC.Base.Monad CFG.PartialCFG.CFGBuild
-instance GHC.Base.Applicative CFG.PartialCFG.CFGBuild
-instance GHC.Base.Functor CFG.PartialCFG.CFGBuild
+instance GHC.Show.Show SSA.VarOrImm
+instance GHC.Show.Show SSA.Var
 
 module CFG
 data VarBiMap
@@ -872,12 +813,17 @@ CondEdge :: Condition -> CFGEdge
 type CFG = Graph BBID CFGNode CFGEdge
 type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
 data CFGState
-CFGState :: CFG -> ScopeID -> VarList -> VarBiMap -> Map BBID Var -> CFGState
+CFGState :: CFG -> ScopeID -> MethodSig -> BBID -> VarList -> VarBiMap -> [SSA] -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> CFG
-[$sel:scope:CFGState] :: CFGState -> ScopeID
+[$sel:astScope:CFGState] :: CFGState -> ScopeID
+[$sel:sig:CFGState] :: CFGState -> MethodSig
+[$sel:currentBBID:CFGState] :: CFGState -> BBID
 [$sel:vars:CFGState] :: CFGState -> VarList
 [$sel:symMap:CFGState] :: CFGState -> VarBiMap
-[$sel:exitVar:CFGState] :: CFGState -> Map BBID Var
+[$sel:statements:CFGState] :: CFGState -> [SSA]
+initialState :: ScopeID -> MethodSig -> CFGState
+consumeBBID :: CFGBuild BBID
+updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
 data CFGContext
 CFGContext :: Map ScopeID SymbolTable -> CFGContext
 [$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
@@ -886,11 +832,29 @@ CFGExcept :: Text -> CFGExcept
 newtype CFGBuild a
 CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuild a
 [$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
-setScope :: ScopeID -> CFGBuild ()
-getVarSymbol :: Name -> CFGBuild FieldDecl
-newVar :: Maybe Name -> Range -> Type -> CFGBuild Var
+setASTScope :: ScopeID -> CFGBuild ()
+getVarDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
+finishCurrentBB :: CFGBuild BBID
+checkStmts :: CFGBuild ()
+removeEmptySeqNode :: CFGBuild ()
+newVar :: Maybe Name -> Type -> Range -> CFGBuild Var
+addSSA :: SSA -> CFGBuild ()
 findVarOfSym :: Name -> CFGBuild (Maybe Var)
 findVarOfSym' :: Name -> CFGBuild Var
+buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
+populateGlobals :: ASTRoot -> CFGBuild ()
+buildMethod :: MethodDecl -> CFGBuild CFG
+buildBlock :: Block -> CFGBuild (BBID, BBID)
+buildStatement :: Statement -> CFGBuild BBID
+buildExpr :: Expr -> CFGBuild Var
+buildLocation :: Location -> CFGBuild Var
+buildMethodCall :: MethodCall -> Type -> CFGBuild Var
+prettyPrintNode :: CFGNode -> Text
+escape :: Text -> Text
+prettyPrintEdge :: CFGEdge -> Text
+generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
+plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
+instance GHC.Show.Show CFG.VarBiMap
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock

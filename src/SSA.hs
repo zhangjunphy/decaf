@@ -18,6 +18,7 @@ import Data.Int (Int64)
 import Data.Text (Text)
 import Types
 import Util.SourceLoc qualified as SL
+import Formatting
 
 data Var = Var
   { id :: VID,
@@ -25,7 +26,11 @@ data Var = Var
     astDecl :: Maybe (Either AST.Argument AST.FieldDecl),
     loc :: SL.Range
   }
-  deriving (Show)
+
+type VarList = [Var]
+
+instance Show Var where
+  show var@Var{id=id} = formatToString ("v" % int) id 
 
 data VarOrImm
   = BoolImm Bool
@@ -33,9 +38,14 @@ data VarOrImm
   | CharImm Char
   | StringImm Text
   | Variable Var
-  deriving (Show)
 
-type VarList = [Var]
+instance Show VarOrImm where
+  show (BoolImm True) = "true"
+  show (BoolImm False) = "false"
+  show (IntImm val) = formatToString int val
+  show (CharImm val) = formatToString ("'" % char % "'") val
+  show (StringImm val) = formatToString ("\"" % stext % "\"") val
+  show (Variable Var{id=id}) = formatToString ("v" % int) id
 
 data SSA
   = Assignment {dst :: Var, src :: VarOrImm}
@@ -52,4 +62,22 @@ data SSA
   | Choice {dst :: Var, choiceOp :: ChoiceOp, pred :: VarOrImm, opl :: VarOrImm, opr :: VarOrImm}
   | Len {dst :: Var, arr :: Var}
   | Phi {pred :: VarOrImm}
-  deriving (Show)
+
+ppVars :: Format r ([Var] -> r)
+ppVars = intercalated ", " shown
+
+instance Show SSA where
+  show (Assignment dst src) = formatToString (shown % " = " % shown) dst src
+  show (MethodCall dst name arguments) = formatToString (shown % " = " % stext % "(" % ppVars % ")") dst name arguments
+  show (Return ret) = formatToString ("return " % shown) ret
+  show (ArrayDeref dst arr idx) = formatToString (shown % " = " % shown % "[" % shown % "]") dst arr idx
+  show (Store arr idx src) = formatToString (shown % "[" % shown % "] = " % shown) arr idx src
+  show (Arith dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
+  show (Rel dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
+  show (Cond dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
+  show (Eq dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
+  show (Neg dst op opd) = formatToString (shown % " = " % shown % shown) dst op opd
+  show (Not dst op opd) = formatToString (shown % " = " % shown % shown) dst op opd
+  show (Choice dst op pred opl opr) = formatToString (shown % " = " % shown % " ? " % shown % " : " % shown) dst pred opl opr
+  show (Len dst arr) = formatToString (shown % " = len(" % shown % ")") dst arr
+  show (Phi pred) = formatToString ("phi " % shown) pred

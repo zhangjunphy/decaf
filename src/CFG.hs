@@ -37,6 +37,7 @@ import Control.Exception (throw)
 import Data.Generics.Labels
 
 import Debug.Trace
+import qualified AST
 
 data VarBiMap = VarBiMap
   { varToSym :: Map VID (ScopeID, Name),
@@ -304,31 +305,62 @@ buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void
   use #currentBBID
 buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
-  let (AST.Expr _ predTpe predLoc) = expr
-  predVar <- newVar Nothing predTpe predLoc
-  -- addSSA $ Phi (Variable predVar)
+  predVar <- buildExpr expr
   prevBB <- finishCurrentBB
   (ifHead, ifTail) <- buildBlock ifBlock
   g <- use #cfg
-  do updateCFG (G.addEdge prevBB ifHead $ CondEdge (Pred $ Variable predVar))
+  do updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
       tail <- finishCurrentBB
-      do
-        updateCFG (G.addEdge prevBB elseHead $ CondEdge Complement)
-        updateCFG (G.addEdge ifTail tail SeqEdge)
-        updateCFG (G.addEdge elseTail tail SeqEdge)
+      updateCFG $ do
+        G.addEdge prevBB elseHead $ CondEdge Complement
+        G.addEdge ifTail tail SeqEdge
+        G.addEdge elseTail tail SeqEdge
       return tail
     Nothing -> do
       tail <- finishCurrentBB
-      do
-        updateCFG (G.addEdge prevBB tail $ CondEdge Complement)
-        updateCFG (G.addEdge ifTail tail SeqEdge)
+      updateCFG $ do
+        G.addEdge prevBB tail $ CondEdge Complement
+        G.addEdge ifTail tail SeqEdge
       return tail
--- buildStatement prev (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
---   _
-buildStatement _ = use #currentBBID
+buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
+  var <- findVarOfSym' counter
+  initExpr <- buildExpr init
+  addSSA $ Assignment var (Variable initExpr)
+  prevBB <- finishCurrentBB
+  predVar <- buildExpr pred
+  predBB <- finishCurrentBB
+  updateCFG (G.addEdge prevBB predBB SeqEdge)
+  (blockHead, blockTail) <- buildBlock block
+  buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
+  updateBB <- finishCurrentBB
+  tail <- finishCurrentBB
+  updateCFG $ do
+    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
+    G.addEdge blockTail updateBB SeqEdge
+    G.addEdge updateBB predBB SeqEdge
+    G.addEdge predBB tail $ CondEdge Complement
+  return tail
+buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
+  prevBB <- finishCurrentBB
+  predVar <- buildExpr pred
+  predBB <- finishCurrentBB
+  updateCFG (G.addEdge prevBB predBB SeqEdge)
+  (blockHead, blockTail) <- buildBlock block
+  tail <- finishCurrentBB
+  updateCFG $ do
+    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
+    G.addEdge predBB tail $ CondEdge Complement
+    G.addEdge blockTail tail SeqEdge
+  return tail
+buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
+  ret <- case expr' of
+    (Just e) -> buildExpr e
+    _ -> newVar Nothing AST.Void loc
+  addSSA $ Return ret
+  use #currentBBID
 
 buildExpr :: AST.Expr -> CFGBuild Var
 buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildLocation location

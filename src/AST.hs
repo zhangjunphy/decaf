@@ -26,7 +26,12 @@ data RelOp
   | GreaterThan
   | LessEqual
   | GreaterEqual
-  deriving (Show, Eq)
+  deriving Eq
+instance Show RelOp where
+  show LessThan = "<"
+  show GreaterThan = ">"
+  show LessEqual = "<="
+  show GreaterEqual = ">="
 
 data ArithOp
   = Plus
@@ -34,25 +39,41 @@ data ArithOp
   | Multiply
   | Division
   | Modulo
-  deriving (Show, Eq)
+  deriving Eq
+instance Show ArithOp where
+  show Plus = "+"
+  show Minus = "-"
+  show Multiply = "*"
+  show Division = "/"
+  show Modulo = "%"
 
 data EqOp
   = Equal
   | NotEqual
-  deriving (Show, Eq)
+  deriving Eq
+instance Show EqOp where
+  show Equal = "=="
+  show NotEqual = "!="
 
 data CondOp
   = OR
   | AND
-  deriving (Show, Eq)
+  deriving Eq
+instance Show CondOp where
+  show OR = "||"
+  show AND = "&&"
 
 data NegOp
   = Neg
-  deriving (Show, Eq)
+  deriving Eq
+instance Show NegOp where
+  show Neg = "-"
 
 data NotOp
   = Not
-  deriving (Show, Eq)
+  deriving Eq
+instance Show NotOp where
+  show Not = "!"
 
 data ChoiceOp
   = Choice
@@ -64,7 +85,13 @@ data AssignOp
   | DecAssign
   | PlusPlus
   | MinusMinus
-  deriving (Show, Eq)
+  deriving Eq
+instance Show AssignOp where
+  show EqlAssign = "="
+  show IncAssign = "+="
+  show DecAssign = "-="
+  show PlusPlus = "++"
+  show MinusMinus = "--"
 
 data Type
   = Void
@@ -203,7 +230,6 @@ data Statement_
   | MethodCallStmt {methodCall :: MethodCall}
   | BreakStmt
   | ContinueStmt
-  | VarDeclStmt {field :: FieldDecl} -- TODO: Decide if we are going to use this.
   deriving (Generic, Show)
 
 data Expr = Expr

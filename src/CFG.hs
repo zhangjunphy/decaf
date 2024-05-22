@@ -89,12 +89,14 @@ data CFGState = CFGState
     currentBBID :: BBID,
     vars :: VarList,
     symMap :: VarBiMap,
-    statements :: [SSA]
+    statements :: [SSA],
+    currentControlBlock :: Maybe (BBID, BBID),
+    currentFunctionTail :: Maybe (BBID)
   }
   deriving (Generic)
 
 initialState :: ScopeID -> AST.MethodSig -> CFGState
-initialState sid sig = CFGState G.empty sid sig 0 [] (VarBiMap Map.empty Map.empty) []
+initialState sid sig = CFGState G.empty sid sig 0 [] (VarBiMap Map.empty Map.empty) [] Nothing Nothing
 
 -- Helps for CFGBuild monad
 consumeBBID :: CFGBuild BBID
@@ -139,6 +141,30 @@ setASTScope :: ScopeID -> CFGBuild ()
 setASTScope sid = do
   #astScope .= sid
 
+setControlBlock :: Maybe (BBID, BBID) -> CFGBuild ()
+setControlBlock headAndTail = do
+  #currentControlBlock .= headAndTail
+
+getControlBlock :: CFGBuild (Maybe (BBID, BBID))
+getControlBlock = use #currentControlBlock
+
+getControlHead :: CFGBuild (Maybe BBID)
+getControlHead = do
+  block <- use #currentControlBlock
+  return $ block <&> fst
+
+getControlTail :: CFGBuild (Maybe BBID)
+getControlTail = do
+  block <- use #currentControlBlock
+  return $ block <&> snd
+
+setFunctionTail :: Maybe BBID -> CFGBuild ()
+setFunctionTail tail = do
+  #currentFunctionTail .= tail
+
+getFunctionTail :: CFGBuild (Maybe BBID)
+getFunctionTail = use #currentFunctionTail
+
 getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getVarDecl name = do
   sid <- use #astScope
@@ -151,6 +177,15 @@ getVarDecl name = do
     lookup name st' =
       (SE.lookupLocalVariableFromST name st')
         <|> (SE.parent st' >>= lookup name)
+
+createEmptyBB :: CFGBuild BBID
+createEmptyBB = do
+  consumeBBID
+  bbid <- use #currentBBID
+  sid <- use #astScope
+  let bb = BasicBlock bbid sid []
+  updateCFG (G.addNode bbid (CFGNode bb))
+  return bbid
 
 finishCurrentBB :: CFGBuild BBID
 finishCurrentBB = do
@@ -271,32 +306,33 @@ populateGlobals root@(AST.ASTRoot _ globals _) = do
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
   checkStmts
-  buildBlock block
-  removeEmptySeqNode
+  tail <- createEmptyBB
+  setFunctionTail $ Just tail
+  (blockH, blockT) <- buildBlock block
+  updateCFG (G.addEdge blockT tail SeqEdge)
+  -- removeEmptySeqNode
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
 buildBlock block@AST.Block {stmts = stmts} = do
   checkStmts
   -- always create an empty BB at the start
-  head <- finishCurrentBB
-  current <- use #currentBBID
+  head <- createEmptyBB
   -- handle variable definitions
   mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) (block ^. #vars)
-  -- handl statements
-  stmtTail <- mapM buildStatement stmts <&> \ids -> case ids of
-    [] -> current
-    _ -> last ids
-  tail <- if stmtTail == current
+  -- handle statements
+  stmtT <- foldM (\_ s -> buildStatement s) head stmts
+  id <- finishCurrentBB
+  tail <- if stmtT == head
       then do
-        id <- finishCurrentBB
-        updateCFG (G.addEdge head id SeqEdge)
+        return head
+      else do
+        updateCFG (G.addEdge stmtT id SeqEdge)
         return id
-      else return stmtTail
-  return (head, tail)
+  traceShow id $ return (head, tail)
 
 buildStatement :: AST.Statement -> CFGBuild BBID
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location op (Just expr) _)) _) = do
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@AST.Location{idx=Nothing} op (Just expr) _)) _) = do
   dst <- buildLocation location
   src <- buildExpr expr
   addSSA $ Assignment dst (Variable src)
@@ -313,14 +349,16 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
-      tail <- finishCurrentBB
+      checkStmts
+      tail <- createEmptyBB
       updateCFG $ do
         G.addEdge prevBB elseHead $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
       return tail
     Nothing -> do
-      tail <- finishCurrentBB
+      checkStmts
+      tail <- createEmptyBB
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
@@ -333,34 +371,65 @@ buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) 
   predVar <- buildExpr pred
   predBB <- finishCurrentBB
   updateCFG (G.addEdge prevBB predBB SeqEdge)
+  parentControlBlock <- getControlBlock
+  tail <- createEmptyBB
+  setControlBlock $ Just (predBB, tail)
   (blockHead, blockTail) <- buildBlock block
+  checkStmts
   buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
   updateBB <- finishCurrentBB
-  tail <- finishCurrentBB
   updateCFG $ do
     G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
     G.addEdge blockTail updateBB SeqEdge
     G.addEdge updateBB predBB SeqEdge
     G.addEdge predBB tail $ CondEdge Complement
+  setControlBlock parentControlBlock
   return tail
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   prevBB <- finishCurrentBB
   predVar <- buildExpr pred
   predBB <- finishCurrentBB
   updateCFG (G.addEdge prevBB predBB SeqEdge)
+  parentControlBlock <- getControlBlock
+  tail <- createEmptyBB
+  setControlBlock $ Just (predBB, tail)
   (blockHead, blockTail) <- buildBlock block
-  tail <- finishCurrentBB
+  checkStmts
   updateCFG $ do
     G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
     G.addEdge predBB tail $ CondEdge Complement
     G.addEdge blockTail tail SeqEdge
+  setControlBlock parentControlBlock
   return tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   ret <- case expr' of
     (Just e) -> buildExpr e
     _ -> newVar Nothing AST.Void loc
   addSSA $ Return ret
-  use #currentBBID
+  -- Go directly to function exit
+  bbid <- finishCurrentBB
+  funcTail <- getFunctionTail
+  case funcTail of
+    Nothing -> throwError $ CFGExcept "Return not in a function context."
+    Just tail -> updateCFG (G.addEdge bbid tail SeqEdge)
+  next <- createEmptyBB
+  return next
+buildStatement (AST.Statement AST.ContinueStmt loc) = do
+  bbid <- finishCurrentBB
+  controlH' <- getControlHead
+  case controlH' of
+    Nothing -> throwError $ CFGExcept "Continue not in a loop context."
+    Just controlH -> updateCFG (G.addEdge bbid controlH SeqEdge)
+  next <- createEmptyBB
+  return next
+buildStatement (AST.Statement AST.BreakStmt loc) = do
+  bbid <- finishCurrentBB
+  controlT' <- getControlTail
+  case controlT' of
+    Nothing -> throwError $ CFGExcept "Break not in a loop context."
+    Just controlT -> updateCFG (G.addEdge bbid controlT SeqEdge)
+  next <- createEmptyBB
+  return next
 
 buildExpr :: AST.Expr -> CFGBuild Var
 buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildLocation location

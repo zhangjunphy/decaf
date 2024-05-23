@@ -788,13 +788,6 @@ instance GHC.Show.Show SSA.VarOrImm
 instance GHC.Show.Show SSA.Var
 
 module CFG
-data VarBiMap
-VarBiMap :: Map VID (ScopeID, Name) -> Map (ScopeID, Name) VID -> VarBiMap
-[$sel:varToSym:VarBiMap] :: VarBiMap -> Map VID (ScopeID, Name)
-[$sel:symToVar:VarBiMap] :: VarBiMap -> Map (ScopeID, Name) VID
-addVarSym :: ScopeID -> Name -> VID -> VarBiMap -> VarBiMap
-lookupVar :: VID -> VarBiMap -> Maybe (ScopeID, Name)
-lookupSym :: ScopeID -> Name -> VarBiMap -> Maybe VID
 data Condition
 Pred :: VarOrImm -> Condition
 [$sel:pred:Pred] :: Condition -> VarOrImm
@@ -812,16 +805,23 @@ SeqEdge :: CFGEdge
 CondEdge :: Condition -> CFGEdge
 type CFG = Graph BBID CFGNode CFGEdge
 type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
+data SymVarMap
+SymVarMap :: Map Name VID -> Maybe ScopeID -> SymVarMap
+[$sel:m:SymVarMap] :: SymVarMap -> Map Name VID
+[$sel:parent:SymVarMap] :: SymVarMap -> Maybe ScopeID
 data CFGState
-CFGState :: CFG -> ScopeID -> MethodSig -> BBID -> VarList -> VarBiMap -> [SSA] -> CFGState
+CFGState :: CFG -> ScopeID -> MethodSig -> BBID -> VarList -> Map ScopeID SymVarMap -> Map VID (ScopeID, Name) -> [SSA] -> Maybe (BBID, BBID) -> Maybe BBID -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> CFG
 [$sel:astScope:CFGState] :: CFGState -> ScopeID
 [$sel:sig:CFGState] :: CFGState -> MethodSig
 [$sel:currentBBID:CFGState] :: CFGState -> BBID
 [$sel:vars:CFGState] :: CFGState -> VarList
-[$sel:symMap:CFGState] :: CFGState -> VarBiMap
+[$sel:sym2var:CFGState] :: CFGState -> Map ScopeID SymVarMap
+[$sel:var2sym:CFGState] :: CFGState -> Map VID (ScopeID, Name)
 [$sel:statements:CFGState] :: CFGState -> [SSA]
-initialState :: ScopeID -> MethodSig -> CFGState
+[$sel:currentControlBlock:CFGState] :: CFGState -> Maybe (BBID, BBID)
+[$sel:currentFunctionTail:CFGState] :: CFGState -> Maybe BBID
+initialState :: MethodSig -> CFGState
 consumeBBID :: CFGBuild BBID
 updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
 data CFGContext
@@ -833,7 +833,17 @@ newtype CFGBuild a
 CFGBuild :: ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a -> CFGBuild a
 [$sel:runCFGBuild:CFGBuild] :: CFGBuild a -> ExceptT CFGExcept (ReaderT CFGContext (State CFGState)) a
 setASTScope :: ScopeID -> CFGBuild ()
+setControlBlock :: Maybe (BBID, BBID) -> CFGBuild ()
+getControlBlock :: CFGBuild (Maybe (BBID, BBID))
+getControlHead :: CFGBuild (Maybe BBID)
+getControlTail :: CFGBuild (Maybe BBID)
+setFunctionTail :: Maybe BBID -> CFGBuild ()
+getFunctionTail :: CFGBuild (Maybe BBID)
+addVarSym :: Name -> VID -> CFGBuild ()
+lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
+lookupSym :: Name -> CFGBuild (Maybe VID)
 getVarDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
+createEmptyBB :: CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
 checkStmts :: CFGBuild ()
 removeEmptySeqNode :: CFGBuild ()
@@ -854,13 +864,14 @@ escape :: Text -> Text
 prettyPrintEdge :: CFGEdge -> Text
 generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
 plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
-instance GHC.Show.Show CFG.VarBiMap
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock
 instance GHC.Show.Show CFG.CFGNode
 instance GHC.Generics.Generic CFG.CFGNode
 instance GHC.Show.Show CFG.CFGEdge
+instance GHC.Generics.Generic CFG.SymVarMap
+instance GHC.Show.Show CFG.SymVarMap
 instance GHC.Generics.Generic CFG.CFGState
 instance GHC.Generics.Generic CFG.CFGContext
 instance GHC.Show.Show CFG.CFGExcept

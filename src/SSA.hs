@@ -47,6 +47,14 @@ instance Show VarOrImm where
   show (StringImm val) = formatToString ("\"" % stext % "\"") val
   show (Variable Var{id=id}) = formatToString ("v" % int) id
 
+{-
+TODO:
+1. Implement Phi and Br
+2. Merge all binary ops into one SSA
+3. ArrayDeref -> Load?
+4. Do we really need Len here?
+5. Writing to global should work as a store.
+-}
 data SSA
   = Assignment {dst :: Var, src :: VarOrImm}
   | MethodCall {dst :: Var, name :: Name, arguments :: [Var]}

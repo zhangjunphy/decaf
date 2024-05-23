@@ -9,9 +9,11 @@ void main() {
     a[1] = b ? 1 : 3;
     print('\\');
     print("hello\" world");
+    c = 1;
     if (b) {
      a[1] = 1;
     } else {
      a[2] = 1;
     }
+    c = 2;
 }

@@ -13,7 +13,7 @@ module CFG where
 
 import AST qualified
 import Control.Applicative ((<|>))
-import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.), _1)
+import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.), _1, uses, (&))
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -21,7 +21,7 @@ import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.GraphViz.Types.Graph qualified as GV
 import Data.Map (Map)
-import Data.Map qualified as Map
+import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.Text (Text)
 import Data.Text qualified as Text
@@ -38,23 +38,6 @@ import Data.Generics.Labels
 
 import Debug.Trace
 import qualified AST
-
-data VarBiMap = VarBiMap
-  { varToSym :: Map VID (ScopeID, Name),
-    symToVar :: Map (ScopeID, Name) VID
-  } deriving (Show)
-
-addVarSym :: ScopeID -> Name -> VID -> VarBiMap -> VarBiMap
-addVarSym sid name vid (VarBiMap varToSym symToVar) =
-  let varToSym' = Map.insert vid (sid, name) varToSym
-      symToVar' = Map.insert (sid, name) vid symToVar
-   in VarBiMap varToSym' symToVar'
-
-lookupVar :: VID -> VarBiMap -> Maybe (ScopeID, Name)
-lookupVar vid VarBiMap {varToSym = m} = Map.lookup vid m
-
-lookupSym :: ScopeID -> Name -> VarBiMap -> Maybe VID
-lookupSym sid name VarBiMap {symToVar = m} = Map.lookup (sid, name) m
 
 data Condition
   = Pred {pred :: VarOrImm}
@@ -82,21 +65,29 @@ type CFG = G.Graph BBID CFGNode CFGEdge
 
 type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge
 
+data SymVarMap = SymVarMap
+  { m :: Map Name VID,
+    parent :: Maybe ScopeID
+  }
+  deriving (Show, Generic)
+
 data CFGState = CFGState
   { cfg :: CFG,
     astScope :: ScopeID,
     sig :: AST.MethodSig,
     currentBBID :: BBID,
     vars :: VarList,
-    symMap :: VarBiMap,
+    sym2var :: Map ScopeID SymVarMap,
+    var2sym :: Map VID (ScopeID, Name),
     statements :: [SSA],
     currentControlBlock :: Maybe (BBID, BBID),
-    currentFunctionTail :: Maybe (BBID)
+    currentFunctionTail :: Maybe BBID
   }
   deriving (Generic)
 
-initialState :: ScopeID -> AST.MethodSig -> CFGState
-initialState sid sig = CFGState G.empty sid sig 0 [] (VarBiMap Map.empty Map.empty) [] Nothing Nothing
+initialState :: AST.MethodSig -> CFGState
+initialState sig = CFGState G.empty 0 sig 0 []
+  (Map.fromList [(0, SymVarMap Map.empty Nothing)]) Map.empty [] Nothing Nothing
 
 -- Helps for CFGBuild monad
 consumeBBID :: CFGBuild BBID
@@ -164,6 +155,34 @@ setFunctionTail tail = do
 
 getFunctionTail :: CFGBuild (Maybe BBID)
 getFunctionTail = use #currentFunctionTail
+
+addVarSym :: Name -> VID -> CFGBuild ()
+addVarSym name vid = do 
+  sid <- use #astScope
+  -- update var->sym
+  #var2sym %= Map.insert vid (sid, name)
+  -- update sym->var
+  sym2var <- use #sym2var
+  let sym2varInScope = Map.lookup sid sym2var 
+  case sym2varInScope of
+    Nothing -> throwError $ CFGExcept "Unable to find scope in sym->var map"
+    Just s2v -> #sym2var %= Map.insert sid (s2v & #m %~ Map.insert name vid)
+
+lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
+lookupVar vid = uses #var2sym $ Map.lookup vid
+
+-- Look for symbol resursively
+lookupSym :: Name -> CFGBuild (Maybe VID)
+lookupSym name = do
+  sid <- use #astScope
+  sym2var <- use #sym2var
+  return $ Map.lookup sid sym2var >>= (\m' -> lookup name m' sym2var)
+  where
+    lookup :: Name -> SymVarMap -> Map ScopeID SymVarMap -> Maybe VID
+    lookup name symVarMap sym2var = case Map.lookup name (symVarMap ^. #m) of
+      Just vid -> Just vid
+      Nothing -> (symVarMap ^. #parent) >>=
+        (`Map.lookup` sym2var) >>= \map' -> lookup name map' sym2var
 
 getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getVarDecl name = do
@@ -244,12 +263,10 @@ newVar (Just name) tpe sl = do
   vars <- use #vars
   let vid = length vars
   decl <- getVarDecl name
-  sid <- use #astScope
   when (isNothing decl) $ throwError (CFGExcept $ sformat ("Unable to find decl of variable " % stext) name)
   let var = Var vid tpe decl sl
   #vars .= vars ++ [var]
-  symMap <- use #symMap
-  #symMap .= addVarSym sid name vid symMap
+  addVarSym name vid
   return var
 
 addSSA :: SSA -> CFGBuild ()
@@ -259,19 +276,9 @@ addSSA ssa = do
 
 findVarOfSym :: Name -> CFGBuild (Maybe Var)
 findVarOfSym name = do
-  sid <- use #astScope
-  varBiMap <- use #symMap
   vars <- use #vars
-  sts <- view #symbolTables
-  st <- case Map.lookup sid sts of
-    Nothing -> throwError (CFGExcept $ sformat ("Unable to find scope " % int) sid)
-    Just st -> return st
-  let sidDef = lookupSid name st
-  let vid = sidDef >>= \id -> lookupSym id name varBiMap
+  vid <- lookupSym name
   return $ vid <&> (vars !!)
-  where
-    lookupSid name st' = (SE.lookupLocalVariableFromST name st' <&> \_ -> st' ^. #scopeID)
-      <|> (SE.parent st' >>= lookupSid name)
 
 findVarOfSym' :: Name -> CFGBuild Var
 findVarOfSym' name = do
@@ -288,7 +295,7 @@ buildCFG root@(AST.ASTRoot _ _ methods) context =
             runExceptT $
               runCFGBuild (populateGlobals root >> buildMethod method)
       updateMap map m =
-        let (r, _) = build m $ initialState (m ^. (#block . #blockID)) (m ^. #sig)
+        let (r, _) = build m $ initialState (m ^. #sig)
          in case r of
               Left e -> Left e
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
@@ -310,6 +317,7 @@ buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = 
   setFunctionTail $ Just tail
   (blockH, blockT) <- buildBlock block
   updateCFG (G.addEdge blockT tail SeqEdge)
+  -- TODO: Keep empty nodes for now to ease debugging.
   -- removeEmptySeqNode
   gets cfg
 
@@ -318,6 +326,13 @@ buildBlock block@AST.Block {stmts = stmts} = do
   checkStmts
   -- always create an empty BB at the start
   head <- createEmptyBB
+  -- record parent scope
+  parentScope <- use #astScope
+  -- enter new block scope
+  let scopeID = block ^. #blockID
+  setASTScope scopeID
+  -- create a new varmap for this scope
+  #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
   -- handle variable definitions
   mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) (block ^. #vars)
   -- handle statements
@@ -329,13 +344,23 @@ buildBlock block@AST.Block {stmts = stmts} = do
       else do
         updateCFG (G.addEdge stmtT id SeqEdge)
         return id
-  traceShow id $ return (head, tail)
+  -- recover parent scope
+  setASTScope parentScope
+  return (head, tail)
 
 buildStatement :: AST.Statement -> CFGBuild BBID
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@AST.Location{idx=Nothing} op (Just expr) _)) _) = do
-  dst <- buildLocation location
+-- treat assignment to a scalar as creating a new variable
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
+  dst <- newVar (Just name) tpe loc
   src <- buildExpr expr
   addSSA $ Assignment dst (Variable src)
+  use #currentBBID
+-- treat assignment to an array element as a store.
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name (Just idxE) def tpe loc) op (Just expr) _)) _) = do
+  array <- findVarOfSym' name
+  idx <- buildExpr idxE
+  src <- buildExpr expr
+  addSSA $ Store array (Variable idx) (Variable src)
   use #currentBBID
 buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void
@@ -519,8 +544,8 @@ buildLocation (AST.Location name (Just expr) def tpe loc) = do
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var
 buildMethodCall (AST.MethodCall name args loc) tpe = do
-  dst <- newVar Nothing tpe loc
   vars <- mapM buildExpr args
+  dst <- newVar Nothing tpe loc
   addSSA $ MethodCall dst name vars
   return dst
 

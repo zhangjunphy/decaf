@@ -849,7 +849,7 @@ irgenExpr (SL.LocatedAt range (P.RelOpExpr op l r)) = do
   when
     (ltp /= IntType || rtp /= IntType)
     (addSemanticError "There can only be integer values in relational expressions.")
-  return $ Expr (RelOpExpr (parseRelOp op) l' r') IntType range
+  return $ Expr (RelOpExpr (parseRelOp op) l' r') BoolType range
 irgenExpr (SL.LocatedAt range (P.EqOpExpr op l r)) = do
   updateCurrentRange range
   -- Semantic[17]

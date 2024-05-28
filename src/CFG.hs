@@ -24,6 +24,7 @@ import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.Text (Text)
+import Data.List qualified as List
 import Data.Text qualified as Text
 import Formatting
 import GHC.Generics (Generic)
@@ -221,22 +222,22 @@ checkStmts = do
   stmts <- use #statements
   unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
 
+-- Remove empty seq node one by one
 removeEmptySeqNode :: CFGBuild ()
 removeEmptySeqNode = do
   g@G.Graph {nodes = nodes} <- gets cfg
-  let emptySeqNodes =
-        filter
+  let emptySeqNode =
+        List.find
           (\(ni, nd) -> isEmptyNode nd && isSeqOut ni g)
           $ Map.assocs nodes
-  let gUpdate =
-        mapM_
-          ( \(ni, _) -> do
-              let inEdges = G.inBound ni g
-                  outEdge = head $ G.outBound ni g
-               in bridgeEdges ni inEdges outEdge
-          )
-          emptySeqNodes
-  updateCFG gUpdate
+  case emptySeqNode of
+    Nothing -> return ()
+    Just (ni, _) -> do
+      updateCFG $
+        let inEdges = G.inBound ni g
+            outEdge = head $ G.outBound ni g
+        in bridgeEdges ni inEdges outEdge
+      removeEmptySeqNode
   where
     isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
     isSeqOut ni g =
@@ -318,7 +319,7 @@ buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = 
   (blockH, blockT) <- buildBlock block
   updateCFG (G.addEdge blockT tail SeqEdge)
   -- TODO: Keep empty nodes for now to ease debugging.
-  -- removeEmptySeqNode
+  removeEmptySeqNode
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
@@ -348,19 +349,43 @@ buildBlock block@AST.Block {stmts = stmts} = do
   setASTScope parentScope
   return (head, tail)
 
+buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
+buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
+buildAssignOp prev AST.IncAssign (Just expr) = do
+  addition <- buildExpr expr
+  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  addSSA (SSA.Arith dst' AST.Plus (Variable prev) (Variable addition))
+  return dst'
+buildAssignOp prev AST.DecAssign (Just expr) = do
+  addition <- buildExpr expr
+  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  addSSA (SSA.Arith dst' AST.Minus (Variable prev) (Variable addition))
+  return dst'
+buildAssignOp prev AST.PlusPlus Nothing = do
+  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  addSSA (SSA.Arith dst' AST.Plus (Variable prev) (IntImm 1))
+  return dst'
+buildAssignOp prev AST.MinusMinus Nothing = do
+  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  addSSA (SSA.Arith dst' AST.Minus (Variable prev) (IntImm 1))
+  return dst'
+buildAssignOp _ _ _ = throwError $ CFGExcept "Malformed assignment."
+
 buildStatement :: AST.Statement -> CFGBuild BBID
 -- treat assignment to a scalar as creating a new variable
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name Nothing def tpe loc) op (Just expr) _)) _) = do
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@(AST.Location name Nothing def tpe loc) op expr _)) _) = do
+  prev <- buildLocation location
+  var <- buildAssignOp prev op expr
   dst <- newVar (Just name) tpe loc
-  src <- buildExpr expr
-  addSSA $ Assignment dst (Variable src)
+  addSSA $ Assignment dst (Variable var)
   use #currentBBID
 -- treat assignment to an array element as a store.
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment (AST.Location name (Just idxE) def tpe loc) op (Just expr) _)) _) = do
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@(AST.Location name (Just idxE) def tpe loc) op expr _)) _) = do
+  prev <- buildLocation location
+  var <- buildAssignOp prev op expr
   array <- findVarOfSym' name
   idx <- buildExpr idxE
-  src <- buildExpr expr
-  addSSA $ Store array (Variable idx) (Variable src)
+  addSSA $ Store array (Variable idx) (Variable var)
   use #currentBBID
 buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void

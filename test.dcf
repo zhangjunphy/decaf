@@ -14,9 +14,9 @@ void main() {
      a[1] = 1;
     } else {
      a[2] = 1;
-    }
-    c = 2;
-    for (c = 0; c < 10; c++) {
-      b = true;
+     c = 2;
+     for (c = 0; c < 10; c++) {
+       b = true;
+     }
     }
 }

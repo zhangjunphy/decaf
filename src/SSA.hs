@@ -16,6 +16,7 @@ import AST qualified
 import Control.Monad.State
 import Data.Int (Int64)
 import Data.Text (Text)
+import Control.Lens (_1, _2)
 import Formatting
 import Types
 import Util.SourceLoc qualified as SL
@@ -69,23 +70,29 @@ data SSA
   | Not {dst :: Var, notOp :: NotOp, oprand :: VarOrImm}
   | Choice {dst :: Var, choiceOp :: ChoiceOp, pred :: VarOrImm, opl :: VarOrImm, opr :: VarOrImm}
   | Len {dst :: Var, arr :: Var}
-  | Phi {pred :: VarOrImm}
+  | Phi {dst :: Var, predecessors :: [(Var, BBID)]}
 
 ppVars :: Format r ([Var] -> r)
 ppVars = intercalated ", " shown
 
+ppPhiPreds :: Format r ([(Var, BBID)] -> r)
+ppPhiPreds = intercalated ", " showPredPair
+  where
+    showPredPair :: Format r ((Var, BBID) -> r)
+    showPredPair = "[" % viewed _1 shown % ", %" <> viewed _2 int % "]" 
+
 instance Show SSA where
-  show (Assignment dst src) = formatToString (shown % " = " % shown) dst src
-  show (MethodCall dst name arguments) = formatToString (shown % " = " % stext % "(" % ppVars % ")") dst name arguments
-  show (Return ret) = formatToString ("return " % shown) ret
-  show (ArrayDeref dst arr idx) = formatToString (shown % " = " % shown % "[" % shown % "]") dst arr idx
-  show (Store arr idx src) = formatToString (shown % "[" % shown % "] = " % shown) arr idx src
-  show (Arith dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
-  show (Rel dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
-  show (Cond dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
-  show (Eq dst op opl opr) = formatToString (shown % " = " % shown % " " % shown % " " % shown) dst opl op opr
-  show (Neg dst op opd) = formatToString (shown % " = " % shown % shown) dst op opd
-  show (Not dst op opd) = formatToString (shown % " = " % shown % shown) dst op opd
-  show (Choice dst op pred opl opr) = formatToString (shown % " = " % shown % " ? " % shown % " : " % shown) dst pred opl opr
-  show (Len dst arr) = formatToString (shown % " = len(" % shown % ")") dst arr
-  show (Phi pred) = formatToString ("phi " % shown) pred
+  show (Assignment dst src) = formatToString (shown %+ "=" %+ shown) dst src
+  show (MethodCall dst name arguments) = formatToString (shown %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
+  show (Return ret) = formatToString ("return" %+ shown) ret
+  show (ArrayDeref dst arr idx) = formatToString (shown %+ "=" %+ shown % "[" % shown % "]") dst arr idx
+  show (Store arr idx src) = formatToString (shown % "[" % shown % "] =" %+ shown) arr idx src
+  show (Arith dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Rel dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Cond dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Eq dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Neg dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
+  show (Not dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
+  show (Choice dst op pred opl opr) = formatToString (shown %+ "=" %+ shown %+ "?" %+ shown %+ ":" %+ shown) dst pred opl opr
+  show (Len dst arr) = formatToString (shown %+ "= len(" % shown % ")") dst arr
+  show (Phi dst preds) = formatToString (shown %+ "= phi" %+ ppPhiPreds) dst preds

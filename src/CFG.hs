@@ -13,19 +13,22 @@ module CFG where
 
 import AST qualified
 import Control.Applicative ((<|>))
-import Control.Lens (use, view, (%=), (%~), (+=), (.=), (.~), (^.), _1, uses, (&))
+import Control.Exception (throw)
+import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
 import Data.Functor ((<&>))
+import Data.Generics.Labels
 import Data.GraphViz.Types.Graph qualified as GV
+import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.Text (Text)
-import Data.List qualified as List
 import Data.Text qualified as Text
+import Debug.Trace
 import Formatting
 import GHC.Generics (Generic)
 import SSA
@@ -34,11 +37,6 @@ import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
-import Control.Exception (throw)
-import Data.Generics.Labels
-
-import Debug.Trace
-import qualified AST
 
 data Condition
   = Pred {pred :: VarOrImm}
@@ -87,8 +85,18 @@ data CFGState = CFGState
   deriving (Generic)
 
 initialState :: AST.MethodSig -> CFGState
-initialState sig = CFGState G.empty 0 sig 0 []
-  (Map.fromList [(0, SymVarMap Map.empty Nothing)]) Map.empty [] Nothing Nothing
+initialState sig =
+  CFGState
+    G.empty
+    0
+    sig
+    0
+    []
+    (Map.fromList [(0, SymVarMap Map.empty Nothing)])
+    Map.empty
+    []
+    Nothing
+    Nothing
 
 -- Helps for CFGBuild monad
 consumeBBID :: CFGBuild BBID
@@ -158,13 +166,13 @@ getFunctionTail :: CFGBuild (Maybe BBID)
 getFunctionTail = use #currentFunctionTail
 
 addVarSym :: Name -> VID -> CFGBuild ()
-addVarSym name vid = do 
+addVarSym name vid = do
   sid <- use #astScope
   -- update var->sym
   #var2sym %= Map.insert vid (sid, name)
   -- update sym->var
   sym2var <- use #sym2var
-  let sym2varInScope = Map.lookup sid sym2var 
+  let sym2varInScope = Map.lookup sid sym2var
   case sym2varInScope of
     Nothing -> throwError $ CFGExcept "Unable to find scope in sym->var map"
     Just s2v -> #sym2var %= Map.insert sid (s2v & #m %~ Map.insert name vid)
@@ -182,8 +190,10 @@ lookupSym name = do
     lookup :: Name -> SymVarMap -> Map ScopeID SymVarMap -> Maybe VID
     lookup name symVarMap sym2var = case Map.lookup name (symVarMap ^. #m) of
       Just vid -> Just vid
-      Nothing -> (symVarMap ^. #parent) >>=
-        (`Map.lookup` sym2var) >>= \map' -> lookup name map' sym2var
+      Nothing ->
+        (symVarMap ^. #parent)
+          >>= (`Map.lookup` sym2var)
+          >>= \map' -> lookup name map' sym2var
 
 getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getVarDecl name = do
@@ -236,7 +246,7 @@ removeEmptySeqNode = do
       updateCFG $
         let inEdges = G.inBound ni g
             outEdge = head $ G.outBound ni g
-        in bridgeEdges ni inEdges outEdge
+         in bridgeEdges ni inEdges outEdge
       removeEmptySeqNode
   where
     isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
@@ -339,7 +349,8 @@ buildBlock block@AST.Block {stmts = stmts} = do
   -- handle statements
   stmtT <- foldM (\_ s -> buildStatement s) head stmts
   id <- finishCurrentBB
-  tail <- if stmtT == head
+  tail <-
+    if stmtT == head
       then do
         return head
       else do
@@ -413,7 +424,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
       return tail
-buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) =  do
+buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
   var <- findVarOfSym' counter
   initExpr <- buildExpr init
   addSSA $ Assignment var (Variable initExpr)

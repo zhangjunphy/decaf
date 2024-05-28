@@ -16,9 +16,9 @@ import AST qualified
 import Control.Monad.State
 import Data.Int (Int64)
 import Data.Text (Text)
+import Formatting
 import Types
 import Util.SourceLoc qualified as SL
-import Formatting
 
 data Var = Var
   { id :: VID,
@@ -30,7 +30,7 @@ data Var = Var
 type VarList = [Var]
 
 instance Show Var where
-  show var@Var{id=id} = formatToString ("v" % int) id 
+  show var@Var {id = id} = formatToString ("v" % int) id
 
 data VarOrImm
   = BoolImm Bool
@@ -45,7 +45,7 @@ instance Show VarOrImm where
   show (IntImm val) = formatToString int val
   show (CharImm val) = formatToString ("'" % char % "'") val
   show (StringImm val) = formatToString ("\"" % stext % "\"") val
-  show (Variable Var{id=id}) = formatToString ("v" % int) id
+  show (Variable Var {id = id}) = formatToString ("v" % int) id
 
 {-
 TODO:

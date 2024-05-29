@@ -868,7 +868,7 @@ span.spaces    { background: white }
 <span class="lineno">  849 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
 <span class="lineno">  850 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(ltp /= IntType || rtp /= IntType)</span></span>
 <span class="lineno">  851 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError &quot;There can only be integer values in relational expressions.&quot;)</span></span>
-<span class="lineno">  852 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Expr (RelOpExpr (parseRelOp op) l' r') IntType range</span></span>
+<span class="lineno">  852 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Expr (RelOpExpr (parseRelOp op) l' r') BoolType range</span></span>
 <span class="lineno">  853 </span><span class="spaces"></span><span class="istickedoff">irgenExpr (SL.LocatedAt range (P.EqOpExpr op l r)) = <span class="nottickedoff">do</span></span>
 <span class="lineno">  854 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">updateCurrentRange range</span></span>
 <span class="lineno">  855 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[17]</span></span>

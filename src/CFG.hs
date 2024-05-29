@@ -14,7 +14,7 @@ module CFG where
 import AST qualified
 import Control.Applicative ((<|>))
 import Control.Exception (throw)
-import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1)
+import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -79,7 +79,7 @@ data CFGState = CFGState
     sym2var :: Map ScopeID SymVarMap,
     var2sym :: Map VID (ScopeID, Name),
     statements :: [SSA],
-    currentControlBlock :: Maybe (BBID, BBID),
+    currentControlBlock :: Maybe (BBID, BBID), -- entry and exit
     currentFunctionTail :: Maybe BBID
   }
   deriving (Generic)
@@ -145,21 +145,17 @@ setASTScope sid = do
   for continue/break to find correct successor block.
 ------------------------------------------------------------}
 setControlBlock :: Maybe (BBID, BBID) -> CFGBuild ()
-setControlBlock headAndTail = do
-  #currentControlBlock .= headAndTail
+setControlBlock entryAndExit = do
+  #currentControlBlock .= entryAndExit
 
 getControlBlock :: CFGBuild (Maybe (BBID, BBID))
 getControlBlock = use #currentControlBlock
 
-getControlHead :: CFGBuild (Maybe BBID)
-getControlHead = do
-  block <- use #currentControlBlock
-  return $ block <&> fst
+getControlEntry :: CFGBuild (Maybe BBID)
+getControlEntry = use #currentControlBlock <&> (<&> (^. _1))
 
-getControlTail :: CFGBuild (Maybe BBID)
-getControlTail = do
-  block <- use #currentControlBlock
-  return $ block <&> snd
+getControlExit :: CFGBuild (Maybe BBID)
+getControlExit = use #currentControlBlock <&> (<&> (^. _2))
 
 {-----------------------------------------------------------
   Record function tail for return to find correct
@@ -440,13 +436,13 @@ buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) 
   predVar <- buildExpr pred
   predBB <- finishCurrentBB
   updateCFG (G.addEdge prevBB predBB SeqEdge)
-  parentControlBlock <- getControlBlock
-  tail <- createEmptyBB
-  setControlBlock $ Just (predBB, tail)
-  (blockHead, blockTail) <- buildBlock block
-  checkStmts
   buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
   updateBB <- finishCurrentBB
+  parentControlBlock <- getControlBlock
+  tail <- createEmptyBB
+  setControlBlock $ Just (updateBB, tail)
+  (blockHead, blockTail) <- buildBlock block
+  checkStmts
   updateCFG $ do
     G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
     G.addEdge blockTail updateBB SeqEdge
@@ -488,7 +484,7 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   return Deadend
 buildStatement (AST.Statement AST.ContinueStmt loc) = do
   bbid <- finishCurrentBB
-  controlH' <- getControlHead
+  controlH' <- getControlEntry
   case controlH' of
     Nothing -> throwError $ CFGExcept "Continue not in a loop context."
     Just controlH -> updateCFG (G.addEdge bbid controlH SeqEdge)
@@ -496,7 +492,7 @@ buildStatement (AST.Statement AST.ContinueStmt loc) = do
   return Deadend
 buildStatement (AST.Statement AST.BreakStmt loc) = do
   bbid <- finishCurrentBB
-  controlT' <- getControlTail
+  controlT' <- getControlExit
   case controlT' of
     Nothing -> throwError $ CFGExcept "Break not in a loop context."
     Just controlT -> updateCFG (G.addEdge bbid controlT SeqEdge)

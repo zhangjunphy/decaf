@@ -55,6 +55,7 @@ TODO:
 3. ArrayDeref -> Load?
 4. Do we really need Len here?
 5. Writing to global should work as a store.
+6. Use control flow instead of choice.
 -}
 data SSA
   = Assignment {dst :: Var, src :: VarOrImm}

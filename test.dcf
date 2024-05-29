@@ -12,10 +12,12 @@ void main() {
     c = 1;
     if (b) {
      a[1] = 1;
+     return;
     } else {
      a[2] = 1;
      c = 2;
      for (c = 0; c < 10; c++) {
+       continue;
        b = true;
      }
     }

@@ -258,13 +258,9 @@ removeEmptySeqNode = do
     isSeqOut ni g =
       let outEdges = G.outBound ni g
        in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
-    bridgeEdges mid inEdges (out, _) =
-      forM_
-        inEdges
-        ( \(ni, ed) -> do
-            G.deleteNode mid
-            G.addEdge ni out ed
-        )
+    bridgeEdges mid inEdges (out, _) = do
+      G.deleteNode mid
+      forM_ inEdges (\(ni, ed) -> G.addEdge ni out ed)
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False
 
@@ -334,7 +330,7 @@ buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = 
   (blockH, blockT) <- buildBlock block
   updateCFG (G.addEdge blockT tail SeqEdge)
   -- TODO: Keep empty nodes for now to ease debugging.
-  -- removeEmptySeqNode
+  removeEmptySeqNode
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
@@ -354,9 +350,9 @@ buildBlock block@AST.Block {stmts = stmts} = do
   -- handle statements
   stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
   -- connect last basic block with dangling statements if necessary
-  tail <- case stmtT of 
+  tail <- case stmtT of
     Deadend -> createEmptyBB
-    StayIn bbid -> 
+    StayIn bbid ->
       -- collect dangling statements, possibly left by some previous basic block.
       finishCurrentBB
     TailAt bbid -> return bbid

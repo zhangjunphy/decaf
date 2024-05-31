@@ -26,6 +26,7 @@ default-extensions:
 - GADTs
 - GeneralizedNewtypeDeriving
 - ImportQualifiedPost
+- LambdaCase
 - OverloadedStrings
 - OverloadedLabels
 - DeriveFunctor

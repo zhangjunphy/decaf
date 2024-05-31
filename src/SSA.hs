@@ -22,23 +22,25 @@ import Types
 import Util.SourceLoc qualified as SL
 
 data Var = Var
-  { id :: VID,
-    tpe :: Type,
-    astDecl :: Maybe (Either AST.Argument AST.FieldDecl),
-    loc :: SL.Range
+  { id :: !VID,
+    tpe :: !Type,
+    astDecl :: !(Maybe (Either AST.Argument AST.FieldDecl)),
+    loc :: !SL.Range
   }
 
 type VarList = [Var]
+
+type Label = Text
 
 instance Show Var where
   show var@Var {id = id} = formatToString ("v" % int) id
 
 data VarOrImm
-  = BoolImm Bool
-  | IntImm Int64
-  | CharImm Char
-  | StringImm Text
-  | Variable Var
+  = BoolImm !Bool
+  | IntImm !Int64
+  | CharImm !Char
+  | StringImm !Text
+  | Variable !Var
 
 instance Show VarOrImm where
   show (BoolImm True) = "true"
@@ -48,30 +50,23 @@ instance Show VarOrImm where
   show (StringImm val) = formatToString ("\"" % stext % "\"") val
   show (Variable Var {id = id}) = formatToString ("v" % int) id
 
-{-
-TODO:
-1. Implement Phi and Br
-2. Merge all binary ops into one SSA
-3. ArrayDeref -> Load?
-4. Do we really need Len here?
-5. Writing to global should work as a store.
-6. Use control flow instead of choice.
--}
 data SSA
-  = Assignment {dst :: Var, src :: VarOrImm}
-  | MethodCall {dst :: Var, name :: Name, arguments :: [Var]}
-  | Return {ret :: Var}
-  | ArrayDeref {dst :: Var, arr :: Var, idx :: VarOrImm}
-  | Store {arr :: Var, idx :: VarOrImm, src :: VarOrImm}
-  | Arith {dst :: Var, arithOp :: ArithOp, opl :: VarOrImm, opr :: VarOrImm}
-  | Rel {dst :: Var, relOp :: RelOp, opl :: VarOrImm, opr :: VarOrImm}
-  | Cond {dst :: Var, condOp :: CondOp, opl :: VarOrImm, opr :: VarOrImm}
-  | Eq {dst :: Var, eqOp :: EqOp, opl :: VarOrImm, opr :: VarOrImm}
-  | Neg {dst :: Var, negOp :: NegOp, oprand :: VarOrImm}
-  | Not {dst :: Var, notOp :: NotOp, oprand :: VarOrImm}
-  | Choice {dst :: Var, choiceOp :: ChoiceOp, pred :: VarOrImm, opl :: VarOrImm, opr :: VarOrImm}
-  | Len {dst :: Var, arr :: Var}
-  | Phi {dst :: Var, predecessors :: [(Var, BBID)]}
+  = Assignment {dst :: !Var, src :: !VarOrImm}
+  | MethodCall {dst :: !Var, name :: !Name, arguments :: ![Var]}
+  | Return {ret :: !Var}
+  | Load {dst :: !Var, ptr :: !VarOrImm}
+  | Store {ptr :: !VarOrImm, src :: !VarOrImm}
+  | Arith {dst :: !Var, arithOp :: !ArithOp, opl :: !VarOrImm, opr :: !VarOrImm}
+  | Rel {dst :: !Var, relOp :: !RelOp, opl :: !VarOrImm, opr :: !VarOrImm}
+  | Cond {dst :: !Var, condOp :: !CondOp, opl :: !VarOrImm, opr :: !VarOrImm}
+  | Eq {dst :: !Var, eqOp :: !EqOp, opl :: !VarOrImm, opr :: !VarOrImm}
+  | Neg {dst :: !Var, negOp :: !NegOp, oprand :: !VarOrImm}
+  | Not {dst :: !Var, notOp :: !NotOp, oprand :: !VarOrImm}
+  | Choice {dst :: !Var, choiceOp :: !ChoiceOp, pred :: !VarOrImm, opl :: !VarOrImm, opr :: !VarOrImm}
+  | Len {dst :: !Var, arr :: !Var}
+  | Phi {dst :: !Var, predecessors :: ![(Var, BBID)]}
+  | BrUncon { target :: !Label}
+  | BrCon {pred :: !VarOrImm, targetT :: !Label, targetF :: !Label}
 
 ppVars :: Format r ([Var] -> r)
 ppVars = intercalated ", " shown
@@ -86,8 +81,8 @@ instance Show SSA where
   show (Assignment dst src) = formatToString (shown %+ "=" %+ shown) dst src
   show (MethodCall dst name arguments) = formatToString (shown %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
   show (Return ret) = formatToString ("return" %+ shown) ret
-  show (ArrayDeref dst arr idx) = formatToString (shown %+ "=" %+ shown % "[" % shown % "]") dst arr idx
-  show (Store arr idx src) = formatToString (shown % "[" % shown % "] =" %+ shown) arr idx src
+  show (Load dst ptr) = formatToString (shown %+ "= &" % shown) dst ptr
+  show (Store ptr src) = formatToString ("&" % shown %+ "=" %+ shown) ptr src
   show (Arith dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Rel dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Cond dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr

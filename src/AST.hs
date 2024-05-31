@@ -15,6 +15,7 @@ import GHC.Generics (Generic)
 
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Functor ((<&>))
 import Text.Printf (printf)
 import Types
 
@@ -98,8 +99,15 @@ data Type
   | IntType
   | BoolType
   | StringType
-  | ArrayType Type Int64
+  | ArrayType !Type !Int64
   deriving (Show, Eq)
+
+dataSize :: Type -> Maybe Int64
+dataSize Void = Nothing
+dataSize IntType = Just 8
+dataSize BoolType = Just 1
+dataSize StringType = Just 8
+dataSize (ArrayType tpe size) = dataSize tpe <&> \s -> s * size
 
 parseArithOp :: Text -> ArithOp
 parseArithOp op = case op of

@@ -38,26 +38,37 @@ import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
 
+{-
+TODO:
+1. Implement Phi and Br
+2. Merge all binary ops into one SSA [DROP]
+3. ArrayDeref -> Load? [DONE]
+4. Do we really need Len here?
+5. Writing to global should work as a store.
+6. Use control flow instead of choice.
+7. Handle short circuit expressions.
+-}
+
 data Condition
-  = Pred {pred :: VarOrImm}
+  = Pred {pred :: !VarOrImm}
   | Complement
   deriving (Show)
 
 data BasicBlock = BasicBlock
-  { bbid :: BBID,
-    sid :: ScopeID,
-    statements :: [SSA]
+  { bbid :: !BBID,
+    sid :: !ScopeID,
+    statements :: ![SSA]
   }
   deriving (Generic, Show)
 
-data CFGNode = CFGNode
+newtype CFGNode = CFGNode
   { bb :: BasicBlock
   }
   deriving (Generic, Show)
 
 data CFGEdge
   = SeqEdge
-  | CondEdge Condition
+  | CondEdge !Condition
   deriving (Show)
 
 type CFG = G.Graph BBID CFGNode CFGEdge
@@ -65,22 +76,22 @@ type CFG = G.Graph BBID CFGNode CFGEdge
 type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge
 
 data SymVarMap = SymVarMap
-  { m :: Map Name VID,
-    parent :: Maybe ScopeID
+  { m :: !(Map Name VID),
+    parent :: !(Maybe ScopeID)
   }
   deriving (Show, Generic)
 
 data CFGState = CFGState
-  { cfg :: CFG,
-    astScope :: ScopeID,
-    sig :: AST.MethodSig,
-    currentBBID :: BBID,
-    vars :: VarList,
-    sym2var :: Map ScopeID SymVarMap,
-    var2sym :: Map VID (ScopeID, Name),
-    statements :: [SSA],
-    currentControlBlock :: Maybe (BBID, BBID), -- entry and exit
-    currentFunctionTail :: Maybe BBID
+  { cfg :: !CFG,
+    astScope :: !ScopeID,
+    sig :: !AST.MethodSig,
+    currentBBID :: !BBID,
+    vars :: !VarList,
+    sym2var :: !(Map ScopeID SymVarMap),
+    var2sym :: !(Map VID (ScopeID, Name)),
+    statements :: ![SSA],
+    currentControlBlock :: !(Maybe (BBID, BBID)), -- entry and exit
+    currentFunctionTail :: !(Maybe BBID)
   }
   deriving (Generic)
 
@@ -112,7 +123,7 @@ updateCFG update = do
     Left m -> throwError $ CFGExcept m
     Right g -> #cfg .= g
 
-data CFGContext = CFGContext
+newtype CFGContext = CFGContext
   { symbolTables :: Map ScopeID SE.SymbolTable
   }
   deriving (Generic)
@@ -330,7 +341,7 @@ buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = 
   (blockH, blockT) <- buildBlock block
   updateCFG (G.addEdge blockT tail SeqEdge)
   -- TODO: Keep empty nodes for now to ease debugging.
-  removeEmptySeqNode
+  -- removeEmptySeqNode
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
@@ -396,7 +407,17 @@ buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@(AST.Loca
   var <- buildAssignOp prev op expr
   array <- findVarOfSym' name
   idx <- buildExpr idxE
-  addSSA $ Store array (Variable idx) (Variable var)
+  eleType <- case tpe of
+    AST.ArrayType eleType size -> return eleType
+    _ -> throwError $ CFGExcept "Dereferencing non-array type."
+  eleSize <- case AST.dataSize eleType of
+    Nothing -> throwError $ CFGExcept "Array with void type element."
+    Just sz -> return sz
+  offset <- newVar Nothing AST.IntType loc
+  ptr <- newVar Nothing AST.IntType loc
+  addSSA $ Arith offset AST.Multiply (Variable idx) (IntImm eleSize)
+  addSSA $ Arith ptr AST.Plus (Variable array) (Variable offset)
+  addSSA $ Store (Variable ptr) (Variable var)
   use #currentBBID <&> StayIn
 buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void
@@ -576,9 +597,19 @@ buildLocation :: AST.Location -> CFGBuild Var
 buildLocation (AST.Location name Nothing def tpe loc) = findVarOfSym' name
 buildLocation (AST.Location name (Just expr) def tpe loc) = do
   idx <- buildExpr expr
-  array <- findVarOfSym' name
+  arrayPtr <- findVarOfSym' name
+  eleType <- case tpe of
+    AST.ArrayType eleType size -> return eleType
+    _ -> throwError $ CFGExcept "Dereferencing non-array type."
+  eleSize <- case AST.dataSize eleType of
+    Nothing -> throwError $ CFGExcept "Array with void type element."
+    Just sz -> return sz
+  offset <- newVar Nothing AST.IntType loc
+  ptr <- newVar Nothing AST.IntType loc
   dst <- newVar (Just name) tpe loc
-  addSSA $ ArrayDeref dst array (Variable idx)
+  addSSA $ Arith offset AST.Multiply (Variable idx) (IntImm eleSize)
+  addSSA $ Arith ptr AST.Plus (Variable arrayPtr) (Variable offset)
+  addSSA $ Load dst (Variable ptr)
   return dst
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var
@@ -597,14 +628,13 @@ prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =
    in Text.intercalate "\n" $ idText ++ segments
 
 escape :: Text -> Text
-escape str =
+escape =
   Text.concatMap
-    ( \w -> case w of
+    ( \case
         '\\' -> "\\\\"
         '"' -> "\\\""
         c -> Text.singleton c
     )
-    str
 
 prettyPrintEdge :: CFGEdge -> Text
 prettyPrintEdge SeqEdge = ""
@@ -618,7 +648,7 @@ generateDotPlot G.Graph {nodes = nodes, edges = edges} =
       nodeBoxes = Map.assocs nodes <&> uncurry nodeBox
       edgeLines =
         concatMap
-          (\(from, tos) -> tos <&> \(to, d) -> edgeLine from to d)
+          (\(from, tos) -> tos <&> uncurry (edgeLine from))
           $ Map.assocs edges
    in mconcat $ [preamble] ++ nodeBoxes ++ edgeLines ++ [postamble]
   where

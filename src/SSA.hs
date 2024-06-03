@@ -13,20 +13,28 @@ module SSA where
 
 import AST (ArithOp, AssignOp, ChoiceOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified
+import Control.Lens (_1, _2)
 import Control.Monad.State
 import Data.Int (Int64)
 import Data.Text (Text)
-import Control.Lens (_1, _2)
 import Formatting
 import Types
 import Util.SourceLoc qualified as SL
+import GHC.Generics (Generic)
+import Data.Generics.Labels
+
+data Locality
+  = Global
+  | Local
 
 data Var = Var
   { id :: !VID,
     tpe :: !Type,
     astDecl :: !(Maybe (Either AST.Argument AST.FieldDecl)),
-    loc :: !SL.Range
+    loc :: !SL.Range,
+    locality :: !Locality
   }
+  deriving (Generic)
 
 type VarList = [Var]
 
@@ -54,6 +62,7 @@ data SSA
   = Assignment {dst :: !Var, src :: !VarOrImm}
   | MethodCall {dst :: !Var, name :: !Name, arguments :: ![Var]}
   | Return {ret :: !Var}
+  | Alloca {dst :: !Var, tpe :: !AST.Type}
   | Load {dst :: !Var, ptr :: !VarOrImm}
   | Store {ptr :: !VarOrImm, src :: !VarOrImm}
   | Arith {dst :: !Var, arithOp :: !ArithOp, opl :: !VarOrImm, opr :: !VarOrImm}
@@ -63,10 +72,10 @@ data SSA
   | Neg {dst :: !Var, negOp :: !NegOp, oprand :: !VarOrImm}
   | Not {dst :: !Var, notOp :: !NotOp, oprand :: !VarOrImm}
   | Choice {dst :: !Var, choiceOp :: !ChoiceOp, pred :: !VarOrImm, opl :: !VarOrImm, opr :: !VarOrImm}
-  | Len {dst :: !Var, arr :: !Var}
   | Phi {dst :: !Var, predecessors :: ![(Var, BBID)]}
-  | BrUncon { target :: !Label}
+  | BrUncon {target :: !Label}
   | BrCon {pred :: !VarOrImm, targetT :: !Label, targetF :: !Label}
+  deriving (Generic)
 
 ppVars :: Format r ([Var] -> r)
 ppVars = intercalated ", " shown
@@ -75,14 +84,15 @@ ppPhiPreds :: Format r ([(Var, BBID)] -> r)
 ppPhiPreds = intercalated ", " showPredPair
   where
     showPredPair :: Format r ((Var, BBID) -> r)
-    showPredPair = "[" % viewed _1 shown % ", %" <> viewed _2 int % "]" 
+    showPredPair = "[" % viewed _1 shown % ", %" <> viewed _2 int % "]"
 
 instance Show SSA where
   show (Assignment dst src) = formatToString (shown %+ "=" %+ shown) dst src
   show (MethodCall dst name arguments) = formatToString (shown %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
   show (Return ret) = formatToString ("return" %+ shown) ret
-  show (Load dst ptr) = formatToString (shown %+ "= &" % shown) dst ptr
-  show (Store ptr src) = formatToString ("&" % shown %+ "=" %+ shown) ptr src
+  show (Load dst ptr) = formatToString (shown %+ "= *" % shown) dst ptr
+  show (Store ptr src) = formatToString ("*" % shown %+ "=" %+ shown) ptr src
+  show (Alloca dst tpe) = formatToString (shown %+ "= alloca" %+ shown) dst tpe
   show (Arith dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Rel dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Cond dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
@@ -90,5 +100,4 @@ instance Show SSA where
   show (Neg dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
   show (Not dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
   show (Choice dst op pred opl opr) = formatToString (shown %+ "=" %+ shown %+ "?" %+ shown %+ ":" %+ shown) dst pred opl opr
-  show (Len dst arr) = formatToString (shown %+ "= len(" % shown % ")") dst arr
   show (Phi dst preds) = formatToString (shown %+ "= phi" %+ ppPhiPreds) dst preds

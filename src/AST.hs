@@ -18,6 +18,7 @@ import Data.Text (Text)
 import Data.Functor ((<&>))
 import Text.Printf (printf)
 import Types
+import Formatting
 
 import qualified Util.SourceLoc as SL
 
@@ -100,7 +101,15 @@ data Type
   | BoolType
   | StringType
   | ArrayType !Type !Int64
-  deriving (Show, Eq)
+  | Ptr !Type
+  deriving (Eq)
+instance Show Type where
+  show Void = "void"
+  show IntType = "int"
+  show BoolType = "bool"
+  show StringType = "string"
+  show (ArrayType tpe size) = formatToString (shown % "x" % shown) size tpe
+  show (Ptr tpe) = formatToString ("ptr" %+ shown) tpe
 
 dataSize :: Type -> Maybe Int64
 dataSize Void = Nothing
@@ -108,6 +117,7 @@ dataSize IntType = Just 8
 dataSize BoolType = Just 1
 dataSize StringType = Just 8
 dataSize (ArrayType tpe size) = dataSize tpe <&> \s -> s * size
+dataSize (Ptr _) = Just 8
 
 parseArithOp :: Text -> ArithOp
 parseArithOp op = case op of

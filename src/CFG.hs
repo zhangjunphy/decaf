@@ -43,8 +43,8 @@ TODO:
 1. Implement Phi and Br
 2. Merge all binary ops into one SSA [DROP]
 3. ArrayDeref -> Load? [DONE]
-4. Do we really need Len here?
-5. Writing to global should work as a store.
+4. Do we really need Len here? [DONE]
+5. Reading from/Writing to global should work as load/store. [DONE]
 6. Use control flow instead of choice.
 7. Handle short circuit expressions.
 -}
@@ -275,22 +275,45 @@ removeEmptySeqNode = do
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False
 
-newVar :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
-newVar Nothing tpe sl = do
+newVar :: Maybe Name -> AST.Type -> SL.Range -> Locality -> CFGBuild Var
+newVar Nothing tpe sl locality = do
   vars <- use #vars
   let vid = length vars
-  let var = Var vid tpe Nothing sl
+  let var = Var vid tpe Nothing sl locality
   #vars .= vars ++ [var]
   return var
-newVar (Just name) tpe sl = do
+newVar (Just name) tpe sl locality = do
   vars <- use #vars
   let vid = length vars
   decl <- getVarDecl name
   when (isNothing decl) $ throwError (CFGExcept $ sformat ("Unable to find decl of variable " % stext) name)
-  let var = Var vid tpe decl sl
+  let var = Var vid tpe decl sl locality
   #vars .= vars ++ [var]
   addVarSym name vid
   return var
+
+newLocal :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
+newLocal name tpe@(AST.ArrayType _ _) sl = do
+  ptr <- newVar name tpe sl Local
+  addSSA $ Alloca ptr tpe
+  return ptr
+newLocal name tpe sl = newVar name tpe sl Local
+
+newGlobal :: Name -> AST.Type -> SL.Range -> CFGBuild Var
+newGlobal name tpe@(AST.ArrayType _ _) sl = do
+  sid <- use #astScope
+  setASTScope 0
+  ptr <- newVar (Just name) tpe sl Global
+  addSSA $ Alloca ptr tpe
+  setASTScope sid
+  return ptr
+newGlobal name tpe sl = do
+  sid <- use #astScope
+  setASTScope 0
+  ptr <- newVar (Just name) (AST.Ptr tpe) sl Global
+  addSSA $ Alloca ptr tpe
+  setASTScope sid
+  return ptr
 
 addSSA :: SSA -> CFGBuild ()
 addSSA ssa = do
@@ -324,13 +347,16 @@ buildCFG root@(AST.ASTRoot _ _ methods) context =
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
    in foldM updateMap Map.empty methods
 
--- Build cfg from ast fragments
+{----------------------------------------
+Build cfg from ast fragments
+-----------------------------------------}
 
 populateGlobals :: AST.ASTRoot -> CFGBuild ()
 populateGlobals root@(AST.ASTRoot _ globals _) = do
   sid <- use #astScope
   setASTScope 0
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) globals
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newGlobal name tpe loc) globals
+  finishCurrentBB
   setASTScope sid
 
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
@@ -357,7 +383,7 @@ buildBlock block@AST.Block {stmts = stmts} = do
   -- create a new varmap for this scope
   #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
   -- handle variable declarations
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newVar (Just name) tpe loc) (block ^. #vars)
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
   -- handle statements
   stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
   -- connect last basic block with dangling statements if necessary
@@ -375,49 +401,29 @@ buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
 buildAssignOp prev AST.IncAssign (Just expr) = do
   addition <- buildExpr expr
-  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Plus (Variable prev) (Variable addition))
   return dst'
 buildAssignOp prev AST.DecAssign (Just expr) = do
   addition <- buildExpr expr
-  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Minus (Variable prev) (Variable addition))
   return dst'
 buildAssignOp prev AST.PlusPlus Nothing = do
-  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Plus (Variable prev) (IntImm 1))
   return dst'
 buildAssignOp prev AST.MinusMinus Nothing = do
-  dst' <- newVar Nothing (SSA.tpe prev) (SSA.loc prev)
+  dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Minus (Variable prev) (IntImm 1))
   return dst'
 buildAssignOp _ _ _ = throwError $ CFGExcept "Malformed assignment."
 
 buildStatement :: AST.Statement -> CFGBuild BBTransition
--- treat assignment to a scalar as creating a new variable
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@(AST.Location name Nothing def tpe loc) op expr _)) _) = do
-  prev <- buildLocation location
+buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location op expr _)) _) = do
+  prev <- buildReadFromLocation location
   var <- buildAssignOp prev op expr
-  dst <- newVar (Just name) tpe loc
-  addSSA $ Assignment dst (Variable var)
-  use #currentBBID <&> StayIn
--- treat assignment to an array element as a store.
-buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location@(AST.Location name (Just idxE) def tpe loc) op expr _)) _) = do
-  prev <- buildLocation location
-  var <- buildAssignOp prev op expr
-  array <- findVarOfSym' name
-  idx <- buildExpr idxE
-  eleType <- case tpe of
-    AST.ArrayType eleType size -> return eleType
-    _ -> throwError $ CFGExcept "Dereferencing non-array type."
-  eleSize <- case AST.dataSize eleType of
-    Nothing -> throwError $ CFGExcept "Array with void type element."
-    Just sz -> return sz
-  offset <- newVar Nothing AST.IntType loc
-  ptr <- newVar Nothing AST.IntType loc
-  addSSA $ Arith offset AST.Multiply (Variable idx) (IntImm eleSize)
-  addSSA $ Arith ptr AST.Plus (Variable array) (Variable offset)
-  addSSA $ Store (Variable ptr) (Variable var)
+  buildWriteToLocation location (Variable var)
   use #currentBBID <&> StayIn
 buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void
@@ -448,7 +454,9 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
 buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
   var <- findVarOfSym' counter
   initExpr <- buildExpr init
-  addSSA $ Assignment var (Variable initExpr)
+  case var ^. #astDecl of
+    Nothing -> throwError $ CFGExcept "Counter var not found in symbol table."
+    (Just decl) -> buildWriteToLocation (AST.Location counter Nothing decl (var ^. #tpe) loc) (Variable initExpr)
   prevBB <- finishCurrentBB
   predVar <- buildExpr pred
   predBB <- finishCurrentBB
@@ -486,7 +494,7 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   ret <- case expr' of
     (Just e) -> buildExpr e
-    _ -> newVar Nothing AST.Void loc
+    _ -> newLocal Nothing AST.Void loc
   addSSA $ Return ret
   -- Go directly to function exit
   bbid <- finishCurrentBB
@@ -517,65 +525,65 @@ buildStatement (AST.Statement AST.BreakStmt loc) = do
   return Deadend
 
 buildExpr :: AST.Expr -> CFGBuild Var
-buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildLocation location
+buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildReadFromLocation location
 buildExpr (AST.Expr (AST.MethodCallExpr call) tpe _) = buildMethodCall call tpe
 buildExpr (AST.Expr (AST.ExternCallExpr name args) tpe loc) =
   buildMethodCall (AST.MethodCall name args loc) tpe
 buildExpr (AST.Expr (AST.IntLiteralExpr val) tpe loc) = do
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Assignment dst (IntImm val)
   return dst
 buildExpr (AST.Expr (AST.BoolLiteralExpr val) tpe loc) = do
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Assignment dst (BoolImm val)
   return dst
 buildExpr (AST.Expr (AST.CharLiteralExpr val) tpe loc) = do
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Assignment dst (CharImm val)
   return dst
 buildExpr (AST.Expr (AST.StringLiteralExpr val) tpe loc) = do
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Assignment dst (StringImm val)
   return dst
 buildExpr (AST.Expr (AST.ArithOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   rhs' <- buildExpr rhs
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Arith dst op (Variable lhs') (Variable rhs')
   return dst
 buildExpr (AST.Expr (AST.RelOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   rhs' <- buildExpr rhs
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Rel dst op (Variable lhs') (Variable rhs')
   return dst
 buildExpr (AST.Expr (AST.CondOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   rhs' <- buildExpr rhs
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Cond dst op (Variable lhs') (Variable rhs')
   return dst
 buildExpr (AST.Expr (AST.EqOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   rhs' <- buildExpr rhs
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Eq dst op (Variable lhs') (Variable rhs')
   return dst
 buildExpr (AST.Expr (AST.NegOpExpr op opr) tpe loc) = do
   opr' <- buildExpr opr
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Neg dst op (Variable opr')
   return dst
 buildExpr (AST.Expr (AST.NotOpExpr op opr) tpe loc) = do
   opr' <- buildExpr opr
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Not dst op (Variable opr')
   return dst
 buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
   e1' <- buildExpr e1
   e2' <- buildExpr e2
   e3' <- buildExpr e3
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ Choice dst op (Variable e1') (Variable e2') (Variable e3')
   return dst
 buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
@@ -586,36 +594,69 @@ buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
     Just (Right (AST.FieldDecl _ arrTpe _)) -> return arrTpe
   case arrType of
     AST.ArrayType _ len -> do
-      dst <- newVar Nothing tpe loc
+      dst <- newLocal Nothing tpe loc
       addSSA $ Assignment dst (IntImm len)
       return dst
     _ ->
       throwError $
         CFGExcept (sformat ("Variable is not an array: " % stext) name)
 
-buildLocation :: AST.Location -> CFGBuild Var
-buildLocation (AST.Location name Nothing def tpe loc) = findVarOfSym' name
-buildLocation (AST.Location name (Just expr) def tpe loc) = do
-  idx <- buildExpr expr
-  arrayPtr <- findVarOfSym' name
-  eleType <- case tpe of
-    AST.ArrayType eleType size -> return eleType
-    _ -> throwError $ CFGExcept "Dereferencing non-array type."
-  eleSize <- case AST.dataSize eleType of
-    Nothing -> throwError $ CFGExcept "Array with void type element."
-    Just sz -> return sz
-  offset <- newVar Nothing AST.IntType loc
-  ptr <- newVar Nothing AST.IntType loc
-  dst <- newVar (Just name) tpe loc
-  addSSA $ Arith offset AST.Multiply (Variable idx) (IntImm eleSize)
-  addSSA $ Arith ptr AST.Plus (Variable arrayPtr) (Variable offset)
-  addSSA $ Load dst (Variable ptr)
-  return dst
+buildReadFromLocation :: AST.Location -> CFGBuild Var
+buildReadFromLocation (AST.Location name idx def tpe loc) = do
+  var <- findVarOfSym' name
+  -- NOTE: var^. #tpe might be different from tpe in AST.Location as we 
+  -- have altered type of global into pointers.
+  case var ^. #tpe of
+    AST.ArrayType eleType size -> do
+      case idx of
+        Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
+        Just idxExpr -> do
+          idxVar <- buildExpr idxExpr
+          arrayPtr <- findVarOfSym' name
+          eleSize <- case AST.dataSize eleType of
+            Nothing -> throwError $ CFGExcept "Array with void type element."
+            Just sz -> return sz
+          offset <- newLocal Nothing AST.IntType loc
+          ptr <- newLocal Nothing AST.IntType loc
+          dst <- newLocal Nothing eleType loc
+          addSSA $ Arith offset AST.Multiply (Variable idxVar) (IntImm eleSize)
+          addSSA $ Arith ptr AST.Plus (Variable arrayPtr) (Variable offset)
+          addSSA $ Load dst (Variable ptr)
+          return dst
+    AST.Ptr tpe -> do
+      dst <- newLocal Nothing tpe loc
+      addSSA $ Load dst (Variable var)
+      return dst
+    _scalarType -> return var
+
+buildWriteToLocation :: AST.Location -> VarOrImm -> CFGBuild ()
+buildWriteToLocation (AST.Location name idx def tpe loc) src = do
+  var <- findVarOfSym' name
+  case var ^. #tpe of
+    AST.ArrayType eleType size ->
+      case idx of
+        Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
+        Just idxExpr -> do
+          idx <- buildExpr idxExpr
+          arrayPtr <- findVarOfSym' name
+          eleSize <- case AST.dataSize eleType of
+            Nothing -> throwError $ CFGExcept "Array with void type element."
+            Just sz -> return sz
+          offset <- newLocal Nothing AST.IntType loc
+          ptr <- newLocal Nothing AST.IntType loc
+          addSSA $ Arith offset AST.Multiply (Variable idx) (IntImm eleSize)
+          addSSA $ Arith ptr AST.Plus (Variable arrayPtr) (Variable offset)
+          addSSA $ Store (Variable ptr) src
+    AST.Ptr tpe -> do
+      addSSA $ Store (Variable var) src
+    _scalarType -> do
+      dst <- newLocal (Just name) tpe loc
+      addSSA $ Assignment dst src
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var
 buildMethodCall (AST.MethodCall name args loc) tpe = do
   vars <- mapM buildExpr args
-  dst <- newVar Nothing tpe loc
+  dst <- newLocal Nothing tpe loc
   addSSA $ MethodCall dst name vars
   return dst
 

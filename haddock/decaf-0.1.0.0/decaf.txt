@@ -467,8 +467,8 @@ data EqOp
 Equal :: EqOp
 NotEqual :: EqOp
 data CondOp
-OR :: CondOp
-AND :: CondOp
+Or :: CondOp
+And :: CondOp
 data NegOp
 Neg :: NegOp
 data NotOp
@@ -779,12 +779,6 @@ Not :: !Var -> !NotOp -> !VarOrImm -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:notOp:Assignment] :: SSA -> !NotOp
 [$sel:oprand:Assignment] :: SSA -> !VarOrImm
-Choice :: !Var -> !ChoiceOp -> !VarOrImm -> !VarOrImm -> !VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> !Var
-[$sel:choiceOp:Assignment] :: SSA -> !ChoiceOp
-[$sel:pred:Assignment] :: SSA -> !VarOrImm
-[$sel:opl:Assignment] :: SSA -> !VarOrImm
-[$sel:opr:Assignment] :: SSA -> !VarOrImm
 Phi :: !Var -> ![(Var, BBID)] -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:predecessors:Assignment] :: SSA -> ![(Var, BBID)]
@@ -794,6 +788,7 @@ BrCon :: !VarOrImm -> !Label -> !Label -> SSA
 [$sel:pred:Assignment] :: SSA -> !VarOrImm
 [$sel:targetT:Assignment] :: SSA -> !Label
 [$sel:targetF:Assignment] :: SSA -> !Label
+ppVarWithType :: Format r (Var -> r)
 ppVars :: Format r ([Var] -> r)
 ppPhiPreds :: Format r ([(Var, BBID)] -> r)
 instance GHC.Generics.Generic SSA.Var

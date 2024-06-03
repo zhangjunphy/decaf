@@ -77,12 +77,12 @@ span.spaces    { background: white }
 <span class="lineno">   58 </span><span class="spaces">  </span><span class="nottickedoff">show NotEqual = &quot;!=&quot;</span></span>
 <span class="lineno">   59 </span>
 <span class="lineno">   60 </span>data CondOp
-<span class="lineno">   61 </span>  = OR
-<span class="lineno">   62 </span>  | AND
+<span class="lineno">   61 </span>  = Or
+<span class="lineno">   62 </span>  | And
 <span class="lineno">   63 </span>  deriving <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>
 <span class="lineno">   64 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show CondOp</span></span></span></span> where
-<span class="lineno">   65 </span>  <span class="decl"><span class="nottickedoff">show OR = &quot;||&quot;</span>
-<span class="lineno">   66 </span><span class="spaces">  </span><span class="nottickedoff">show AND = &quot;&amp;&amp;&quot;</span></span>
+<span class="lineno">   65 </span>  <span class="decl"><span class="nottickedoff">show Or = &quot;||&quot;</span>
+<span class="lineno">   66 </span><span class="spaces">  </span><span class="nottickedoff">show And = &quot;&amp;&amp;&quot;</span></span>
 <span class="lineno">   67 </span>
 <span class="lineno">   68 </span>data NegOp
 <span class="lineno">   69 </span>  = Neg
@@ -160,8 +160,8 @@ span.spaces    { background: white }
 <span class="lineno">  141 </span>
 <span class="lineno">  142 </span>parseCondOp :: Text -&gt; CondOp
 <span class="lineno">  143 </span><span class="decl"><span class="nottickedoff">parseCondOp op = case op of</span>
-<span class="lineno">  144 </span><span class="spaces">  </span><span class="nottickedoff">&quot;||&quot; -&gt; OR</span>
-<span class="lineno">  145 </span><span class="spaces">  </span><span class="nottickedoff">&quot;&amp;&amp;&quot; -&gt; AND</span></span>
+<span class="lineno">  144 </span><span class="spaces">  </span><span class="nottickedoff">&quot;||&quot; -&gt; Or</span>
+<span class="lineno">  145 </span><span class="spaces">  </span><span class="nottickedoff">&quot;&amp;&amp;&quot; -&gt; And</span></span>
 <span class="lineno">  146 </span>
 <span class="lineno">  147 </span>parseNegOp :: Text -&gt; NegOp
 <span class="lineno">  148 </span><span class="decl"><span class="nottickedoff">parseNegOp op = case op of</span>

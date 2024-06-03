@@ -58,12 +58,12 @@ instance Show EqOp where
   show NotEqual = "!="
 
 data CondOp
-  = OR
-  | AND
+  = Or
+  | And
   deriving Eq
 instance Show CondOp where
-  show OR = "||"
-  show AND = "&&"
+  show Or = "||"
+  show And = "&&"
 
 data NegOp
   = Neg
@@ -141,8 +141,8 @@ parseEqOp op = case op of
 
 parseCondOp :: Text -> CondOp
 parseCondOp op = case op of
-  "||" -> OR
-  "&&" -> AND
+  "||" -> Or
+  "&&" -> And
 
 parseNegOp :: Text -> NegOp
 parseNegOp op = case op of

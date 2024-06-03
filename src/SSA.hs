@@ -11,7 +11,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 module SSA where
 
-import AST (ArithOp, AssignOp, ChoiceOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
+import AST (ArithOp, AssignOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified
 import Control.Lens (_1, _2)
 import Control.Monad.State
@@ -22,6 +22,7 @@ import Types
 import Util.SourceLoc qualified as SL
 import GHC.Generics (Generic)
 import Data.Generics.Labels
+import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 
 data Locality
   = Global
@@ -71,11 +72,13 @@ data SSA
   | Eq {dst :: !Var, eqOp :: !EqOp, opl :: !VarOrImm, opr :: !VarOrImm}
   | Neg {dst :: !Var, negOp :: !NegOp, oprand :: !VarOrImm}
   | Not {dst :: !Var, notOp :: !NotOp, oprand :: !VarOrImm}
-  | Choice {dst :: !Var, choiceOp :: !ChoiceOp, pred :: !VarOrImm, opl :: !VarOrImm, opr :: !VarOrImm}
   | Phi {dst :: !Var, predecessors :: ![(Var, BBID)]}
   | BrUncon {target :: !Label}
   | BrCon {pred :: !VarOrImm, targetT :: !Label, targetF :: !Label}
   deriving (Generic)
+
+ppVarWithType :: Format r (Var -> r)
+ppVarWithType = viewed #tpe shown <%+> shown
 
 ppVars :: Format r ([Var] -> r)
 ppVars = intercalated ", " shown
@@ -87,17 +90,16 @@ ppPhiPreds = intercalated ", " showPredPair
     showPredPair = "[" % viewed _1 shown % ", %" <> viewed _2 int % "]"
 
 instance Show SSA where
-  show (Assignment dst src) = formatToString (shown %+ "=" %+ shown) dst src
-  show (MethodCall dst name arguments) = formatToString (shown %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
-  show (Return ret) = formatToString ("return" %+ shown) ret
-  show (Load dst ptr) = formatToString (shown %+ "= *" % shown) dst ptr
+  show (Assignment dst src) = formatToString (ppVarWithType %+ "=" %+ shown) dst src
+  show (MethodCall dst name arguments) = formatToString (ppVarWithType %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
+  show (Return ret) = formatToString ("return" %+ ppVarWithType) ret
+  show (Load dst ptr) = formatToString (ppVarWithType %+ "= *" % shown) dst ptr
   show (Store ptr src) = formatToString ("*" % shown %+ "=" %+ shown) ptr src
-  show (Alloca dst tpe) = formatToString (shown %+ "= alloca" %+ shown) dst tpe
-  show (Arith dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
-  show (Rel dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
-  show (Cond dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
-  show (Eq dst op opl opr) = formatToString (shown %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
-  show (Neg dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
-  show (Not dst op opd) = formatToString (shown %+ "=" %+ shown % shown) dst op opd
-  show (Choice dst op pred opl opr) = formatToString (shown %+ "=" %+ shown %+ "?" %+ shown %+ ":" %+ shown) dst pred opl opr
-  show (Phi dst preds) = formatToString (shown %+ "= phi" %+ ppPhiPreds) dst preds
+  show (Alloca dst tpe) = formatToString (ppVarWithType %+ "= alloca" %+ shown) dst tpe
+  show (Arith dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Rel dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Cond dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Eq dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
+  show (Neg dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
+  show (Not dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
+  show (Phi dst preds) = formatToString (ppVarWithType %+ "= phi" %+ ppPhiPreds) dst preds

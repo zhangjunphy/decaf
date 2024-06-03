@@ -45,8 +45,10 @@ TODO:
 3. ArrayDeref -> Load? [DONE]
 4. Do we really need Len here? [DONE]
 5. Reading from/Writing to global should work as load/store. [DONE]
-6. Use control flow instead of choice.
-7. Handle short circuit expressions.
+6. Use control flow instead of choice. [DONE]
+7. Handle short circuit expressions. [DONE]
+8. Make sure everything works after compliating expr building with control flow.
+9. Ensure bbid are monotonically-increasing with respect to ast statement ordering.
 -}
 
 data Condition
@@ -433,7 +435,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   prevBB <- finishCurrentBB
   (ifHead, ifTail) <- buildBlock ifBlock
   g <- use #cfg
-  do updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
+  updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
@@ -479,7 +481,7 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   prevBB <- finishCurrentBB
   predVar <- buildExpr pred
   predBB <- finishCurrentBB
-  updateCFG (G.addEdge prevBB predBB SeqEdge)
+  updateCFG $ G.addEdge prevBB predBB SeqEdge
   parentControlBlock <- getControlBlock
   tail <- createEmptyBB
   setControlBlock $ Just (predBB, tail)
@@ -501,7 +503,7 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   funcTail <- getFunctionTail
   case funcTail of
     Nothing -> throwError $ CFGExcept "Return not in a function context."
-    Just tail -> updateCFG (G.addEdge bbid tail SeqEdge)
+    Just tail -> updateCFG $ G.addEdge bbid tail SeqEdge
   -- Create an unreachable bb in case there are still statements after
   -- this point.
   -- We could optimize unreachable blocks away in later passes.
@@ -512,7 +514,7 @@ buildStatement (AST.Statement AST.ContinueStmt loc) = do
   controlH' <- getControlEntry
   case controlH' of
     Nothing -> throwError $ CFGExcept "Continue not in a loop context."
-    Just controlH -> updateCFG (G.addEdge bbid controlH SeqEdge)
+    Just controlH -> updateCFG $ G.addEdge bbid controlH SeqEdge
   createEmptyBB
   return Deadend
 buildStatement (AST.Statement AST.BreakStmt loc) = do
@@ -520,7 +522,7 @@ buildStatement (AST.Statement AST.BreakStmt loc) = do
   controlT' <- getControlExit
   case controlT' of
     Nothing -> throwError $ CFGExcept "Break not in a loop context."
-    Just controlT -> updateCFG (G.addEdge bbid controlT SeqEdge)
+    Just controlT -> updateCFG $ G.addEdge bbid controlT SeqEdge
   createEmptyBB
   return Deadend
 
@@ -557,11 +559,31 @@ buildExpr (AST.Expr (AST.RelOpExpr op lhs rhs) tpe loc) = do
   dst <- newLocal Nothing tpe loc
   addSSA $ Rel dst op (Variable lhs') (Variable rhs')
   return dst
-buildExpr (AST.Expr (AST.CondOpExpr op lhs rhs) tpe loc) = do
+buildExpr (AST.Expr (AST.CondOpExpr AST.And lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
+  lhsTail <- finishCurrentBB
   rhs' <- buildExpr rhs
+  rhsTail <- finishCurrentBB
+  tail <- use #currentBBID
   dst <- newLocal Nothing tpe loc
-  addSSA $ Cond dst op (Variable lhs') (Variable rhs')
+  updateCFG $ do
+    G.addEdge lhsTail (lhsTail + 1) $ CondEdge $ Pred $ Variable lhs'
+    G.addEdge lhsTail tail $ CondEdge Complement
+    G.addEdge rhsTail tail SeqEdge
+  addSSA $ Phi dst [(lhs', lhsTail), (rhs', rhsTail)]
+  return dst
+buildExpr (AST.Expr (AST.CondOpExpr AST.Or lhs rhs) tpe loc) = do
+  lhs' <- buildExpr lhs
+  lhsBB <- finishCurrentBB
+  rhs' <- buildExpr rhs
+  rhsBB <- finishCurrentBB
+  bbid <- use #currentBBID
+  dst <- newLocal Nothing tpe loc
+  updateCFG $ do
+    G.addEdge lhsBB bbid $ CondEdge $ Pred $ Variable lhs'
+    G.addEdge lhsBB (lhsBB + 1) $ CondEdge Complement
+    G.addEdge rhsBB bbid SeqEdge
+  addSSA $ Phi dst [(lhs', lhsBB), (rhs', rhsBB)]
   return dst
 buildExpr (AST.Expr (AST.EqOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
@@ -580,11 +602,20 @@ buildExpr (AST.Expr (AST.NotOpExpr op opr) tpe loc) = do
   addSSA $ Not dst op (Variable opr')
   return dst
 buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
-  e1' <- buildExpr e1
-  e2' <- buildExpr e2
-  e3' <- buildExpr e3
+  pred' <- buildExpr e1
+  prev <- finishCurrentBB
+  exprT' <- buildExpr e2
+  bbT <- finishCurrentBB
+  exprF' <- buildExpr e3
+  bbF <- finishCurrentBB
+  tail <- use #currentBBID
   dst <- newLocal Nothing tpe loc
-  addSSA $ Choice dst op (Variable e1') (Variable e2') (Variable e3')
+  updateCFG $ do
+    G.addEdge prev (prev + 1) $ CondEdge $ Pred $ Variable pred'
+    G.addEdge prev (bbT + 1) $ CondEdge Complement
+    G.addEdge bbT tail SeqEdge
+    G.addEdge bbF tail SeqEdge
+  addSSA $ Phi dst [(exprT', bbT), (exprF', bbF)]
   return dst
 buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
   array <- findVarOfSym' name
@@ -604,7 +635,7 @@ buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
 buildReadFromLocation :: AST.Location -> CFGBuild Var
 buildReadFromLocation (AST.Location name idx def tpe loc) = do
   var <- findVarOfSym' name
-  -- NOTE: var^. #tpe might be different from tpe in AST.Location as we 
+  -- NOTE: var^. #tpe might be different from tpe in AST.Location as we
   -- have altered type of global into pointers.
   case var ^. #tpe of
     AST.ArrayType eleType size -> do

@@ -486,7 +486,9 @@ Void :: Type
 IntType :: Type
 BoolType :: Type
 StringType :: Type
-ArrayType :: Type -> Int64 -> Type
+ArrayType :: !Type -> !Int64 -> Type
+Ptr :: !Type -> Type
+dataSize :: Type -> Maybe Int64
 parseArithOp :: Text -> ArithOp
 parseRelOp :: Text -> RelOp
 parseEqOp :: Text -> EqOp
@@ -637,7 +639,6 @@ instance GHC.Classes.Eq AST.ChoiceOp
 instance GHC.Show.Show AST.ChoiceOp
 instance GHC.Classes.Eq AST.AssignOp
 instance GHC.Classes.Eq AST.Type
-instance GHC.Show.Show AST.Type
 instance GHC.Show.Show AST.ImportDecl
 instance GHC.Generics.Generic AST.ImportDecl
 instance GHC.Show.Show AST.FieldDecl
@@ -668,6 +669,7 @@ instance GHC.Generics.Generic AST.MethodDecl
 instance GHC.Show.Show AST.ASTRoot
 instance GHC.Generics.Generic AST.ASTRoot
 instance GHC.Show.Show AST.Location
+instance GHC.Show.Show AST.Type
 instance GHC.Show.Show AST.AssignOp
 instance GHC.Show.Show AST.NotOp
 instance GHC.Show.Show AST.NegOp
@@ -712,124 +714,135 @@ instance GHC.Show.Show Semantic.SemanticException
 instance GHC.Show.Show Semantic.SemanticError
 
 module SSA
+data Locality
+Global :: Locality
+Local :: Locality
 data Var
-Var :: VID -> Type -> Maybe (Either Argument FieldDecl) -> Range -> Var
-[$sel:id:Var] :: Var -> VID
-[$sel:tpe:Var] :: Var -> Type
-[$sel:astDecl:Var] :: Var -> Maybe (Either Argument FieldDecl)
-[$sel:loc:Var] :: Var -> Range
+Var :: !VID -> !Type -> !Maybe (Either Argument FieldDecl) -> !Range -> !Locality -> Var
+[$sel:id:Var] :: Var -> !VID
+[$sel:tpe:Var] :: Var -> !Type
+[$sel:astDecl:Var] :: Var -> !Maybe (Either Argument FieldDecl)
+[$sel:loc:Var] :: Var -> !Range
+[$sel:locality:Var] :: Var -> !Locality
 type VarList = [Var]
+type Label = Text
 data VarOrImm
-BoolImm :: Bool -> VarOrImm
-IntImm :: Int64 -> VarOrImm
-CharImm :: Char -> VarOrImm
-StringImm :: Text -> VarOrImm
-Variable :: Var -> VarOrImm
+BoolImm :: !Bool -> VarOrImm
+IntImm :: !Int64 -> VarOrImm
+CharImm :: !Char -> VarOrImm
+StringImm :: !Text -> VarOrImm
+Variable :: !Var -> VarOrImm
 data SSA
-Assignment :: Var -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:src:Assignment] :: SSA -> VarOrImm
-MethodCall :: Var -> Name -> [Var] -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:name:Assignment] :: SSA -> Name
-[$sel:arguments:Assignment] :: SSA -> [Var]
-Return :: Var -> SSA
-[$sel:ret:Assignment] :: SSA -> Var
-ArrayDeref :: Var -> Var -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:arr:Assignment] :: SSA -> Var
-[$sel:idx:Assignment] :: SSA -> VarOrImm
-Store :: Var -> VarOrImm -> VarOrImm -> SSA
-[$sel:arr:Assignment] :: SSA -> Var
-[$sel:idx:Assignment] :: SSA -> VarOrImm
-[$sel:src:Assignment] :: SSA -> VarOrImm
-Arith :: Var -> ArithOp -> VarOrImm -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:arithOp:Assignment] :: SSA -> ArithOp
-[$sel:opl:Assignment] :: SSA -> VarOrImm
-[$sel:opr:Assignment] :: SSA -> VarOrImm
-Rel :: Var -> RelOp -> VarOrImm -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:relOp:Assignment] :: SSA -> RelOp
-[$sel:opl:Assignment] :: SSA -> VarOrImm
-[$sel:opr:Assignment] :: SSA -> VarOrImm
-Cond :: Var -> CondOp -> VarOrImm -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:condOp:Assignment] :: SSA -> CondOp
-[$sel:opl:Assignment] :: SSA -> VarOrImm
-[$sel:opr:Assignment] :: SSA -> VarOrImm
-Eq :: Var -> EqOp -> VarOrImm -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:eqOp:Assignment] :: SSA -> EqOp
-[$sel:opl:Assignment] :: SSA -> VarOrImm
-[$sel:opr:Assignment] :: SSA -> VarOrImm
-Neg :: Var -> NegOp -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:negOp:Assignment] :: SSA -> NegOp
-[$sel:oprand:Assignment] :: SSA -> VarOrImm
-Not :: Var -> NotOp -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:notOp:Assignment] :: SSA -> NotOp
-[$sel:oprand:Assignment] :: SSA -> VarOrImm
-Choice :: Var -> ChoiceOp -> VarOrImm -> VarOrImm -> VarOrImm -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:choiceOp:Assignment] :: SSA -> ChoiceOp
-[$sel:pred:Assignment] :: SSA -> VarOrImm
-[$sel:opl:Assignment] :: SSA -> VarOrImm
-[$sel:opr:Assignment] :: SSA -> VarOrImm
-Len :: Var -> Var -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:arr:Assignment] :: SSA -> Var
-Phi :: Var -> [(Var, BBID)] -> SSA
-[$sel:dst:Assignment] :: SSA -> Var
-[$sel:predecessors:Assignment] :: SSA -> [(Var, BBID)]
+Assignment :: !Var -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:src:Assignment] :: SSA -> !VarOrImm
+MethodCall :: !Var -> !Name -> ![Var] -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:name:Assignment] :: SSA -> !Name
+[$sel:arguments:Assignment] :: SSA -> ![Var]
+Return :: !Var -> SSA
+[$sel:ret:Assignment] :: SSA -> !Var
+Alloca :: !Var -> !Type -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:tpe:Assignment] :: SSA -> !Type
+Load :: !Var -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:ptr:Assignment] :: SSA -> !VarOrImm
+Store :: !VarOrImm -> !VarOrImm -> SSA
+[$sel:ptr:Assignment] :: SSA -> !VarOrImm
+[$sel:src:Assignment] :: SSA -> !VarOrImm
+Arith :: !Var -> !ArithOp -> !VarOrImm -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:arithOp:Assignment] :: SSA -> !ArithOp
+[$sel:opl:Assignment] :: SSA -> !VarOrImm
+[$sel:opr:Assignment] :: SSA -> !VarOrImm
+Rel :: !Var -> !RelOp -> !VarOrImm -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:relOp:Assignment] :: SSA -> !RelOp
+[$sel:opl:Assignment] :: SSA -> !VarOrImm
+[$sel:opr:Assignment] :: SSA -> !VarOrImm
+Cond :: !Var -> !CondOp -> !VarOrImm -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:condOp:Assignment] :: SSA -> !CondOp
+[$sel:opl:Assignment] :: SSA -> !VarOrImm
+[$sel:opr:Assignment] :: SSA -> !VarOrImm
+Eq :: !Var -> !EqOp -> !VarOrImm -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:eqOp:Assignment] :: SSA -> !EqOp
+[$sel:opl:Assignment] :: SSA -> !VarOrImm
+[$sel:opr:Assignment] :: SSA -> !VarOrImm
+Neg :: !Var -> !NegOp -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:negOp:Assignment] :: SSA -> !NegOp
+[$sel:oprand:Assignment] :: SSA -> !VarOrImm
+Not :: !Var -> !NotOp -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:notOp:Assignment] :: SSA -> !NotOp
+[$sel:oprand:Assignment] :: SSA -> !VarOrImm
+Choice :: !Var -> !ChoiceOp -> !VarOrImm -> !VarOrImm -> !VarOrImm -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:choiceOp:Assignment] :: SSA -> !ChoiceOp
+[$sel:pred:Assignment] :: SSA -> !VarOrImm
+[$sel:opl:Assignment] :: SSA -> !VarOrImm
+[$sel:opr:Assignment] :: SSA -> !VarOrImm
+Phi :: !Var -> ![(Var, BBID)] -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:predecessors:Assignment] :: SSA -> ![(Var, BBID)]
+BrUncon :: !Label -> SSA
+[$sel:target:Assignment] :: SSA -> !Label
+BrCon :: !VarOrImm -> !Label -> !Label -> SSA
+[$sel:pred:Assignment] :: SSA -> !VarOrImm
+[$sel:targetT:Assignment] :: SSA -> !Label
+[$sel:targetF:Assignment] :: SSA -> !Label
 ppVars :: Format r ([Var] -> r)
 ppPhiPreds :: Format r ([(Var, BBID)] -> r)
+instance GHC.Generics.Generic SSA.Var
+instance GHC.Generics.Generic SSA.SSA
 instance GHC.Show.Show SSA.SSA
 instance GHC.Show.Show SSA.VarOrImm
 instance GHC.Show.Show SSA.Var
 
 module CFG
 data Condition
-Pred :: VarOrImm -> Condition
-[$sel:pred:Pred] :: Condition -> VarOrImm
+Pred :: !VarOrImm -> Condition
+[$sel:pred:Pred] :: Condition -> !VarOrImm
 Complement :: Condition
 data BasicBlock
-BasicBlock :: BBID -> ScopeID -> [SSA] -> BasicBlock
-[$sel:bbid:BasicBlock] :: BasicBlock -> BBID
-[$sel:sid:BasicBlock] :: BasicBlock -> ScopeID
-[$sel:statements:BasicBlock] :: BasicBlock -> [SSA]
-data CFGNode
+BasicBlock :: !BBID -> !ScopeID -> ![SSA] -> BasicBlock
+[$sel:bbid:BasicBlock] :: BasicBlock -> !BBID
+[$sel:sid:BasicBlock] :: BasicBlock -> !ScopeID
+[$sel:statements:BasicBlock] :: BasicBlock -> ![SSA]
+newtype CFGNode
 CFGNode :: BasicBlock -> CFGNode
 [$sel:bb:CFGNode] :: CFGNode -> BasicBlock
 data CFGEdge
 SeqEdge :: CFGEdge
-CondEdge :: Condition -> CFGEdge
+CondEdge :: !Condition -> CFGEdge
 type CFG = Graph BBID CFGNode CFGEdge
 type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
 data SymVarMap
-SymVarMap :: Map Name VID -> Maybe ScopeID -> SymVarMap
-[$sel:m:SymVarMap] :: SymVarMap -> Map Name VID
-[$sel:parent:SymVarMap] :: SymVarMap -> Maybe ScopeID
+SymVarMap :: !Map Name VID -> !Maybe ScopeID -> SymVarMap
+[$sel:m:SymVarMap] :: SymVarMap -> !Map Name VID
+[$sel:parent:SymVarMap] :: SymVarMap -> !Maybe ScopeID
 data CFGState
-CFGState :: CFG -> ScopeID -> MethodSig -> BBID -> VarList -> Map ScopeID SymVarMap -> Map VID (ScopeID, Name) -> [SSA] -> Maybe (BBID, BBID) -> Maybe BBID -> CFGState
-[$sel:cfg:CFGState] :: CFGState -> CFG
-[$sel:astScope:CFGState] :: CFGState -> ScopeID
-[$sel:sig:CFGState] :: CFGState -> MethodSig
-[$sel:currentBBID:CFGState] :: CFGState -> BBID
-[$sel:vars:CFGState] :: CFGState -> VarList
-[$sel:sym2var:CFGState] :: CFGState -> Map ScopeID SymVarMap
-[$sel:var2sym:CFGState] :: CFGState -> Map VID (ScopeID, Name)
-[$sel:statements:CFGState] :: CFGState -> [SSA]
-[$sel:currentControlBlock:CFGState] :: CFGState -> Maybe (BBID, BBID)
-[$sel:currentFunctionTail:CFGState] :: CFGState -> Maybe BBID
+CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> CFGState
+[$sel:cfg:CFGState] :: CFGState -> !CFG
+[$sel:astScope:CFGState] :: CFGState -> !ScopeID
+[$sel:sig:CFGState] :: CFGState -> !MethodSig
+[$sel:currentBBID:CFGState] :: CFGState -> !BBID
+[$sel:vars:CFGState] :: CFGState -> !VarList
+[$sel:sym2var:CFGState] :: CFGState -> !Map ScopeID SymVarMap
+[$sel:var2sym:CFGState] :: CFGState -> !Map VID (ScopeID, Name)
+[$sel:statements:CFGState] :: CFGState -> ![SSA]
+[$sel:currentControlBlock:CFGState] :: CFGState -> !Maybe (BBID, BBID)
+[$sel:currentFunctionTail:CFGState] :: CFGState -> !Maybe BBID
 data BBTransition
 StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
 Deadend :: BBTransition
 initialState :: MethodSig -> CFGState
 updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
-data CFGContext
+newtype CFGContext
 CFGContext :: Map ScopeID SymbolTable -> CFGContext
 [$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
 newtype CFGExcept
@@ -852,7 +865,9 @@ createEmptyBB :: CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
 checkStmts :: CFGBuild ()
 removeEmptySeqNode :: CFGBuild ()
-newVar :: Maybe Name -> Type -> Range -> CFGBuild Var
+newVar :: Maybe Name -> Type -> Range -> Locality -> CFGBuild Var
+newLocal :: Maybe Name -> Type -> Range -> CFGBuild Var
+newGlobal :: Name -> Type -> Range -> CFGBuild Var
 addSSA :: SSA -> CFGBuild ()
 findVarOfSym :: Name -> CFGBuild (Maybe Var)
 findVarOfSym' :: Name -> CFGBuild Var
@@ -863,7 +878,8 @@ buildBlock :: Block -> CFGBuild (BBID, BBID)
 buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
-buildLocation :: Location -> CFGBuild Var
+buildReadFromLocation :: Location -> CFGBuild Var
+buildWriteToLocation :: Location -> VarOrImm -> CFGBuild ()
 buildMethodCall :: MethodCall -> Type -> CFGBuild Var
 prettyPrintNode :: CFGNode -> Text
 escape :: Text -> Text

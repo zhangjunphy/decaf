@@ -11,6 +11,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 module Util.Graph where
 
+import Control.Lens ((%=))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
@@ -24,6 +25,8 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.Lazy.Builder qualified as Text
+import GHC.Generics (Generic)
+import Data.Generics.Labels
 
 data Graph ni nd ed = Graph
   { nodes :: Map ni nd,
@@ -133,3 +136,36 @@ traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g
           f n (Maybe.fromJust $ lookupNode n g)
           let indegree' = updateIndegree n indegree g
           recurse indegree' g
+
+newtype Memoize ni m a = Memoize
+  { unmem :: State m a
+  }
+  deriving (Functor, Applicative, Monad, MonadState m)
+
+data Memory ni = Memory
+  { processing :: !(Set ni),
+    finished :: !(Map ni (Set ni))
+  }
+  deriving (Generic)
+
+recurse_ :: (Eq ni, Ord ni) => (ni -> Graph ni nd ed -> [ni]) -> ni -> Graph ni nd ed -> Memoize ni (Memory ni) (Set ni)
+recurse_ f idx g = do
+  (Memory processing finished) <- get
+  #processing %= Set.insert idx
+  case Map.lookup idx finished of
+    Just res -> return res
+    Nothing -> do
+      let direct = f idx g
+      -- Avoid infinite loops by ignoring nodes being processed in the stack
+      indirect <- mapM (\i -> recurse_ f i g) (filter (`Set.notMember` processing) direct)
+      let res = Set.union (Set.fromList direct) (Set.unions indirect)
+      #finished %= Map.insert idx res
+      return res
+
+strictlyDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
+strictlyDominate idx g =
+  evalState (unmem $ recurse_ (\i g -> outBound i g <&> fst) idx g) (Memory Set.empty Map.empty)
+
+strictlyPostDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
+strictlyPostDominate idx g =
+  evalState (unmem $ recurse_ (\i g -> inBound i g <&> fst) idx g) (Memory Set.empty Map.empty)

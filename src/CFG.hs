@@ -12,7 +12,7 @@
 module CFG where
 
 import AST qualified
-import Control.Applicative ((<|>))
+import Control.Applicative (liftA2, (<|>))
 import Control.Exception (throw)
 import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 import Control.Monad.Except
@@ -26,6 +26,8 @@ import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Debug.Trace
@@ -40,15 +42,15 @@ import Util.SourceLoc qualified as SL
 
 {-
 TODO:
-1. Implement Phi and Br
+1. Implement Phi for divergent control flows.
 2. Merge all binary ops into one SSA [DROP]
 3. ArrayDeref -> Load? [DONE]
 4. Do we really need Len here? [DONE]
 5. Reading from/Writing to global should work as load/store. [DONE]
 6. Use control flow instead of choice. [DONE]
 7. Handle short circuit expressions. [DONE]
-8. Make sure everything works after compliating expr building with control flow.
-9. Ensure bbid are monotonically-increasing with respect to ast statement ordering.
+8. Make sure everything works after compliating expr building with control flow. [DONE]?
+9. Ensure bbid are monotonically-increasing with respect to ast statement ordering. [DROP]
 -}
 
 data Condition
@@ -93,7 +95,8 @@ data CFGState = CFGState
     var2sym :: !(Map VID (ScopeID, Name)),
     statements :: ![SSA],
     currentControlBlock :: !(Maybe (BBID, BBID)), -- entry and exit
-    currentFunctionTail :: !(Maybe BBID)
+    currentFunctionTail :: !(Maybe BBID),
+    varWrite :: !(Map BBID (Set (ScopeID, Name)))
   }
   deriving (Generic)
 
@@ -115,6 +118,7 @@ initialState sig =
     []
     Nothing
     Nothing
+    Map.empty
 
 -- Helps for CFGBuild monad
 updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
@@ -195,6 +199,12 @@ addVarSym name vid = do
 
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
 lookupVar vid = uses #var2sym $ Map.lookup vid
+
+lookupVar' :: VID -> CFGBuild (ScopeID, Name)
+lookupVar' vid =
+  lookupVar vid >>= \case
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable" %+ int) vid
+    Just res -> return res
 
 -- Look for symbol resursively
 lookupSym :: Name -> CFGBuild (Maybe VID)
@@ -436,7 +446,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   (ifHead, ifTail) <- buildBlock ifBlock
   g <- use #cfg
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
-  case maybeElseBlock of
+  tail <- case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
       checkStmts
@@ -445,14 +455,18 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge prevBB elseHead $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
-      return $ TailAt tail
+      return tail
     Nothing -> do
       checkStmts
       tail <- createEmptyBB
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
-      return $ TailAt tail
+      return tail
+  let dominates = G.strictlyDominate ifHead g
+  let postDominates = G.strictlyPostDominate tail g
+  let scopes = Set.intersection dominates postDominates
+  return $ TailAt tail
 buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
   var <- findVarOfSym' counter
   initExpr <- buildExpr init
@@ -562,28 +576,30 @@ buildExpr (AST.Expr (AST.RelOpExpr op lhs rhs) tpe loc) = do
 buildExpr (AST.Expr (AST.CondOpExpr AST.And lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   lhsTail <- finishCurrentBB
+  rhsHead <- use #currentBBID
   rhs' <- buildExpr rhs
   rhsTail <- finishCurrentBB
   tail <- use #currentBBID
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
-    G.addEdge lhsTail (lhsTail + 1) $ CondEdge $ Pred $ Variable lhs'
+    G.addEdge lhsTail rhsHead $ CondEdge $ Pred $ Variable lhs'
     G.addEdge lhsTail tail $ CondEdge Complement
     G.addEdge rhsTail tail SeqEdge
   addSSA $ Phi dst [(lhs', lhsTail), (rhs', rhsTail)]
   return dst
 buildExpr (AST.Expr (AST.CondOpExpr AST.Or lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
-  lhsBB <- finishCurrentBB
+  lhsTail <- finishCurrentBB
+  rhsHead <- use #currentBBID
   rhs' <- buildExpr rhs
-  rhsBB <- finishCurrentBB
+  rhsTail <- finishCurrentBB
   bbid <- use #currentBBID
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
-    G.addEdge lhsBB bbid $ CondEdge $ Pred $ Variable lhs'
-    G.addEdge lhsBB (lhsBB + 1) $ CondEdge Complement
-    G.addEdge rhsBB bbid SeqEdge
-  addSSA $ Phi dst [(lhs', lhsBB), (rhs', rhsBB)]
+    G.addEdge lhsTail bbid $ CondEdge $ Pred $ Variable lhs'
+    G.addEdge lhsTail rhsHead $ CondEdge Complement
+    G.addEdge rhsHead bbid SeqEdge
+  addSSA $ Phi dst [(lhs', lhsTail), (rhs', rhsTail)]
   return dst
 buildExpr (AST.Expr (AST.EqOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
@@ -605,17 +621,19 @@ buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
   pred' <- buildExpr e1
   prev <- finishCurrentBB
   exprT' <- buildExpr e2
-  bbT <- finishCurrentBB
+  bbTHead <- use #currentBBID
+  bbTTail <- finishCurrentBB
+  bbFHead <- use #currentBBID
   exprF' <- buildExpr e3
-  bbF <- finishCurrentBB
+  bbFTail <- finishCurrentBB
   tail <- use #currentBBID
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
-    G.addEdge prev (prev + 1) $ CondEdge $ Pred $ Variable pred'
-    G.addEdge prev (bbT + 1) $ CondEdge Complement
-    G.addEdge bbT tail SeqEdge
-    G.addEdge bbF tail SeqEdge
-  addSSA $ Phi dst [(exprT', bbT), (exprF', bbF)]
+    G.addEdge prev bbTHead $ CondEdge $ Pred $ Variable pred'
+    G.addEdge prev bbFHead $ CondEdge Complement
+    G.addEdge bbTTail tail SeqEdge
+    G.addEdge bbFTail tail SeqEdge
+  addSSA $ Phi dst [(exprT', bbTTail), (exprF', bbFTail)]
   return dst
 buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
   array <- findVarOfSym' name
@@ -660,6 +678,11 @@ buildReadFromLocation (AST.Location name idx def tpe loc) = do
       return dst
     _scalarType -> return var
 
+recordVarWrite :: ScopeID -> Name -> CFGBuild ()
+recordVarWrite scope var = do
+  bbid <- use #currentBBID
+  #varWrite %= Map.insertWith Set.union bbid (Set.singleton (scope, var))
+
 buildWriteToLocation :: AST.Location -> VarOrImm -> CFGBuild ()
 buildWriteToLocation (AST.Location name idx def tpe loc) src = do
   var <- findVarOfSym' name
@@ -682,6 +705,9 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
       addSSA $ Store (Variable var) src
     _scalarType -> do
       dst <- newLocal (Just name) tpe loc
+      -- Record writes to scalars for phi node creation.
+      (scope, symName) <- lookupVar' (var ^. #id)
+      recordVarWrite scope symName
       addSSA $ Assignment dst src
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var

@@ -430,50 +430,51 @@ buildBlock block@AST.Block {stmts = stmts} = do
   setASTScope parentScope
   return (head, tail)
 
--- findOuterScopes :: ScopeID -> Map ScopeID SE.SymbolTable -> Set ScopeID
--- findOuterScopes scope sts = Set.fromList $ lookup scope sts
---   where
---     lookup :: ScopeID -> Map ScopeID SE.SymbolTable -> [ScopeID]
---     lookup scope sts =
---       case Map.lookup scope sts of
---         Nothing -> []
---         Just st -> case view #parent st of
---           Nothing -> [scope]
---           Just parent ->
---             let parentSID = view #scopeID parent
---              in parentSID : lookup parentSID sts
+findOuterScopes :: ScopeID -> Map ScopeID SE.SymbolTable -> Set ScopeID
+findOuterScopes scope sts = Set.fromList $ lookup scope sts
+  where
+    lookup :: ScopeID -> Map ScopeID SE.SymbolTable -> [ScopeID]
+    lookup scope sts =
+      case Map.lookup scope sts of
+        Nothing -> []
+        Just st -> case view #parent st of
+          Nothing -> [scope]
+          Just parent ->
+            let parentSID = view #scopeID parent
+             in scope : lookup parentSID sts
 
--- addPhiNodes :: BBID -> BBID -> BBID -> CFGBuild ()
--- addPhiNodes head b1 b2 = do
---   g <- use #cfg
---   let dominates = G.strictlyDominate head g
---   let postDominates = G.strictlyPostDominate b1 g
---   let postDominates = G.strictlyPostDominate b2 g
---   let scopes = Set.intersection dominates $ Set.union postDominates $ Set.fromList [b1, b2]
---   varW <- use #varWrite
---   outerScopes <- findOuterScopes
---   let vars =
---         filter (\(s, _) -> Set.member s outerScopes) $
---           Set.toList $
---             Set.unions $
---               mapMaybe (`Map.lookup` varW) (Set.toList scopes)
---   scope1 <- case G.lookupNode b1 g <&> view (#bb . #sid) of
---     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) b1
---     Just s' -> return s'
---   scope2 <- case G.lookupNode b2 g <&> view (#bb . #sid) of
---     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) b2
---     Just s' -> return s'
---   mapM_
---     ( \(_, n) -> do
---         vid <- lookupSym' n
---         use #sym2var
---         v1 <- findVarOfSymInScope' n scope1
---         v2 <- findVarOfSymInScope' n scope2
---         var <- findVarOfSym' n
---         dst <- newLocal (Just n) (var ^. #tpe) (var ^. #loc)
---         addSSA $ Phi dst [(v1, b1), (v2, b2)]
---     )
---     vars
+isDummyPhiNode :: SSA -> Bool
+isDummyPhiNode (Phi dst []) = True
+isDummyPhiNode _ = False
+
+addDummyPhiNode :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
+addDummyPhiNode divergence outer = do
+  varWrites <- view $ #semantic . #symbolWrites
+  traceShow varWrites $ return ()
+  traceShow outer $ return ()
+  let varList =
+        filter (\(sid, _) -> Set.member sid outer) $
+          Set.toList $
+            Set.unions $
+              mapMaybe (`Map.lookup` varWrites) divergence
+  mapM_
+    ( \(sid, n) -> do
+        (tpe, sl) <- getTypeAndSL sid n
+        dst <- newLocal (Just n) tpe sl
+        addSSA $ Phi dst []
+    )
+    varList
+  return varList
+  where
+    getTypeAndSL :: ScopeID -> Name -> CFGBuild (AST.Type, SL.Range)
+    getTypeAndSL sid name = do
+      sts <- view $ #semantic . #symbolTables
+      case Map.lookup sid sts >>= SE.lookupLocalVariableFromST name of
+        Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable" %+ stext %+ "in scope" %+ int) name sid
+        Just def -> do
+          let tpe = either (view #tpe) (view #tpe) def
+          let sl = either (view #loc) (view #loc) def
+          return (tpe, sl)
 
 buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
@@ -516,6 +517,10 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
       checkStmts
+      sid <- use #astScope
+      sts <- view $ #semantic . #symbolTables
+      let outerScopes = findOuterScopes sid sts
+      addDummyPhiNode [ifBlock ^. #blockID, elseBlock ^. #blockID] outerScopes
       tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB elseHead $ CondEdge Complement
@@ -524,6 +529,10 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
       return $ TailAt tail
     Nothing -> do
       checkStmts
+      sid <- use #astScope
+      sts <- view $ #semantic . #symbolTables
+      let outerScopes = findOuterScopes sid sts
+      addDummyPhiNode [ifBlock ^. #blockID] outerScopes
       tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
@@ -532,6 +541,10 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   prevBB <- finishCurrentBB
   predVar <- buildExpr pred
+  sid <- use #astScope
+  sts <- view $ #semantic . #symbolTables
+  let outerScopes = findOuterScopes sid sts
+  addDummyPhiNode [block ^. #blockID] outerScopes
   predBB <- finishCurrentBB
   updateCFG $ G.addEdge prevBB predBB SeqEdge
   parentControlBlock <- getControlBlock

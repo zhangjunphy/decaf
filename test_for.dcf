@@ -1,6 +1,6 @@
+void main() {
 int a;
 int b;
-void main() {
 for (a = 0; a<10; a++) {
 b++;
 }

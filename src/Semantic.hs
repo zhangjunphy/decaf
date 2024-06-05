@@ -669,7 +669,7 @@ recordSymbolWrite loc = do
     ArrayType _ _ -> return ()
     Ptr _ -> return ()
     _ScalarType -> do
-      let newSet = Set.fromList [(varScope, name)]
+      let newSet = Set.fromList $ filter (\(s, _) -> s /= 0) [(varScope, name)]
       #symbolWrites %= Map.insertWith Set.union sid newSet
 
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment

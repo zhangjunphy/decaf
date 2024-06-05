@@ -30,128 +30,164 @@ span.spaces    { background: white }
 <span class="lineno">   11 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 <span class="lineno">   12 </span>module Util.Graph where
 <span class="lineno">   13 </span>
-<span class="lineno">   14 </span>import Control.Monad
-<span class="lineno">   15 </span>import Control.Monad.Except
-<span class="lineno">   16 </span>import Control.Monad.State
-<span class="lineno">   17 </span>import Data.Functor
-<span class="lineno">   18 </span>import Data.Graph.Inductive.Graph qualified as FGL
-<span class="lineno">   19 </span>import Data.List qualified as List
-<span class="lineno">   20 </span>import Data.Map (Map, mapWithKey)
-<span class="lineno">   21 </span>import Data.Map.Strict qualified as Map
-<span class="lineno">   22 </span>import Data.Maybe qualified as Maybe
-<span class="lineno">   23 </span>import Data.Set (Set)
-<span class="lineno">   24 </span>import Data.Set qualified as Set
-<span class="lineno">   25 </span>import Data.Text (Text)
-<span class="lineno">   26 </span>import Data.Text.Lazy.Builder qualified as Text
-<span class="lineno">   27 </span>
-<span class="lineno">   28 </span>data Graph ni nd ed = Graph
-<span class="lineno">   29 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">nodes</span></span></span> :: Map ni nd,
-<span class="lineno">   30 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">edges</span></span></span> :: Map ni [(ni, ed)]
-<span class="lineno">   31 </span>  }
-<span class="lineno">   32 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno">   33 </span>
-<span class="lineno">   34 </span>type GraphException = Text
-<span class="lineno">   35 </span>
-<span class="lineno">   36 </span>empty :: Graph ni nd ed
-<span class="lineno">   37 </span><span class="decl"><span class="istickedoff">empty = Graph Map.empty Map.empty</span></span>
+<span class="lineno">   14 </span>import Control.Lens ((%=))
+<span class="lineno">   15 </span>import Control.Monad
+<span class="lineno">   16 </span>import Control.Monad.Except
+<span class="lineno">   17 </span>import Control.Monad.State
+<span class="lineno">   18 </span>import Data.Functor
+<span class="lineno">   19 </span>import Data.Graph.Inductive.Graph qualified as FGL
+<span class="lineno">   20 </span>import Data.List qualified as List
+<span class="lineno">   21 </span>import Data.Map (Map, mapWithKey)
+<span class="lineno">   22 </span>import Data.Map.Strict qualified as Map
+<span class="lineno">   23 </span>import Data.Maybe qualified as Maybe
+<span class="lineno">   24 </span>import Data.Set (Set)
+<span class="lineno">   25 </span>import Data.Set qualified as Set
+<span class="lineno">   26 </span>import Data.Text (Text)
+<span class="lineno">   27 </span>import Data.Text.Lazy.Builder qualified as Text
+<span class="lineno">   28 </span>import GHC.Generics (Generic)
+<span class="lineno">   29 </span>import Data.Generics.Labels
+<span class="lineno">   30 </span>
+<span class="lineno">   31 </span>data Graph ni nd ed = Graph
+<span class="lineno">   32 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">nodes</span></span></span> :: Map ni nd,
+<span class="lineno">   33 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">edges</span></span></span> :: Map ni [(ni, ed)]
+<span class="lineno">   34 </span>  }
+<span class="lineno">   35 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   36 </span>
+<span class="lineno">   37 </span>type GraphException = Text
 <span class="lineno">   38 </span>
-<span class="lineno">   39 </span>outBound :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; [(ni, ed)]
-<span class="lineno">   40 </span><span class="decl"><span class="istickedoff">outBound idx g = concat $ Map.lookup idx (edges g)</span></span>
+<span class="lineno">   39 </span>empty :: Graph ni nd ed
+<span class="lineno">   40 </span><span class="decl"><span class="istickedoff">empty = Graph Map.empty Map.empty</span></span>
 <span class="lineno">   41 </span>
-<span class="lineno">   42 </span>inBound :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; [(ni, ed)]
-<span class="lineno">   43 </span><span class="decl"><span class="istickedoff">inBound idx cfg =</span>
-<span class="lineno">   44 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, _) -&gt; end == idx)) (edges cfg)</span>
-<span class="lineno">   45 </span><span class="spaces">      </span><span class="istickedoff">nodes' =</span>
-<span class="lineno">   46 </span><span class="spaces">        </span><span class="istickedoff">concat (Map.assocs edges' &lt;&amp;&gt; \(src, dsts) -&gt; zip (repeat src) dsts)</span>
-<span class="lineno">   47 </span><span class="spaces">          </span><span class="istickedoff">&lt;&amp;&gt; \(src, (_, ed)) -&gt; (src, <span class="nottickedoff">ed</span>)</span>
-<span class="lineno">   48 </span><span class="spaces">   </span><span class="istickedoff">in nodes'</span></span>
-<span class="lineno">   49 </span>
-<span class="lineno">   50 </span>lookupNode :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; Maybe nd
-<span class="lineno">   51 </span><span class="decl"><span class="nottickedoff">lookupNode nid g = Map.lookup nid $ nodes g</span></span>
+<span class="lineno">   42 </span>outBound :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; [(ni, ed)]
+<span class="lineno">   43 </span><span class="decl"><span class="istickedoff">outBound idx g = concat $ Map.lookup idx (edges g)</span></span>
+<span class="lineno">   44 </span>
+<span class="lineno">   45 </span>inBound :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; [(ni, ed)]
+<span class="lineno">   46 </span><span class="decl"><span class="istickedoff">inBound idx cfg =</span>
+<span class="lineno">   47 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, _) -&gt; end == idx)) (edges cfg)</span>
+<span class="lineno">   48 </span><span class="spaces">      </span><span class="istickedoff">nodes' =</span>
+<span class="lineno">   49 </span><span class="spaces">        </span><span class="istickedoff">concat (Map.assocs edges' &lt;&amp;&gt; \(src, dsts) -&gt; zip (repeat src) dsts)</span>
+<span class="lineno">   50 </span><span class="spaces">          </span><span class="istickedoff">&lt;&amp;&gt; \(src, (_, ed)) -&gt; (src, <span class="nottickedoff">ed</span>)</span>
+<span class="lineno">   51 </span><span class="spaces">   </span><span class="istickedoff">in nodes'</span></span>
 <span class="lineno">   52 </span>
-<span class="lineno">   53 </span>updateNodeWith :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; (Maybe nd -&gt; nd) -&gt; Graph ni nd ed
-<span class="lineno">   54 </span><span class="decl"><span class="nottickedoff">updateNodeWith nid g f =</span>
-<span class="lineno">   55 </span><span class="spaces">  </span><span class="nottickedoff">let nds = nodes g</span>
-<span class="lineno">   56 </span><span class="spaces">      </span><span class="nottickedoff">nd = lookupNode nid g</span>
-<span class="lineno">   57 </span><span class="spaces">      </span><span class="nottickedoff">nds' = Map.alter (const $ Just $ f nd) nid nds</span>
-<span class="lineno">   58 </span><span class="spaces">   </span><span class="nottickedoff">in g {nodes = nds'}</span></span>
-<span class="lineno">   59 </span>
-<span class="lineno">   60 </span>updateNode :: (Eq ni, Ord ni) =&gt; ni -&gt; nd -&gt; Graph ni nd ed -&gt; Graph ni nd ed
-<span class="lineno">   61 </span><span class="decl"><span class="nottickedoff">updateNode nid d g =</span>
-<span class="lineno">   62 </span><span class="spaces">  </span><span class="nottickedoff">let nds = nodes g</span>
-<span class="lineno">   63 </span><span class="spaces">      </span><span class="nottickedoff">nds' = Map.alter (const $ Just d) nid nds</span>
-<span class="lineno">   64 </span><span class="spaces">   </span><span class="nottickedoff">in g {nodes = nds'}</span></span>
-<span class="lineno">   65 </span>
-<span class="lineno">   66 </span>union :: (Eq ni, Ord ni) =&gt; Graph ni nd ed -&gt; Graph ni nd ed -&gt; Graph ni nd ed
-<span class="lineno">   67 </span><span class="decl"><span class="nottickedoff">union g1 g2 =</span>
-<span class="lineno">   68 </span><span class="spaces">  </span><span class="nottickedoff">Graph</span>
-<span class="lineno">   69 </span><span class="spaces">    </span><span class="nottickedoff">{ nodes = nodes g1 `Map.union` nodes g2,</span>
-<span class="lineno">   70 </span><span class="spaces">      </span><span class="nottickedoff">edges = edges g1 `Map.union` edges g2</span>
-<span class="lineno">   71 </span><span class="spaces">    </span><span class="nottickedoff">}</span></span>
-<span class="lineno">   72 </span>
-<span class="lineno">   73 </span>newtype GraphBuilder ni nd ed a = GraphBuilder
-<span class="lineno">   74 </span>  {<span class="istickedoff"><span class="decl"><span class="istickedoff">buildGraph</span></span></span> :: (ExceptT GraphException (State (Graph ni nd ed))) a}
-<span class="lineno">   75 </span>  deriving
-<span class="lineno">   76 </span>    ( <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Functor</span></span></span></span>,
-<span class="lineno">   77 </span>      <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Applicative</span></span></span></span></span></span></span></span></span></span>,
-<span class="lineno">   78 </span>      <span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff">Monad</span></span></span></span></span></span>,
-<span class="lineno">   79 </span>      <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">MonadError GraphException</span></span></span></span>,
-<span class="lineno">   80 </span>      <span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="istickedoff">MonadState (Graph ni nd ed)</span></span></span></span></span></span>
-<span class="lineno">   81 </span>    )
-<span class="lineno">   82 </span>
-<span class="lineno">   83 </span>addNode :: (Eq ni, Ord ni) =&gt; ni -&gt; nd -&gt; GraphBuilder ni nd ed ni
-<span class="lineno">   84 </span><span class="decl"><span class="istickedoff">addNode idx dt = do</span>
-<span class="lineno">   85 </span><span class="spaces">  </span><span class="istickedoff">modify $ \g -&gt; g {nodes = Map.insert idx dt (nodes g)}</span>
-<span class="lineno">   86 </span><span class="spaces">  </span><span class="istickedoff">return idx</span></span>
-<span class="lineno">   87 </span>
-<span class="lineno">   88 </span>addEdge :: (Eq ni, Ord ni) =&gt; ni -&gt; ni -&gt; ed -&gt; GraphBuilder ni nd ed ()
-<span class="lineno">   89 </span><span class="decl"><span class="istickedoff">addEdge start end dt = do</span>
-<span class="lineno">   90 </span><span class="spaces">  </span><span class="istickedoff">g &lt;- get</span>
-<span class="lineno">   91 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.insertWith (++) start [(end, <span class="nottickedoff">dt</span>)] (edges g)</span>
-<span class="lineno">   92 </span><span class="spaces">  </span><span class="istickedoff">modify $ \g -&gt; g {edges = edges'}</span></span>
-<span class="lineno">   93 </span>
-<span class="lineno">   94 </span>deleteNode :: (Eq ni, Ord ni) =&gt; ni -&gt; GraphBuilder ni nd ed ()
-<span class="lineno">   95 </span><span class="decl"><span class="nottickedoff">deleteNode n = do</span>
-<span class="lineno">   96 </span><span class="spaces">  </span><span class="nottickedoff">g &lt;- get</span>
-<span class="lineno">   97 </span><span class="spaces">  </span><span class="nottickedoff">let nodes' = Map.delete n (nodes g)</span>
-<span class="lineno">   98 </span><span class="spaces">      </span><span class="nottickedoff">edges' = Map.filterWithKey (\k v -&gt; k /= n) (edges g)</span>
-<span class="lineno">   99 </span><span class="spaces">      </span><span class="nottickedoff">edges'' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, dt) -&gt; end /= n)) edges'</span>
-<span class="lineno">  100 </span><span class="spaces">  </span><span class="nottickedoff">modify $ \g -&gt; g {nodes = nodes', edges = edges''}</span></span>
-<span class="lineno">  101 </span>
-<span class="lineno">  102 </span>deleteEdge :: (Eq ni, Ord ni) =&gt; ni -&gt; ni -&gt; GraphBuilder ni nd ed ()
-<span class="lineno">  103 </span><span class="decl"><span class="nottickedoff">deleteEdge start end = do</span>
-<span class="lineno">  104 </span><span class="spaces">  </span><span class="nottickedoff">g &lt;- get</span>
-<span class="lineno">  105 </span><span class="spaces">  </span><span class="nottickedoff">let edges' = Map.update (Just &lt;$&gt; filter (\(e, dt) -&gt; e /= end)) start (edges g)</span>
-<span class="lineno">  106 </span><span class="spaces">  </span><span class="nottickedoff">modify $ \g -&gt; g {edges = edges'}</span></span>
-<span class="lineno">  107 </span>
-<span class="lineno">  108 </span>update :: (Eq ni, Ord ni) =&gt; GraphBuilder ni nd ed a -&gt; Graph ni nd ed -&gt; Either Text (Graph ni nd ed)
-<span class="lineno">  109 </span><span class="decl"><span class="istickedoff">update bd init =</span>
-<span class="lineno">  110 </span><span class="spaces">  </span><span class="istickedoff">let (except, g) = (runState $ runExceptT $ buildGraph bd) init</span>
-<span class="lineno">  111 </span><span class="spaces">   </span><span class="istickedoff">in case except of</span>
-<span class="lineno">  112 </span><span class="spaces">        </span><span class="istickedoff">Left except -&gt; <span class="nottickedoff">Left except</span></span>
-<span class="lineno">  113 </span><span class="spaces">        </span><span class="istickedoff">Right _ -&gt; Right g</span></span>
-<span class="lineno">  114 </span>
-<span class="lineno">  115 </span>build :: (Eq ni, Ord ni) =&gt; GraphBuilder ni nd ed a -&gt; Either Text (Graph ni nd ed)
-<span class="lineno">  116 </span><span class="decl"><span class="istickedoff">build bd = update bd empty</span></span>
+<span class="lineno">   53 </span>lookupNode :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; Maybe nd
+<span class="lineno">   54 </span><span class="decl"><span class="nottickedoff">lookupNode nid g = Map.lookup nid $ nodes g</span></span>
+<span class="lineno">   55 </span>
+<span class="lineno">   56 </span>updateNodeWith :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; (Maybe nd -&gt; nd) -&gt; Graph ni nd ed
+<span class="lineno">   57 </span><span class="decl"><span class="nottickedoff">updateNodeWith nid g f =</span>
+<span class="lineno">   58 </span><span class="spaces">  </span><span class="nottickedoff">let nds = nodes g</span>
+<span class="lineno">   59 </span><span class="spaces">      </span><span class="nottickedoff">nd = lookupNode nid g</span>
+<span class="lineno">   60 </span><span class="spaces">      </span><span class="nottickedoff">nds' = Map.alter (const $ Just $ f nd) nid nds</span>
+<span class="lineno">   61 </span><span class="spaces">   </span><span class="nottickedoff">in g {nodes = nds'}</span></span>
+<span class="lineno">   62 </span>
+<span class="lineno">   63 </span>updateNode :: (Eq ni, Ord ni) =&gt; ni -&gt; nd -&gt; Graph ni nd ed -&gt; Graph ni nd ed
+<span class="lineno">   64 </span><span class="decl"><span class="nottickedoff">updateNode nid d g =</span>
+<span class="lineno">   65 </span><span class="spaces">  </span><span class="nottickedoff">let nds = nodes g</span>
+<span class="lineno">   66 </span><span class="spaces">      </span><span class="nottickedoff">nds' = Map.alter (const $ Just d) nid nds</span>
+<span class="lineno">   67 </span><span class="spaces">   </span><span class="nottickedoff">in g {nodes = nds'}</span></span>
+<span class="lineno">   68 </span>
+<span class="lineno">   69 </span>union :: (Eq ni, Ord ni) =&gt; Graph ni nd ed -&gt; Graph ni nd ed -&gt; Graph ni nd ed
+<span class="lineno">   70 </span><span class="decl"><span class="nottickedoff">union g1 g2 =</span>
+<span class="lineno">   71 </span><span class="spaces">  </span><span class="nottickedoff">Graph</span>
+<span class="lineno">   72 </span><span class="spaces">    </span><span class="nottickedoff">{ nodes = nodes g1 `Map.union` nodes g2,</span>
+<span class="lineno">   73 </span><span class="spaces">      </span><span class="nottickedoff">edges = edges g1 `Map.union` edges g2</span>
+<span class="lineno">   74 </span><span class="spaces">    </span><span class="nottickedoff">}</span></span>
+<span class="lineno">   75 </span>
+<span class="lineno">   76 </span>newtype GraphBuilder ni nd ed a = GraphBuilder
+<span class="lineno">   77 </span>  {<span class="istickedoff"><span class="decl"><span class="istickedoff">buildGraph</span></span></span> :: (ExceptT GraphException (State (Graph ni nd ed))) a}
+<span class="lineno">   78 </span>  deriving
+<span class="lineno">   79 </span>    ( <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Functor</span></span></span></span>,
+<span class="lineno">   80 </span>      <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Applicative</span></span></span></span></span></span></span></span></span></span>,
+<span class="lineno">   81 </span>      <span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff"><span class="decl"><span class="istickedoff">Monad</span></span></span></span></span></span>,
+<span class="lineno">   82 </span>      <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">MonadError GraphException</span></span></span></span>,
+<span class="lineno">   83 </span>      <span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="istickedoff">MonadState (Graph ni nd ed)</span></span></span></span></span></span>
+<span class="lineno">   84 </span>    )
+<span class="lineno">   85 </span>
+<span class="lineno">   86 </span>addNode :: (Eq ni, Ord ni) =&gt; ni -&gt; nd -&gt; GraphBuilder ni nd ed ni
+<span class="lineno">   87 </span><span class="decl"><span class="istickedoff">addNode idx dt = do</span>
+<span class="lineno">   88 </span><span class="spaces">  </span><span class="istickedoff">modify $ \g -&gt; g {nodes = Map.insert idx dt (nodes g)}</span>
+<span class="lineno">   89 </span><span class="spaces">  </span><span class="istickedoff">return idx</span></span>
+<span class="lineno">   90 </span>
+<span class="lineno">   91 </span>addEdge :: (Eq ni, Ord ni) =&gt; ni -&gt; ni -&gt; ed -&gt; GraphBuilder ni nd ed ()
+<span class="lineno">   92 </span><span class="decl"><span class="istickedoff">addEdge start end dt = do</span>
+<span class="lineno">   93 </span><span class="spaces">  </span><span class="istickedoff">g &lt;- get</span>
+<span class="lineno">   94 </span><span class="spaces">  </span><span class="istickedoff">let edges' = Map.insertWith (++) start [(end, <span class="nottickedoff">dt</span>)] (edges g)</span>
+<span class="lineno">   95 </span><span class="spaces">  </span><span class="istickedoff">modify $ \g -&gt; g {edges = edges'}</span></span>
+<span class="lineno">   96 </span>
+<span class="lineno">   97 </span>deleteNode :: (Eq ni, Ord ni) =&gt; ni -&gt; GraphBuilder ni nd ed ()
+<span class="lineno">   98 </span><span class="decl"><span class="nottickedoff">deleteNode n = do</span>
+<span class="lineno">   99 </span><span class="spaces">  </span><span class="nottickedoff">g &lt;- get</span>
+<span class="lineno">  100 </span><span class="spaces">  </span><span class="nottickedoff">let nodes' = Map.delete n (nodes g)</span>
+<span class="lineno">  101 </span><span class="spaces">      </span><span class="nottickedoff">edges' = Map.filterWithKey (\k v -&gt; k /= n) (edges g)</span>
+<span class="lineno">  102 </span><span class="spaces">      </span><span class="nottickedoff">edges'' = Map.mapMaybe (Just &lt;$&gt; filter (\(end, dt) -&gt; end /= n)) edges'</span>
+<span class="lineno">  103 </span><span class="spaces">  </span><span class="nottickedoff">modify $ \g -&gt; g {nodes = nodes', edges = edges''}</span></span>
+<span class="lineno">  104 </span>
+<span class="lineno">  105 </span>deleteEdge :: (Eq ni, Ord ni) =&gt; ni -&gt; ni -&gt; GraphBuilder ni nd ed ()
+<span class="lineno">  106 </span><span class="decl"><span class="nottickedoff">deleteEdge start end = do</span>
+<span class="lineno">  107 </span><span class="spaces">  </span><span class="nottickedoff">g &lt;- get</span>
+<span class="lineno">  108 </span><span class="spaces">  </span><span class="nottickedoff">let edges' = Map.update (Just &lt;$&gt; filter (\(e, dt) -&gt; e /= end)) start (edges g)</span>
+<span class="lineno">  109 </span><span class="spaces">  </span><span class="nottickedoff">modify $ \g -&gt; g {edges = edges'}</span></span>
+<span class="lineno">  110 </span>
+<span class="lineno">  111 </span>update :: (Eq ni, Ord ni) =&gt; GraphBuilder ni nd ed a -&gt; Graph ni nd ed -&gt; Either Text (Graph ni nd ed)
+<span class="lineno">  112 </span><span class="decl"><span class="istickedoff">update bd init =</span>
+<span class="lineno">  113 </span><span class="spaces">  </span><span class="istickedoff">let (except, g) = (runState $ runExceptT $ buildGraph bd) init</span>
+<span class="lineno">  114 </span><span class="spaces">   </span><span class="istickedoff">in case except of</span>
+<span class="lineno">  115 </span><span class="spaces">        </span><span class="istickedoff">Left except -&gt; <span class="nottickedoff">Left except</span></span>
+<span class="lineno">  116 </span><span class="spaces">        </span><span class="istickedoff">Right _ -&gt; Right g</span></span>
 <span class="lineno">  117 </span>
-<span class="lineno">  118 </span>traverseM_ :: (Eq ni, Ord ni, Monad m) =&gt; (ni -&gt; nd -&gt; m a) -&gt; Graph ni nd ed -&gt; m ()
-<span class="lineno">  119 </span><span class="decl"><span class="istickedoff">traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g</span>
-<span class="lineno">  120 </span><span class="spaces">  </span><span class="istickedoff">where</span>
-<span class="lineno">  121 </span><span class="spaces">    </span><span class="istickedoff">initIndegree = Map.mapWithKey (\i d -&gt; length $ inBound i g) nodes</span>
-<span class="lineno">  122 </span><span class="spaces">    </span><span class="istickedoff">findZeroIndegree :: Map ni Int -&gt; [ni]</span>
-<span class="lineno">  123 </span><span class="spaces">    </span><span class="istickedoff">findZeroIndegree m = fmap fst $ Map.toList $ Map.filter (== 0) m</span>
-<span class="lineno">  124 </span><span class="spaces">    </span><span class="istickedoff">updateIndegree i m g =</span>
-<span class="lineno">  125 </span><span class="spaces">      </span><span class="istickedoff">let m' = List.foldl' (\m (ni, _) -&gt; Map.adjust (\x -&gt; x - 1) ni m) m $ outBound i g</span>
-<span class="lineno">  126 </span><span class="spaces">          </span><span class="istickedoff">m'' = Map.delete i m'</span>
-<span class="lineno">  127 </span><span class="spaces">       </span><span class="istickedoff">in m''</span>
-<span class="lineno">  128 </span><span class="spaces">    </span><span class="istickedoff">recurse indegree g = do</span>
-<span class="lineno">  129 </span><span class="spaces">      </span><span class="istickedoff">let zeroIndegree = findZeroIndegree indegree</span>
-<span class="lineno">  130 </span><span class="spaces">      </span><span class="istickedoff">case zeroIndegree of</span>
-<span class="lineno">  131 </span><span class="spaces">        </span><span class="istickedoff">[] -&gt; return <span class="nottickedoff">()</span></span>
-<span class="lineno">  132 </span><span class="spaces">        </span><span class="istickedoff">(n : ns) -&gt; do</span>
-<span class="lineno">  133 </span><span class="spaces">          </span><span class="istickedoff">f n <span class="nottickedoff">(Maybe.fromJust $ lookupNode n g)</span></span>
-<span class="lineno">  134 </span><span class="spaces">          </span><span class="istickedoff">let indegree' = updateIndegree n indegree g</span>
-<span class="lineno">  135 </span><span class="spaces">          </span><span class="istickedoff">recurse indegree' g</span></span>
+<span class="lineno">  118 </span>build :: (Eq ni, Ord ni) =&gt; GraphBuilder ni nd ed a -&gt; Either Text (Graph ni nd ed)
+<span class="lineno">  119 </span><span class="decl"><span class="istickedoff">build bd = update bd empty</span></span>
+<span class="lineno">  120 </span>
+<span class="lineno">  121 </span>traverseM_ :: (Eq ni, Ord ni, Monad m) =&gt; (ni -&gt; nd -&gt; m a) -&gt; Graph ni nd ed -&gt; m ()
+<span class="lineno">  122 </span><span class="decl"><span class="istickedoff">traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g</span>
+<span class="lineno">  123 </span><span class="spaces">  </span><span class="istickedoff">where</span>
+<span class="lineno">  124 </span><span class="spaces">    </span><span class="istickedoff">initIndegree = Map.mapWithKey (\i d -&gt; length $ inBound i g) nodes</span>
+<span class="lineno">  125 </span><span class="spaces">    </span><span class="istickedoff">findZeroIndegree :: Map ni Int -&gt; [ni]</span>
+<span class="lineno">  126 </span><span class="spaces">    </span><span class="istickedoff">findZeroIndegree m = fmap fst $ Map.toList $ Map.filter (== 0) m</span>
+<span class="lineno">  127 </span><span class="spaces">    </span><span class="istickedoff">updateIndegree i m g =</span>
+<span class="lineno">  128 </span><span class="spaces">      </span><span class="istickedoff">let m' = List.foldl' (\m (ni, _) -&gt; Map.adjust (\x -&gt; x - 1) ni m) m $ outBound i g</span>
+<span class="lineno">  129 </span><span class="spaces">          </span><span class="istickedoff">m'' = Map.delete i m'</span>
+<span class="lineno">  130 </span><span class="spaces">       </span><span class="istickedoff">in m''</span>
+<span class="lineno">  131 </span><span class="spaces">    </span><span class="istickedoff">recurse indegree g = do</span>
+<span class="lineno">  132 </span><span class="spaces">      </span><span class="istickedoff">let zeroIndegree = findZeroIndegree indegree</span>
+<span class="lineno">  133 </span><span class="spaces">      </span><span class="istickedoff">case zeroIndegree of</span>
+<span class="lineno">  134 </span><span class="spaces">        </span><span class="istickedoff">[] -&gt; return <span class="nottickedoff">()</span></span>
+<span class="lineno">  135 </span><span class="spaces">        </span><span class="istickedoff">(n : ns) -&gt; do</span>
+<span class="lineno">  136 </span><span class="spaces">          </span><span class="istickedoff">f n <span class="nottickedoff">(Maybe.fromJust $ lookupNode n g)</span></span>
+<span class="lineno">  137 </span><span class="spaces">          </span><span class="istickedoff">let indegree' = updateIndegree n indegree g</span>
+<span class="lineno">  138 </span><span class="spaces">          </span><span class="istickedoff">recurse indegree' g</span></span>
+<span class="lineno">  139 </span>
+<span class="lineno">  140 </span>newtype Memoize ni m a = Memoize
+<span class="lineno">  141 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">unmem</span></span></span> :: State m a
+<span class="lineno">  142 </span>  }
+<span class="lineno">  143 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Functor</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Applicative</span></span></span></span></span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Monad</span></span></span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">MonadState m</span></span></span></span></span></span>)
+<span class="lineno">  144 </span>
+<span class="lineno">  145 </span>data Memory ni = Memory
+<span class="lineno">  146 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">processing</span></span></span> :: !(Set ni),
+<span class="lineno">  147 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">finished</span></span></span> :: !(Map ni (Set ni))
+<span class="lineno">  148 </span>  }
+<span class="lineno">  149 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>)
+<span class="lineno">  150 </span>
+<span class="lineno">  151 </span>recurse_ :: (Eq ni, Ord ni) =&gt; (ni -&gt; Graph ni nd ed -&gt; [ni]) -&gt; ni -&gt; Graph ni nd ed -&gt; Memoize ni (Memory ni) (Set ni)
+<span class="lineno">  152 </span><span class="decl"><span class="nottickedoff">recurse_ f idx g = do</span>
+<span class="lineno">  153 </span><span class="spaces">  </span><span class="nottickedoff">(Memory processing finished) &lt;- get</span>
+<span class="lineno">  154 </span><span class="spaces">  </span><span class="nottickedoff">#processing %= Set.insert idx</span>
+<span class="lineno">  155 </span><span class="spaces">  </span><span class="nottickedoff">case Map.lookup idx finished of</span>
+<span class="lineno">  156 </span><span class="spaces">    </span><span class="nottickedoff">Just res -&gt; return res</span>
+<span class="lineno">  157 </span><span class="spaces">    </span><span class="nottickedoff">Nothing -&gt; do</span>
+<span class="lineno">  158 </span><span class="spaces">      </span><span class="nottickedoff">let direct = f idx g</span>
+<span class="lineno">  159 </span><span class="spaces">      </span><span class="nottickedoff">-- Avoid infinite loops by ignoring nodes being processed in the stack</span>
+<span class="lineno">  160 </span><span class="spaces">      </span><span class="nottickedoff">indirect &lt;- mapM (\i -&gt; recurse_ f i g) (filter (`Set.notMember` processing) direct)</span>
+<span class="lineno">  161 </span><span class="spaces">      </span><span class="nottickedoff">let res = Set.union (Set.fromList direct) (Set.unions indirect)</span>
+<span class="lineno">  162 </span><span class="spaces">      </span><span class="nottickedoff">#finished %= Map.insert idx res</span>
+<span class="lineno">  163 </span><span class="spaces">      </span><span class="nottickedoff">return res</span></span>
+<span class="lineno">  164 </span>
+<span class="lineno">  165 </span>strictlyDominate :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; Set ni
+<span class="lineno">  166 </span><span class="decl"><span class="nottickedoff">strictlyDominate idx g =</span>
+<span class="lineno">  167 </span><span class="spaces">  </span><span class="nottickedoff">evalState (unmem $ recurse_ (\i g -&gt; outBound i g &lt;&amp;&gt; fst) idx g) (Memory Set.empty Map.empty)</span></span>
+<span class="lineno">  168 </span>
+<span class="lineno">  169 </span>strictlyPostDominate :: (Eq ni, Ord ni) =&gt; ni -&gt; Graph ni nd ed -&gt; Set ni
+<span class="lineno">  170 </span><span class="decl"><span class="nottickedoff">strictlyPostDominate idx g =</span>
+<span class="lineno">  171 </span><span class="spaces">  </span><span class="nottickedoff">evalState (unmem $ recurse_ (\i g -&gt; inBound i g &lt;&amp;&gt; fst) idx g) (Memory Set.empty Map.empty)</span></span>
 
 </pre>
 </body>

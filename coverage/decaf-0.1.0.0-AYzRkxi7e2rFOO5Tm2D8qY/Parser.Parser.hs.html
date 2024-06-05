@@ -1390,109 +1390,109 @@ span.spaces    { background: white }
 <span class="lineno"> 1371 </span><span class="spaces">  </span><span class="istickedoff">token &lt;- alexMonadScan</span>
 <span class="lineno"> 1372 </span><span class="spaces">  </span><span class="istickedoff">s token</span></span>
 <span class="lineno"> 1373 </span>
-<span class="lineno"> 1374 </span>unLoc :: (SL.Located a) -&gt; a
-<span class="lineno"> 1375 </span><span class="decl"><span class="istickedoff">unLoc (SL.LocatedAt _ x) = x</span></span>
-<span class="lineno"> 1376 </span>
-<span class="lineno"> 1377 </span>getLoc :: (SL.Located a) -&gt; Range
-<span class="lineno"> 1378 </span><span class="decl"><span class="nottickedoff">getLoc (SL.LocatedAt range _) = range</span></span>
-<span class="lineno"> 1379 </span>
-<span class="lineno"> 1380 </span>unionOf :: SL.Located a -&gt; SL.Located b -&gt; Range
-<span class="lineno"> 1381 </span><span class="decl"><span class="nottickedoff">unionOf (SL.LocatedAt loc1 _) (SL.LocatedAt loc2 _) = combineRanges loc1 loc2</span>
-<span class="lineno"> 1382 </span><span class="spaces">    </span><span class="nottickedoff">where</span>
-<span class="lineno"> 1383 </span><span class="spaces">        </span><span class="nottickedoff">combineRanges (SL.Range start1 stop1) (SL.Range start2 stop2) = </span>
-<span class="lineno"> 1384 </span><span class="spaces">            </span><span class="nottickedoff">let start = if (SL.offset start1) &lt; (SL.offset start2) then start1 else start2</span>
-<span class="lineno"> 1385 </span><span class="spaces">                </span><span class="nottickedoff">stop = if (SL.offset stop1) &gt; (SL.offset stop2) then stop1 else stop2</span>
-<span class="lineno"> 1386 </span><span class="spaces">            </span><span class="nottickedoff">in SL.Range start stop</span></span>
-<span class="lineno"> 1387 </span>
-<span class="lineno"> 1388 </span>data Program = Program { <span class="istickedoff"><span class="decl"><span class="istickedoff">importDecls</span></span></span> :: [SL.Located ImportDecl]
-<span class="lineno"> 1389 </span>                       , <span class="istickedoff"><span class="decl"><span class="istickedoff">fieldDecls</span></span></span> :: [SL.Located FieldDecl]
-<span class="lineno"> 1390 </span>                       , <span class="istickedoff"><span class="decl"><span class="istickedoff">methodDecls</span></span></span> :: [SL.Located MethodDecl]
-<span class="lineno"> 1391 </span>                       } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1392 </span>
-<span class="lineno"> 1393 </span>data ImportDecl = ImportDecl { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">importId</span></span></span> :: Text }
-<span class="lineno"> 1394 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1395 </span>
-<span class="lineno"> 1396 </span>data FieldDecl = FieldDecl { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldType</span></span></span> :: Type
-<span class="lineno"> 1397 </span>                           , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elems</span></span></span>:: [SL.Located FieldElem]
-<span class="lineno"> 1398 </span>                           } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1399 </span>
-<span class="lineno"> 1400 </span>data FieldElem = ScalarField { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldId</span></span></span> :: Text }
-<span class="lineno"> 1401 </span>               | VectorField { fieldId :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">size</span></span></span> :: Text }
-<span class="lineno"> 1402 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1403 </span>
-<span class="lineno"> 1404 </span>data Type = IntType | BoolType
-<span class="lineno"> 1405 </span>            deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1374 </span>unionOf :: SL.Located a -&gt; SL.Located b -&gt; Range
+<span class="lineno"> 1375 </span><span class="decl"><span class="nottickedoff">unionOf (SL.LocatedAt loc1 _) (SL.LocatedAt loc2 _) = combineRanges loc1 loc2</span>
+<span class="lineno"> 1376 </span><span class="spaces">    </span><span class="nottickedoff">where</span>
+<span class="lineno"> 1377 </span><span class="spaces">        </span><span class="nottickedoff">combineRanges (SL.Range start1 stop1) (SL.Range start2 stop2) = </span>
+<span class="lineno"> 1378 </span><span class="spaces">            </span><span class="nottickedoff">let start = if (SL.offset start1) &lt; (SL.offset start2) then start1 else start2</span>
+<span class="lineno"> 1379 </span><span class="spaces">                </span><span class="nottickedoff">stop = if (SL.offset stop1) &gt; (SL.offset stop2) then stop1 else stop2</span>
+<span class="lineno"> 1380 </span><span class="spaces">            </span><span class="nottickedoff">in SL.Range start stop</span></span>
+<span class="lineno"> 1381 </span>
+<span class="lineno"> 1382 </span>data Program = Program { <span class="istickedoff"><span class="decl"><span class="istickedoff">importDecls</span></span></span> :: [SL.Located ImportDecl]
+<span class="lineno"> 1383 </span>                       , <span class="istickedoff"><span class="decl"><span class="istickedoff">fieldDecls</span></span></span> :: [SL.Located FieldDecl]
+<span class="lineno"> 1384 </span>                       , <span class="istickedoff"><span class="decl"><span class="istickedoff">methodDecls</span></span></span> :: [SL.Located MethodDecl]
+<span class="lineno"> 1385 </span>                       } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1386 </span>
+<span class="lineno"> 1387 </span>data ImportDecl = ImportDecl { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">importId</span></span></span> :: Text }
+<span class="lineno"> 1388 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1389 </span>
+<span class="lineno"> 1390 </span>data FieldDecl = FieldDecl { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldType</span></span></span> :: Type
+<span class="lineno"> 1391 </span>                           , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elems</span></span></span>:: [SL.Located FieldElem]
+<span class="lineno"> 1392 </span>                           } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1393 </span>
+<span class="lineno"> 1394 </span>data FieldElem = ScalarField { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldId</span></span></span> :: Text }
+<span class="lineno"> 1395 </span>               | VectorField { fieldId :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">size</span></span></span> :: Text }
+<span class="lineno"> 1396 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1397 </span>
+<span class="lineno"> 1398 </span>data Type = IntType | BoolType
+<span class="lineno"> 1399 </span>            deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1400 </span>
+<span class="lineno"> 1401 </span>data MethodDecl = MethodDecl { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodId</span></span></span> :: Text
+<span class="lineno"> 1402 </span>                             , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnType</span></span></span> :: Maybe Type
+<span class="lineno"> 1403 </span>                             , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arguments</span></span></span> :: [SL.Located Argument]
+<span class="lineno"> 1404 </span>                             , <span class="istickedoff"><span class="decl"><span class="istickedoff">block</span></span></span> :: Block
+<span class="lineno"> 1405 </span>                             } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
 <span class="lineno"> 1406 </span>
-<span class="lineno"> 1407 </span>data MethodDecl = MethodDecl { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodId</span></span></span> :: Text
-<span class="lineno"> 1408 </span>                             , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnType</span></span></span> :: Maybe Type
-<span class="lineno"> 1409 </span>                             , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arguments</span></span></span> :: [SL.Located Argument]
-<span class="lineno"> 1410 </span>                             , <span class="istickedoff"><span class="decl"><span class="istickedoff">block</span></span></span> :: Block
-<span class="lineno"> 1411 </span>                             } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1412 </span>
-<span class="lineno"> 1413 </span>data Argument = Argument { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentId</span></span></span> :: Text
-<span class="lineno"> 1414 </span>                         , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentType</span></span></span> :: Type
-<span class="lineno"> 1415 </span>                         } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1416 </span>
-<span class="lineno"> 1417 </span>data Block = Block { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">blockFieldDecls</span></span></span> :: [SL.Located FieldDecl]
-<span class="lineno"> 1418 </span>                   , <span class="istickedoff"><span class="decl"><span class="istickedoff">blockStatements</span></span></span> :: [SL.Located Statement]
-<span class="lineno"> 1419 </span>                   } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1420 </span>
-<span class="lineno"> 1421 </span>data Statement = AssignStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignLocation</span></span></span> :: Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignExpr</span></span></span> :: AssignExpr }
-<span class="lineno"> 1422 </span>               | MethodCallStatement { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodCallStatement</span></span></span> :: MethodCall }
-<span class="lineno"> 1423 </span>               | IfStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifBlock</span></span></span> :: Block }
-<span class="lineno"> 1424 </span>               | IfElseStatement { ifExpr :: SL.Located Expr, ifBlock :: Block, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elseBlock</span></span></span> :: Block}
-<span class="lineno"> 1425 </span>               | ForStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterId</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forPredExpr</span></span></span> :: SL.Located Expr,
-<span class="lineno"> 1426 </span>                                <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterUpdate</span></span></span> :: CounterUpdate, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forBlock</span></span></span> :: Block }
-<span class="lineno"> 1427 </span>               | WhileStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileBlock</span></span></span> :: Block }
-<span class="lineno"> 1428 </span>               | ReturnVoidStatement
-<span class="lineno"> 1429 </span>               | ReturnExprStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1430 </span>               | BreakStatement
-<span class="lineno"> 1431 </span>               | ContinueStatement
-<span class="lineno"> 1432 </span>               | ErrorStatement
-<span class="lineno"> 1433 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1434 </span>
-<span class="lineno"> 1435 </span>data Location = ScalarLocation { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">locationId</span></span></span> :: Text }
-<span class="lineno"> 1436 </span>              | VectorLocation { locationId :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arrayIndexExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1437 </span>                deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1438 </span>
-<span class="lineno"> 1439 </span>data AssignExpr = AssignExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignOp</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignSourceExpr</span></span></span>:: SL.Located Expr }
-<span class="lineno"> 1440 </span>                | IncrementExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">incrementOp</span></span></span> :: Text }
-<span class="lineno"> 1441 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1442 </span>
-<span class="lineno"> 1443 </span>data MethodCall = MethodCall { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodName</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">importArguments</span></span></span> :: [SL.Located ImportArg] }
-<span class="lineno"> 1444 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1445 </span>
-<span class="lineno"> 1446 </span>data ImportArg = ExprImportArg { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1447 </span>               | StringImportArg { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentString</span></span></span> :: Text }
-<span class="lineno"> 1448 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1449 </span>
-<span class="lineno"> 1450 </span>data CounterUpdate = CounterUpdate { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterLocation</span></span></span> :: Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">updateExpr</span></span></span> :: AssignExpr }
-<span class="lineno"> 1451 </span>                     deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1452 </span>
-<span class="lineno"> 1453 </span>data Expr = LocationExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">location</span></span></span> :: Location }
-<span class="lineno"> 1454 </span>          | MethodCallExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCallExpr</span></span></span> :: MethodCall }
-<span class="lineno"> 1455 </span>          | IntLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">intLiteral</span></span></span> :: Text }
-<span class="lineno"> 1456 </span>          | CharLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">charLiteral</span></span></span> :: Text }
-<span class="lineno"> 1457 </span>          | BoolLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">boolLiteral</span></span></span> :: Text }
-<span class="lineno"> 1458 </span>          | LenExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lenId</span></span></span> :: Text }
-<span class="lineno"> 1459 </span>          | ArithOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arithOp</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">rExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1460 </span>          | RelOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">relOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-<span class="lineno"> 1461 </span>          | EqOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">eqOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-<span class="lineno"> 1462 </span>          | CondOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">condOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-<span class="lineno"> 1463 </span>          | NegativeExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">negativeExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1464 </span>          | NegateExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">negateExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1465 </span>          | ParenExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">parenExpr</span></span></span> :: SL.Located Expr }
-<span class="lineno"> 1466 </span>          | ChoiceExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">choicePredExpr</span></span></span> :: SL.Located Expr, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-<span class="lineno"> 1467 </span>          deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno"> 1468 </span>
-<span class="lineno"> 1469 </span>parseError :: SL.Located Token -&gt; Alex a
-<span class="lineno"> 1470 </span><span class="decl"><span class="nottickedoff">parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do</span>
-<span class="lineno"> 1471 </span><span class="spaces">  </span><span class="nottickedoff">Alex $ \_ -&gt; Left $ printf &quot;%d:%d: Error handling token '%s'&quot; row col (show tok)</span></span>
+<span class="lineno"> 1407 </span>data Argument = Argument { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentId</span></span></span> :: Text
+<span class="lineno"> 1408 </span>                         , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentType</span></span></span> :: Type
+<span class="lineno"> 1409 </span>                         } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1410 </span>
+<span class="lineno"> 1411 </span>data Block = Block { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">blockFieldDecls</span></span></span> :: [SL.Located FieldDecl]
+<span class="lineno"> 1412 </span>                   , <span class="istickedoff"><span class="decl"><span class="istickedoff">blockStatements</span></span></span> :: [SL.Located Statement]
+<span class="lineno"> 1413 </span>                   } deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1414 </span>
+<span class="lineno"> 1415 </span>data Statement = AssignStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignLocation</span></span></span> :: Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignExpr</span></span></span> :: AssignExpr }
+<span class="lineno"> 1416 </span>               | MethodCallStatement { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodCallStatement</span></span></span> :: MethodCall }
+<span class="lineno"> 1417 </span>               | IfStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifBlock</span></span></span> :: Block }
+<span class="lineno"> 1418 </span>               | IfElseStatement { ifExpr :: SL.Located Expr, ifBlock :: Block, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elseBlock</span></span></span> :: Block}
+<span class="lineno"> 1419 </span>               | ForStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterId</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forPredExpr</span></span></span> :: SL.Located Expr,
+<span class="lineno"> 1420 </span>                                <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterUpdate</span></span></span> :: CounterUpdate, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forBlock</span></span></span> :: Block }
+<span class="lineno"> 1421 </span>               | WhileStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileBlock</span></span></span> :: Block }
+<span class="lineno"> 1422 </span>               | ReturnVoidStatement
+<span class="lineno"> 1423 </span>               | ReturnExprStatement { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1424 </span>               | BreakStatement
+<span class="lineno"> 1425 </span>               | ContinueStatement
+<span class="lineno"> 1426 </span>               | ErrorStatement
+<span class="lineno"> 1427 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1428 </span>
+<span class="lineno"> 1429 </span>data Location = ScalarLocation { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">locationId</span></span></span> :: Text }
+<span class="lineno"> 1430 </span>              | VectorLocation { locationId :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arrayIndexExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1431 </span>                deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1432 </span>
+<span class="lineno"> 1433 </span>data AssignExpr = AssignExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignOp</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignSourceExpr</span></span></span>:: SL.Located Expr }
+<span class="lineno"> 1434 </span>                | IncrementExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">incrementOp</span></span></span> :: Text }
+<span class="lineno"> 1435 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1436 </span>
+<span class="lineno"> 1437 </span>data MethodCall = MethodCall { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodName</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">importArguments</span></span></span> :: [SL.Located ImportArg] }
+<span class="lineno"> 1438 </span>                  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1439 </span>
+<span class="lineno"> 1440 </span>data ImportArg = ExprImportArg { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1441 </span>               | StringImportArg { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentString</span></span></span> :: Text }
+<span class="lineno"> 1442 </span>                 deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1443 </span>
+<span class="lineno"> 1444 </span>data CounterUpdate = CounterUpdate { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterLocation</span></span></span> :: Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">updateExpr</span></span></span> :: AssignExpr }
+<span class="lineno"> 1445 </span>                     deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1446 </span>
+<span class="lineno"> 1447 </span>data Expr = LocationExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">location</span></span></span> :: Location }
+<span class="lineno"> 1448 </span>          | MethodCallExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCallExpr</span></span></span> :: MethodCall }
+<span class="lineno"> 1449 </span>          | IntLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">intLiteral</span></span></span> :: Text }
+<span class="lineno"> 1450 </span>          | CharLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">charLiteral</span></span></span> :: Text }
+<span class="lineno"> 1451 </span>          | BoolLiteralExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">boolLiteral</span></span></span> :: Text }
+<span class="lineno"> 1452 </span>          | LenExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lenId</span></span></span> :: Text }
+<span class="lineno"> 1453 </span>          | ArithOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arithOp</span></span></span> :: Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lExpr</span></span></span> :: SL.Located Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">rExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1454 </span>          | RelOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">relOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+<span class="lineno"> 1455 </span>          | EqOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">eqOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+<span class="lineno"> 1456 </span>          | CondOpExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">condOp</span></span></span> :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+<span class="lineno"> 1457 </span>          | NegativeExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">negativeExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1458 </span>          | NegateExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">negateExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1459 </span>          | ParenExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">parenExpr</span></span></span> :: SL.Located Expr }
+<span class="lineno"> 1460 </span>          | ChoiceExpr { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">choicePredExpr</span></span></span> :: SL.Located Expr, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
+<span class="lineno"> 1461 </span>          deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno"> 1462 </span>
+<span class="lineno"> 1463 </span>parseError :: SL.Located Token -&gt; Alex a
+<span class="lineno"> 1464 </span><span class="decl"><span class="nottickedoff">parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do</span>
+<span class="lineno"> 1465 </span><span class="spaces">  </span><span class="nottickedoff">Alex $ \_ -&gt; Left $ printf &quot;%d:%d: Error handling token '%s'&quot; row col (show tok)</span></span>
+<span class="lineno"> 1466 </span>
+<span class="lineno"> 1467 </span>parse :: ByteString -&gt; Either String Program
+<span class="lineno"> 1468 </span><span class="decl"><span class="istickedoff">parse input = runAlex input parseInternal</span></span>
+<span class="lineno"> 1469 </span>{-# LINE 1 &quot;templates/GenericTemplate.hs&quot; #-}
+<span class="lineno"> 1470 </span>-- $Id: GenericTemplate.hs,v 1.26 2005/01/14 14:47:22 simonmar Exp $
+<span class="lineno"> 1471 </span>
 <span class="lineno"> 1472 </span>
-<span class="lineno"> 1473 </span>parse :: ByteString -&gt; Either String Program
-<span class="lineno"> 1474 </span><span class="decl"><span class="istickedoff">parse input = runAlex input parseInternal</span></span>
-<span class="lineno"> 1475 </span>{-# LINE 1 &quot;templates/GenericTemplate.hs&quot; #-}
-<span class="lineno"> 1476 </span>-- $Id: GenericTemplate.hs,v 1.26 2005/01/14 14:47:22 simonmar Exp $
+<span class="lineno"> 1473 </span>
+<span class="lineno"> 1474 </span>
+<span class="lineno"> 1475 </span>
+<span class="lineno"> 1476 </span>
 <span class="lineno"> 1477 </span>
 <span class="lineno"> 1478 </span>
 <span class="lineno"> 1479 </span>
@@ -1500,22 +1500,22 @@ span.spaces    { background: white }
 <span class="lineno"> 1481 </span>
 <span class="lineno"> 1482 </span>
 <span class="lineno"> 1483 </span>
-<span class="lineno"> 1484 </span>
-<span class="lineno"> 1485 </span>
-<span class="lineno"> 1486 </span>
-<span class="lineno"> 1487 </span>
-<span class="lineno"> 1488 </span>
-<span class="lineno"> 1489 </span>
-<span class="lineno"> 1490 </span>-- Do not remove this comment. Required to fix CPP parsing when using GCC and a clang-compiled alex.
-<span class="lineno"> 1491 </span>#if __GLASGOW_HASKELL__ &gt; 706
-<span class="lineno"> 1492 </span>#define LT(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.&lt;# m)) :: Prelude.Bool)
-<span class="lineno"> 1493 </span>#define GTE(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.&gt;=# m)) :: Prelude.Bool)
-<span class="lineno"> 1494 </span>#define EQ(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.==# m)) :: Prelude.Bool)
-<span class="lineno"> 1495 </span>#else
-<span class="lineno"> 1496 </span>#define LT(n,m) (n Happy_GHC_Exts.&lt;# m)
-<span class="lineno"> 1497 </span>#define GTE(n,m) (n Happy_GHC_Exts.&gt;=# m)
-<span class="lineno"> 1498 </span>#define EQ(n,m) (n Happy_GHC_Exts.==# m)
-<span class="lineno"> 1499 </span>#endif
+<span class="lineno"> 1484 </span>-- Do not remove this comment. Required to fix CPP parsing when using GCC and a clang-compiled alex.
+<span class="lineno"> 1485 </span>#if __GLASGOW_HASKELL__ &gt; 706
+<span class="lineno"> 1486 </span>#define LT(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.&lt;# m)) :: Prelude.Bool)
+<span class="lineno"> 1487 </span>#define GTE(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.&gt;=# m)) :: Prelude.Bool)
+<span class="lineno"> 1488 </span>#define EQ(n,m) ((Happy_GHC_Exts.tagToEnum# (n Happy_GHC_Exts.==# m)) :: Prelude.Bool)
+<span class="lineno"> 1489 </span>#else
+<span class="lineno"> 1490 </span>#define LT(n,m) (n Happy_GHC_Exts.&lt;# m)
+<span class="lineno"> 1491 </span>#define GTE(n,m) (n Happy_GHC_Exts.&gt;=# m)
+<span class="lineno"> 1492 </span>#define EQ(n,m) (n Happy_GHC_Exts.==# m)
+<span class="lineno"> 1493 </span>#endif
+<span class="lineno"> 1494 </span>
+<span class="lineno"> 1495 </span>
+<span class="lineno"> 1496 </span>
+<span class="lineno"> 1497 </span>
+<span class="lineno"> 1498 </span>
+<span class="lineno"> 1499 </span>
 <span class="lineno"> 1500 </span>
 <span class="lineno"> 1501 </span>
 <span class="lineno"> 1502 </span>
@@ -1529,13 +1529,13 @@ span.spaces    { background: white }
 <span class="lineno"> 1510 </span>
 <span class="lineno"> 1511 </span>
 <span class="lineno"> 1512 </span>
-<span class="lineno"> 1513 </span>
+<span class="lineno"> 1513 </span>data Happy_IntList = HappyCons Happy_GHC_Exts.Int# Happy_IntList
 <span class="lineno"> 1514 </span>
 <span class="lineno"> 1515 </span>
 <span class="lineno"> 1516 </span>
 <span class="lineno"> 1517 </span>
 <span class="lineno"> 1518 </span>
-<span class="lineno"> 1519 </span>data Happy_IntList = HappyCons Happy_GHC_Exts.Int# Happy_IntList
+<span class="lineno"> 1519 </span>
 <span class="lineno"> 1520 </span>
 <span class="lineno"> 1521 </span>
 <span class="lineno"> 1522 </span>
@@ -1570,90 +1570,90 @@ span.spaces    { background: white }
 <span class="lineno"> 1551 </span>
 <span class="lineno"> 1552 </span>
 <span class="lineno"> 1553 </span>
-<span class="lineno"> 1554 </span>
-<span class="lineno"> 1555 </span>
+<span class="lineno"> 1554 </span>infixr 9 `HappyStk`
+<span class="lineno"> 1555 </span>data HappyStk a = HappyStk a (HappyStk a)
 <span class="lineno"> 1556 </span>
-<span class="lineno"> 1557 </span>
-<span class="lineno"> 1558 </span>
+<span class="lineno"> 1557 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1558 </span>-- starting the parse
 <span class="lineno"> 1559 </span>
-<span class="lineno"> 1560 </span>infixr 9 `HappyStk`
-<span class="lineno"> 1561 </span>data HappyStk a = HappyStk a (HappyStk a)
-<span class="lineno"> 1562 </span>
-<span class="lineno"> 1563 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1564 </span>-- starting the parse
-<span class="lineno"> 1565 </span>
-<span class="lineno"> 1566 </span><span class="decl"><span class="istickedoff">happyParse start_state = happyNewToken start_state <span class="nottickedoff">notHappyAtAll</span> <span class="nottickedoff">notHappyAtAll</span></span></span>
-<span class="lineno"> 1567 </span>
-<span class="lineno"> 1568 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1569 </span>-- Accepting the parse
-<span class="lineno"> 1570 </span>
-<span class="lineno"> 1571 </span>-- If the current token is ERROR_TOK, it means we've just accepted a partial
-<span class="lineno"> 1572 </span>-- parse (a %partial parser).  We must ignore the saved token on the top of
-<span class="lineno"> 1573 </span>-- the stack in this case.
-<span class="lineno"> 1574 </span><span class="decl"><span class="istickedoff">happyAccept 0# tk st sts (_ `HappyStk` ans `HappyStk` _) =</span>
-<span class="lineno"> 1575 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">happyReturn1 ans</span></span>
-<span class="lineno"> 1576 </span><span class="spaces"></span><span class="istickedoff">happyAccept j tk st sts (HappyStk ans _) = </span>
-<span class="lineno"> 1577 </span><span class="spaces">        </span><span class="istickedoff">(happyTcHack j (happyTcHack st)) (happyReturn1 ans)</span></span>
-<span class="lineno"> 1578 </span>
-<span class="lineno"> 1579 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1580 </span>-- Arrays only: do the next action
-<span class="lineno"> 1581 </span>
-<span class="lineno"> 1582 </span>
-<span class="lineno"> 1583 </span>
-<span class="lineno"> 1584 </span><span class="decl"><span class="istickedoff">happyDoAction i tk st</span>
-<span class="lineno"> 1585 </span><span class="spaces">        </span><span class="istickedoff">= {- nothing -}</span>
-<span class="lineno"> 1586 </span><span class="spaces">          </span><span class="istickedoff">case action of</span>
-<span class="lineno"> 1587 </span><span class="spaces">                </span><span class="istickedoff">0#           -&gt; {- nothing -}</span>
-<span class="lineno"> 1588 </span><span class="spaces">                                     </span><span class="istickedoff"><span class="nottickedoff">happyFail (happyExpListPerState ((Happy_GHC_Exts.I# (st)) :: Prelude.Int)) i tk st</span></span>
-<span class="lineno"> 1589 </span><span class="spaces">                </span><span class="istickedoff">-1#          -&gt; {- nothing -}</span>
-<span class="lineno"> 1590 </span><span class="spaces">                                     </span><span class="istickedoff">happyAccept i <span class="nottickedoff">tk</span> st</span>
-<span class="lineno"> 1591 </span><span class="spaces">                </span><span class="istickedoff">n | LT(n,(0# :: Happy_GHC_Exts.Int#)) -&gt; {- nothing -}</span>
-<span class="lineno"> 1592 </span><span class="spaces">                                                   </span><span class="istickedoff">(happyReduceArr Happy_Data_Array.! rule) i tk st</span>
-<span class="lineno"> 1593 </span><span class="spaces">                                                   </span><span class="istickedoff">where rule = (Happy_GHC_Exts.I# ((Happy_GHC_Exts.negateInt# ((n Happy_GHC_Exts.+# (1# :: Happy_GHC_Exts.Int#))))))</span>
-<span class="lineno"> 1594 </span><span class="spaces">                </span><span class="istickedoff">n                 -&gt; {- nothing -}</span>
-<span class="lineno"> 1595 </span><span class="spaces">                                     </span><span class="istickedoff">happyShift new_state i tk st</span>
-<span class="lineno"> 1596 </span><span class="spaces">                                     </span><span class="istickedoff">where new_state = (n Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#))</span>
-<span class="lineno"> 1597 </span><span class="spaces">   </span><span class="istickedoff">where off    = happyAdjustOffset (indexShortOffAddr happyActOffsets st)</span>
-<span class="lineno"> 1598 </span><span class="spaces">         </span><span class="istickedoff">off_i  = (off Happy_GHC_Exts.+# i)</span>
-<span class="lineno"> 1599 </span><span class="spaces">         </span><span class="istickedoff">check  = if <span class="tickonlytrue">GTE(off_i,(0# :: Happy_GHC_Exts.Int#))                                                             </span></span>
-<span class="lineno"> 1600 </span><span class="spaces">                  </span><span class="istickedoff"><span class="tickonlytrue"></span>then EQ(indexShortOffAddr happyCheck off_i, i)</span>
-<span class="lineno"> 1601 </span><span class="spaces">                  </span><span class="istickedoff">else <span class="nottickedoff">Prelude.False</span></span>
-<span class="lineno"> 1602 </span><span class="spaces">         </span><span class="istickedoff">action</span>
-<span class="lineno"> 1603 </span><span class="spaces">          </span><span class="istickedoff">| check     = indexShortOffAddr happyTable off_i</span>
-<span class="lineno"> 1604 </span><span class="spaces">          </span><span class="istickedoff">| <span class="tickonlytrue">Prelude.otherwise</span> = indexShortOffAddr happyDefActions st</span></span>
-<span class="lineno"> 1605 </span>
-<span class="lineno"> 1606 </span>
-<span class="lineno"> 1607 </span>
-<span class="lineno"> 1608 </span>
-<span class="lineno"> 1609 </span><span class="decl"><span class="istickedoff">indexShortOffAddr (HappyA# arr) off =</span>
-<span class="lineno"> 1610 </span><span class="spaces">        </span><span class="istickedoff">Happy_GHC_Exts.narrow16Int# i</span>
-<span class="lineno"> 1611 </span><span class="spaces">  </span><span class="istickedoff">where</span>
-<span class="lineno"> 1612 </span><span class="spaces">        </span><span class="istickedoff">i = Happy_GHC_Exts.word2Int# (Happy_GHC_Exts.or# (Happy_GHC_Exts.uncheckedShiftL# high 8#) low)</span>
-<span class="lineno"> 1613 </span><span class="spaces">        </span><span class="istickedoff">high = Happy_GHC_Exts.int2Word# (Happy_GHC_Exts.ord# (Happy_GHC_Exts.indexCharOffAddr# arr (off' Happy_GHC_Exts.+# 1#)))</span>
-<span class="lineno"> 1614 </span><span class="spaces">        </span><span class="istickedoff">low  = Happy_GHC_Exts.int2Word# (Happy_GHC_Exts.ord# (Happy_GHC_Exts.indexCharOffAddr# arr off'))</span>
-<span class="lineno"> 1615 </span><span class="spaces">        </span><span class="istickedoff">off' = off Happy_GHC_Exts.*# 2#</span></span>
-<span class="lineno"> 1616 </span>
+<span class="lineno"> 1560 </span><span class="decl"><span class="istickedoff">happyParse start_state = happyNewToken start_state <span class="nottickedoff">notHappyAtAll</span> <span class="nottickedoff">notHappyAtAll</span></span></span>
+<span class="lineno"> 1561 </span>
+<span class="lineno"> 1562 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1563 </span>-- Accepting the parse
+<span class="lineno"> 1564 </span>
+<span class="lineno"> 1565 </span>-- If the current token is ERROR_TOK, it means we've just accepted a partial
+<span class="lineno"> 1566 </span>-- parse (a %partial parser).  We must ignore the saved token on the top of
+<span class="lineno"> 1567 </span>-- the stack in this case.
+<span class="lineno"> 1568 </span><span class="decl"><span class="istickedoff">happyAccept 0# tk st sts (_ `HappyStk` ans `HappyStk` _) =</span>
+<span class="lineno"> 1569 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">happyReturn1 ans</span></span>
+<span class="lineno"> 1570 </span><span class="spaces"></span><span class="istickedoff">happyAccept j tk st sts (HappyStk ans _) = </span>
+<span class="lineno"> 1571 </span><span class="spaces">        </span><span class="istickedoff">(happyTcHack j (happyTcHack st)) (happyReturn1 ans)</span></span>
+<span class="lineno"> 1572 </span>
+<span class="lineno"> 1573 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1574 </span>-- Arrays only: do the next action
+<span class="lineno"> 1575 </span>
+<span class="lineno"> 1576 </span>
+<span class="lineno"> 1577 </span>
+<span class="lineno"> 1578 </span><span class="decl"><span class="istickedoff">happyDoAction i tk st</span>
+<span class="lineno"> 1579 </span><span class="spaces">        </span><span class="istickedoff">= {- nothing -}</span>
+<span class="lineno"> 1580 </span><span class="spaces">          </span><span class="istickedoff">case action of</span>
+<span class="lineno"> 1581 </span><span class="spaces">                </span><span class="istickedoff">0#           -&gt; {- nothing -}</span>
+<span class="lineno"> 1582 </span><span class="spaces">                                     </span><span class="istickedoff"><span class="nottickedoff">happyFail (happyExpListPerState ((Happy_GHC_Exts.I# (st)) :: Prelude.Int)) i tk st</span></span>
+<span class="lineno"> 1583 </span><span class="spaces">                </span><span class="istickedoff">-1#          -&gt; {- nothing -}</span>
+<span class="lineno"> 1584 </span><span class="spaces">                                     </span><span class="istickedoff">happyAccept i <span class="nottickedoff">tk</span> st</span>
+<span class="lineno"> 1585 </span><span class="spaces">                </span><span class="istickedoff">n | LT(n,(0# :: Happy_GHC_Exts.Int#)) -&gt; {- nothing -}</span>
+<span class="lineno"> 1586 </span><span class="spaces">                                                   </span><span class="istickedoff">(happyReduceArr Happy_Data_Array.! rule) i tk st</span>
+<span class="lineno"> 1587 </span><span class="spaces">                                                   </span><span class="istickedoff">where rule = (Happy_GHC_Exts.I# ((Happy_GHC_Exts.negateInt# ((n Happy_GHC_Exts.+# (1# :: Happy_GHC_Exts.Int#))))))</span>
+<span class="lineno"> 1588 </span><span class="spaces">                </span><span class="istickedoff">n                 -&gt; {- nothing -}</span>
+<span class="lineno"> 1589 </span><span class="spaces">                                     </span><span class="istickedoff">happyShift new_state i tk st</span>
+<span class="lineno"> 1590 </span><span class="spaces">                                     </span><span class="istickedoff">where new_state = (n Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#))</span>
+<span class="lineno"> 1591 </span><span class="spaces">   </span><span class="istickedoff">where off    = happyAdjustOffset (indexShortOffAddr happyActOffsets st)</span>
+<span class="lineno"> 1592 </span><span class="spaces">         </span><span class="istickedoff">off_i  = (off Happy_GHC_Exts.+# i)</span>
+<span class="lineno"> 1593 </span><span class="spaces">         </span><span class="istickedoff">check  = if <span class="tickonlytrue">GTE(off_i,(0# :: Happy_GHC_Exts.Int#))                                                             </span></span>
+<span class="lineno"> 1594 </span><span class="spaces">                  </span><span class="istickedoff"><span class="tickonlytrue"></span>then EQ(indexShortOffAddr happyCheck off_i, i)</span>
+<span class="lineno"> 1595 </span><span class="spaces">                  </span><span class="istickedoff">else <span class="nottickedoff">Prelude.False</span></span>
+<span class="lineno"> 1596 </span><span class="spaces">         </span><span class="istickedoff">action</span>
+<span class="lineno"> 1597 </span><span class="spaces">          </span><span class="istickedoff">| check     = indexShortOffAddr happyTable off_i</span>
+<span class="lineno"> 1598 </span><span class="spaces">          </span><span class="istickedoff">| <span class="tickonlytrue">Prelude.otherwise</span> = indexShortOffAddr happyDefActions st</span></span>
+<span class="lineno"> 1599 </span>
+<span class="lineno"> 1600 </span>
+<span class="lineno"> 1601 </span>
+<span class="lineno"> 1602 </span>
+<span class="lineno"> 1603 </span><span class="decl"><span class="istickedoff">indexShortOffAddr (HappyA# arr) off =</span>
+<span class="lineno"> 1604 </span><span class="spaces">        </span><span class="istickedoff">Happy_GHC_Exts.narrow16Int# i</span>
+<span class="lineno"> 1605 </span><span class="spaces">  </span><span class="istickedoff">where</span>
+<span class="lineno"> 1606 </span><span class="spaces">        </span><span class="istickedoff">i = Happy_GHC_Exts.word2Int# (Happy_GHC_Exts.or# (Happy_GHC_Exts.uncheckedShiftL# high 8#) low)</span>
+<span class="lineno"> 1607 </span><span class="spaces">        </span><span class="istickedoff">high = Happy_GHC_Exts.int2Word# (Happy_GHC_Exts.ord# (Happy_GHC_Exts.indexCharOffAddr# arr (off' Happy_GHC_Exts.+# 1#)))</span>
+<span class="lineno"> 1608 </span><span class="spaces">        </span><span class="istickedoff">low  = Happy_GHC_Exts.int2Word# (Happy_GHC_Exts.ord# (Happy_GHC_Exts.indexCharOffAddr# arr off'))</span>
+<span class="lineno"> 1609 </span><span class="spaces">        </span><span class="istickedoff">off' = off Happy_GHC_Exts.*# 2#</span></span>
+<span class="lineno"> 1610 </span>
+<span class="lineno"> 1611 </span>
+<span class="lineno"> 1612 </span>
+<span class="lineno"> 1613 </span>
+<span class="lineno"> 1614 </span>{-# INLINE happyLt #-}
+<span class="lineno"> 1615 </span><span class="decl"><span class="nottickedoff">happyLt x y = LT(x,y)                                                             </span>
+<span class="lineno"> 1616 </span><span class="spaces"></span><span class="nottickedoff"></span></span>
 <span class="lineno"> 1617 </span>
-<span class="lineno"> 1618 </span>
-<span class="lineno"> 1619 </span>
-<span class="lineno"> 1620 </span>{-# INLINE happyLt #-}
-<span class="lineno"> 1621 </span><span class="decl"><span class="nottickedoff">happyLt x y = LT(x,y)                                                             </span>
-<span class="lineno"> 1622 </span><span class="spaces"></span><span class="nottickedoff"></span></span>
+<span class="lineno"> 1618 </span><span class="decl"><span class="nottickedoff">readArrayBit arr bit =</span>
+<span class="lineno"> 1619 </span><span class="spaces">    </span><span class="nottickedoff">Bits.testBit (Happy_GHC_Exts.I# (indexShortOffAddr arr ((unbox_int bit) `Happy_GHC_Exts.iShiftRA#` 4#))) (bit `Prelude.mod` 16)</span>
+<span class="lineno"> 1620 </span><span class="spaces">  </span><span class="nottickedoff">where unbox_int (Happy_GHC_Exts.I# x) = x</span></span>
+<span class="lineno"> 1621 </span>
+<span class="lineno"> 1622 </span>
 <span class="lineno"> 1623 </span>
-<span class="lineno"> 1624 </span><span class="decl"><span class="nottickedoff">readArrayBit arr bit =</span>
-<span class="lineno"> 1625 </span><span class="spaces">    </span><span class="nottickedoff">Bits.testBit (Happy_GHC_Exts.I# (indexShortOffAddr arr ((unbox_int bit) `Happy_GHC_Exts.iShiftRA#` 4#))) (bit `Prelude.mod` 16)</span>
-<span class="lineno"> 1626 </span><span class="spaces">  </span><span class="nottickedoff">where unbox_int (Happy_GHC_Exts.I# x) = x</span></span>
-<span class="lineno"> 1627 </span>
+<span class="lineno"> 1624 </span>
+<span class="lineno"> 1625 </span>
+<span class="lineno"> 1626 </span>
+<span class="lineno"> 1627 </span>data HappyAddr = HappyA# Happy_GHC_Exts.Addr#
 <span class="lineno"> 1628 </span>
 <span class="lineno"> 1629 </span>
-<span class="lineno"> 1630 </span>
-<span class="lineno"> 1631 </span>
+<span class="lineno"> 1630 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1631 </span>-- HappyState data type (not arrays)
 <span class="lineno"> 1632 </span>
-<span class="lineno"> 1633 </span>data HappyAddr = HappyA# Happy_GHC_Exts.Addr#
+<span class="lineno"> 1633 </span>
 <span class="lineno"> 1634 </span>
 <span class="lineno"> 1635 </span>
-<span class="lineno"> 1636 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1637 </span>-- HappyState data type (not arrays)
+<span class="lineno"> 1636 </span>
+<span class="lineno"> 1637 </span>
 <span class="lineno"> 1638 </span>
 <span class="lineno"> 1639 </span>
 <span class="lineno"> 1640 </span>
@@ -1661,175 +1661,169 @@ span.spaces    { background: white }
 <span class="lineno"> 1642 </span>
 <span class="lineno"> 1643 </span>
 <span class="lineno"> 1644 </span>
-<span class="lineno"> 1645 </span>
-<span class="lineno"> 1646 </span>
+<span class="lineno"> 1645 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1646 </span>-- Shifting a token
 <span class="lineno"> 1647 </span>
-<span class="lineno"> 1648 </span>
-<span class="lineno"> 1649 </span>
-<span class="lineno"> 1650 </span>
-<span class="lineno"> 1651 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1652 </span>-- Shifting a token
-<span class="lineno"> 1653 </span>
-<span class="lineno"> 1654 </span><span class="decl"><span class="istickedoff">happyShift new_state 0# tk st sts stk@(x `HappyStk` _) =</span>
-<span class="lineno"> 1655 </span><span class="spaces">     </span><span class="istickedoff"><span class="nottickedoff">let i = (case Happy_GHC_Exts.unsafeCoerce# x of { (Happy_GHC_Exts.I# (i)) -&gt; i }) in</span></span>
-<span class="lineno"> 1656 </span><span class="spaces"></span><span class="istickedoff"><span class="nottickedoff">--     trace &quot;shifting the error token&quot; $</span></span>
-<span class="lineno"> 1657 </span><span class="spaces">     </span><span class="istickedoff"><span class="nottickedoff">happyDoAction i tk new_state (HappyCons (st) (sts)) (stk)</span></span>
-<span class="lineno"> 1658 </span><span class="spaces"></span><span class="istickedoff"></span>
-<span class="lineno"> 1659 </span><span class="spaces"></span><span class="istickedoff">happyShift new_state i tk st sts stk =</span>
-<span class="lineno"> 1660 </span><span class="spaces">     </span><span class="istickedoff">happyNewToken new_state (HappyCons (st) (sts)) ((happyInTok (tk))`HappyStk`stk)</span></span>
-<span class="lineno"> 1661 </span>
-<span class="lineno"> 1662 </span>-- happyReduce is specialised for the common cases.
-<span class="lineno"> 1663 </span>
-<span class="lineno"> 1664 </span><span class="decl"><span class="istickedoff">happySpecReduce_0 i fn 0# tk st sts stk</span>
-<span class="lineno"> 1665 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
-<span class="lineno"> 1666 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_0 nt fn j tk st@((action)) sts stk</span>
-<span class="lineno"> 1667 </span><span class="spaces">     </span><span class="istickedoff">= happyGoto nt j tk st (HappyCons (st) (sts)) (fn `HappyStk` stk)</span></span>
+<span class="lineno"> 1648 </span><span class="decl"><span class="istickedoff">happyShift new_state 0# tk st sts stk@(x `HappyStk` _) =</span>
+<span class="lineno"> 1649 </span><span class="spaces">     </span><span class="istickedoff"><span class="nottickedoff">let i = (case Happy_GHC_Exts.unsafeCoerce# x of { (Happy_GHC_Exts.I# (i)) -&gt; i }) in</span></span>
+<span class="lineno"> 1650 </span><span class="spaces"></span><span class="istickedoff"><span class="nottickedoff">--     trace &quot;shifting the error token&quot; $</span></span>
+<span class="lineno"> 1651 </span><span class="spaces">     </span><span class="istickedoff"><span class="nottickedoff">happyDoAction i tk new_state (HappyCons (st) (sts)) (stk)</span></span>
+<span class="lineno"> 1652 </span><span class="spaces"></span><span class="istickedoff"></span>
+<span class="lineno"> 1653 </span><span class="spaces"></span><span class="istickedoff">happyShift new_state i tk st sts stk =</span>
+<span class="lineno"> 1654 </span><span class="spaces">     </span><span class="istickedoff">happyNewToken new_state (HappyCons (st) (sts)) ((happyInTok (tk))`HappyStk`stk)</span></span>
+<span class="lineno"> 1655 </span>
+<span class="lineno"> 1656 </span>-- happyReduce is specialised for the common cases.
+<span class="lineno"> 1657 </span>
+<span class="lineno"> 1658 </span><span class="decl"><span class="istickedoff">happySpecReduce_0 i fn 0# tk st sts stk</span>
+<span class="lineno"> 1659 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
+<span class="lineno"> 1660 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_0 nt fn j tk st@((action)) sts stk</span>
+<span class="lineno"> 1661 </span><span class="spaces">     </span><span class="istickedoff">= happyGoto nt j tk st (HappyCons (st) (sts)) (fn `HappyStk` stk)</span></span>
+<span class="lineno"> 1662 </span>
+<span class="lineno"> 1663 </span><span class="decl"><span class="istickedoff">happySpecReduce_1 i fn 0# tk st sts stk</span>
+<span class="lineno"> 1664 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
+<span class="lineno"> 1665 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_1 nt fn j tk _ sts@((HappyCons (st@(action)) (_))) (v1`HappyStk`stk')</span>
+<span class="lineno"> 1666 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 in</span>
+<span class="lineno"> 1667 </span><span class="spaces">       </span><span class="istickedoff">happySeq <span class="nottickedoff">r</span> (happyGoto nt j tk st sts (r `HappyStk` stk'))</span></span>
 <span class="lineno"> 1668 </span>
-<span class="lineno"> 1669 </span><span class="decl"><span class="istickedoff">happySpecReduce_1 i fn 0# tk st sts stk</span>
+<span class="lineno"> 1669 </span><span class="decl"><span class="istickedoff">happySpecReduce_2 i fn 0# tk st sts stk</span>
 <span class="lineno"> 1670 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
-<span class="lineno"> 1671 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_1 nt fn j tk _ sts@((HappyCons (st@(action)) (_))) (v1`HappyStk`stk')</span>
-<span class="lineno"> 1672 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 in</span>
+<span class="lineno"> 1671 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_2 nt fn j tk _ (HappyCons (_) (sts@((HappyCons (st@(action)) (_))))) (v1`HappyStk`v2`HappyStk`stk')</span>
+<span class="lineno"> 1672 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 v2 in</span>
 <span class="lineno"> 1673 </span><span class="spaces">       </span><span class="istickedoff">happySeq <span class="nottickedoff">r</span> (happyGoto nt j tk st sts (r `HappyStk` stk'))</span></span>
 <span class="lineno"> 1674 </span>
-<span class="lineno"> 1675 </span><span class="decl"><span class="istickedoff">happySpecReduce_2 i fn 0# tk st sts stk</span>
+<span class="lineno"> 1675 </span><span class="decl"><span class="istickedoff">happySpecReduce_3 i fn 0# tk st sts stk</span>
 <span class="lineno"> 1676 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
-<span class="lineno"> 1677 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_2 nt fn j tk _ (HappyCons (_) (sts@((HappyCons (st@(action)) (_))))) (v1`HappyStk`v2`HappyStk`stk')</span>
-<span class="lineno"> 1678 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 v2 in</span>
+<span class="lineno"> 1677 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_3 nt fn j tk _ (HappyCons (_) ((HappyCons (_) (sts@((HappyCons (st@(action)) (_))))))) (v1`HappyStk`v2`HappyStk`v3`HappyStk`stk')</span>
+<span class="lineno"> 1678 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 v2 v3 in</span>
 <span class="lineno"> 1679 </span><span class="spaces">       </span><span class="istickedoff">happySeq <span class="nottickedoff">r</span> (happyGoto nt j tk st sts (r `HappyStk` stk'))</span></span>
 <span class="lineno"> 1680 </span>
-<span class="lineno"> 1681 </span><span class="decl"><span class="istickedoff">happySpecReduce_3 i fn 0# tk st sts stk</span>
+<span class="lineno"> 1681 </span><span class="decl"><span class="istickedoff">happyReduce k i fn 0# tk st sts stk</span>
 <span class="lineno"> 1682 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
-<span class="lineno"> 1683 </span><span class="spaces"></span><span class="istickedoff">happySpecReduce_3 nt fn j tk _ (HappyCons (_) ((HappyCons (_) (sts@((HappyCons (st@(action)) (_))))))) (v1`HappyStk`v2`HappyStk`v3`HappyStk`stk')</span>
-<span class="lineno"> 1684 </span><span class="spaces">     </span><span class="istickedoff">= let r = fn v1 v2 v3 in</span>
-<span class="lineno"> 1685 </span><span class="spaces">       </span><span class="istickedoff">happySeq <span class="nottickedoff">r</span> (happyGoto nt j tk st sts (r `HappyStk` stk'))</span></span>
-<span class="lineno"> 1686 </span>
-<span class="lineno"> 1687 </span><span class="decl"><span class="istickedoff">happyReduce k i fn 0# tk st sts stk</span>
-<span class="lineno"> 1688 </span><span class="spaces">     </span><span class="istickedoff">= <span class="nottickedoff">happyFail [] 0# tk st sts stk</span></span>
-<span class="lineno"> 1689 </span><span class="spaces"></span><span class="istickedoff">happyReduce k nt fn j tk st sts stk</span>
-<span class="lineno"> 1690 </span><span class="spaces">     </span><span class="istickedoff">= case happyDrop (k Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#)) sts of</span>
-<span class="lineno"> 1691 </span><span class="spaces">         </span><span class="istickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
-<span class="lineno"> 1692 </span><span class="spaces">                </span><span class="istickedoff">let r = fn stk in  -- it doesn't hurt to always seq here...</span>
-<span class="lineno"> 1693 </span><span class="spaces">                </span><span class="istickedoff">happyDoSeq r (happyGoto nt j <span class="nottickedoff">tk</span> st1 sts1 r)</span></span>
-<span class="lineno"> 1694 </span>
-<span class="lineno"> 1695 </span><span class="decl"><span class="nottickedoff">happyMonadReduce k nt fn 0# tk st sts stk</span>
-<span class="lineno"> 1696 </span><span class="spaces">     </span><span class="nottickedoff">= happyFail [] 0# tk st sts stk</span>
-<span class="lineno"> 1697 </span><span class="spaces"></span><span class="nottickedoff">happyMonadReduce k nt fn j tk st sts stk =</span>
-<span class="lineno"> 1698 </span><span class="spaces">      </span><span class="nottickedoff">case happyDrop k (HappyCons (st) (sts)) of</span>
-<span class="lineno"> 1699 </span><span class="spaces">        </span><span class="nottickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
-<span class="lineno"> 1700 </span><span class="spaces">          </span><span class="nottickedoff">let drop_stk = happyDropStk k stk in</span>
-<span class="lineno"> 1701 </span><span class="spaces">          </span><span class="nottickedoff">happyThen1 (fn stk tk) (\r -&gt; happyGoto nt j tk st1 sts1 (r `HappyStk` drop_stk))</span></span>
-<span class="lineno"> 1702 </span>
-<span class="lineno"> 1703 </span><span class="decl"><span class="nottickedoff">happyMonad2Reduce k nt fn 0# tk st sts stk</span>
-<span class="lineno"> 1704 </span><span class="spaces">     </span><span class="nottickedoff">= happyFail [] 0# tk st sts stk</span>
-<span class="lineno"> 1705 </span><span class="spaces"></span><span class="nottickedoff">happyMonad2Reduce k nt fn j tk st sts stk =</span>
-<span class="lineno"> 1706 </span><span class="spaces">      </span><span class="nottickedoff">case happyDrop k (HappyCons (st) (sts)) of</span>
-<span class="lineno"> 1707 </span><span class="spaces">        </span><span class="nottickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
-<span class="lineno"> 1708 </span><span class="spaces">         </span><span class="nottickedoff">let drop_stk = happyDropStk k stk</span>
+<span class="lineno"> 1683 </span><span class="spaces"></span><span class="istickedoff">happyReduce k nt fn j tk st sts stk</span>
+<span class="lineno"> 1684 </span><span class="spaces">     </span><span class="istickedoff">= case happyDrop (k Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#)) sts of</span>
+<span class="lineno"> 1685 </span><span class="spaces">         </span><span class="istickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
+<span class="lineno"> 1686 </span><span class="spaces">                </span><span class="istickedoff">let r = fn stk in  -- it doesn't hurt to always seq here...</span>
+<span class="lineno"> 1687 </span><span class="spaces">                </span><span class="istickedoff">happyDoSeq r (happyGoto nt j <span class="nottickedoff">tk</span> st1 sts1 r)</span></span>
+<span class="lineno"> 1688 </span>
+<span class="lineno"> 1689 </span><span class="decl"><span class="nottickedoff">happyMonadReduce k nt fn 0# tk st sts stk</span>
+<span class="lineno"> 1690 </span><span class="spaces">     </span><span class="nottickedoff">= happyFail [] 0# tk st sts stk</span>
+<span class="lineno"> 1691 </span><span class="spaces"></span><span class="nottickedoff">happyMonadReduce k nt fn j tk st sts stk =</span>
+<span class="lineno"> 1692 </span><span class="spaces">      </span><span class="nottickedoff">case happyDrop k (HappyCons (st) (sts)) of</span>
+<span class="lineno"> 1693 </span><span class="spaces">        </span><span class="nottickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
+<span class="lineno"> 1694 </span><span class="spaces">          </span><span class="nottickedoff">let drop_stk = happyDropStk k stk in</span>
+<span class="lineno"> 1695 </span><span class="spaces">          </span><span class="nottickedoff">happyThen1 (fn stk tk) (\r -&gt; happyGoto nt j tk st1 sts1 (r `HappyStk` drop_stk))</span></span>
+<span class="lineno"> 1696 </span>
+<span class="lineno"> 1697 </span><span class="decl"><span class="nottickedoff">happyMonad2Reduce k nt fn 0# tk st sts stk</span>
+<span class="lineno"> 1698 </span><span class="spaces">     </span><span class="nottickedoff">= happyFail [] 0# tk st sts stk</span>
+<span class="lineno"> 1699 </span><span class="spaces"></span><span class="nottickedoff">happyMonad2Reduce k nt fn j tk st sts stk =</span>
+<span class="lineno"> 1700 </span><span class="spaces">      </span><span class="nottickedoff">case happyDrop k (HappyCons (st) (sts)) of</span>
+<span class="lineno"> 1701 </span><span class="spaces">        </span><span class="nottickedoff">sts1@((HappyCons (st1@(action)) (_))) -&gt;</span>
+<span class="lineno"> 1702 </span><span class="spaces">         </span><span class="nottickedoff">let drop_stk = happyDropStk k stk</span>
+<span class="lineno"> 1703 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1704 </span><span class="spaces">             </span><span class="nottickedoff">off = happyAdjustOffset (indexShortOffAddr happyGotoOffsets st1)</span>
+<span class="lineno"> 1705 </span><span class="spaces">             </span><span class="nottickedoff">off_i = (off Happy_GHC_Exts.+# nt)</span>
+<span class="lineno"> 1706 </span><span class="spaces">             </span><span class="nottickedoff">new_state = indexShortOffAddr happyTable off_i</span>
+<span class="lineno"> 1707 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1708 </span><span class="spaces"></span><span class="nottickedoff"></span>
 <span class="lineno"> 1709 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1710 </span><span class="spaces">             </span><span class="nottickedoff">off = happyAdjustOffset (indexShortOffAddr happyGotoOffsets st1)</span>
-<span class="lineno"> 1711 </span><span class="spaces">             </span><span class="nottickedoff">off_i = (off Happy_GHC_Exts.+# nt)</span>
-<span class="lineno"> 1712 </span><span class="spaces">             </span><span class="nottickedoff">new_state = indexShortOffAddr happyTable off_i</span>
-<span class="lineno"> 1713 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1714 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1715 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1716 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1717 </span><span class="spaces">          </span><span class="nottickedoff">in</span>
-<span class="lineno"> 1718 </span><span class="spaces">          </span><span class="nottickedoff">happyThen1 (fn stk tk) (\r -&gt; happyNewToken new_state sts1 (r `HappyStk` drop_stk))</span></span>
+<span class="lineno"> 1710 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1711 </span><span class="spaces">          </span><span class="nottickedoff">in</span>
+<span class="lineno"> 1712 </span><span class="spaces">          </span><span class="nottickedoff">happyThen1 (fn stk tk) (\r -&gt; happyNewToken new_state sts1 (r `HappyStk` drop_stk))</span></span>
+<span class="lineno"> 1713 </span>
+<span class="lineno"> 1714 </span><span class="decl"><span class="istickedoff">happyDrop 0# l = l</span>
+<span class="lineno"> 1715 </span><span class="spaces"></span><span class="istickedoff">happyDrop n (HappyCons (_) (t)) = happyDrop (n Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#)) t</span></span>
+<span class="lineno"> 1716 </span>
+<span class="lineno"> 1717 </span><span class="decl"><span class="nottickedoff">happyDropStk 0# l = l</span>
+<span class="lineno"> 1718 </span><span class="spaces"></span><span class="nottickedoff">happyDropStk n (x `HappyStk` xs) = happyDropStk (n Happy_GHC_Exts.-# (1#::Happy_GHC_Exts.Int#)) xs</span></span>
 <span class="lineno"> 1719 </span>
-<span class="lineno"> 1720 </span><span class="decl"><span class="istickedoff">happyDrop 0# l = l</span>
-<span class="lineno"> 1721 </span><span class="spaces"></span><span class="istickedoff">happyDrop n (HappyCons (_) (t)) = happyDrop (n Happy_GHC_Exts.-# (1# :: Happy_GHC_Exts.Int#)) t</span></span>
+<span class="lineno"> 1720 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1721 </span>-- Moving to a new state after a reduction
 <span class="lineno"> 1722 </span>
-<span class="lineno"> 1723 </span><span class="decl"><span class="nottickedoff">happyDropStk 0# l = l</span>
-<span class="lineno"> 1724 </span><span class="spaces"></span><span class="nottickedoff">happyDropStk n (x `HappyStk` xs) = happyDropStk (n Happy_GHC_Exts.-# (1#::Happy_GHC_Exts.Int#)) xs</span></span>
-<span class="lineno"> 1725 </span>
-<span class="lineno"> 1726 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1727 </span>-- Moving to a new state after a reduction
-<span class="lineno"> 1728 </span>
-<span class="lineno"> 1729 </span>
-<span class="lineno"> 1730 </span><span class="decl"><span class="istickedoff">happyGoto nt j tk st = </span>
-<span class="lineno"> 1731 </span><span class="spaces">   </span><span class="istickedoff">{- nothing -}</span>
-<span class="lineno"> 1732 </span><span class="spaces">   </span><span class="istickedoff">happyDoAction j tk new_state</span>
-<span class="lineno"> 1733 </span><span class="spaces">   </span><span class="istickedoff">where off = happyAdjustOffset (indexShortOffAddr happyGotoOffsets st)</span>
-<span class="lineno"> 1734 </span><span class="spaces">         </span><span class="istickedoff">off_i = (off Happy_GHC_Exts.+# nt)</span>
-<span class="lineno"> 1735 </span><span class="spaces">         </span><span class="istickedoff">new_state = indexShortOffAddr happyTable off_i</span></span>
+<span class="lineno"> 1723 </span>
+<span class="lineno"> 1724 </span><span class="decl"><span class="istickedoff">happyGoto nt j tk st = </span>
+<span class="lineno"> 1725 </span><span class="spaces">   </span><span class="istickedoff">{- nothing -}</span>
+<span class="lineno"> 1726 </span><span class="spaces">   </span><span class="istickedoff">happyDoAction j tk new_state</span>
+<span class="lineno"> 1727 </span><span class="spaces">   </span><span class="istickedoff">where off = happyAdjustOffset (indexShortOffAddr happyGotoOffsets st)</span>
+<span class="lineno"> 1728 </span><span class="spaces">         </span><span class="istickedoff">off_i = (off Happy_GHC_Exts.+# nt)</span>
+<span class="lineno"> 1729 </span><span class="spaces">         </span><span class="istickedoff">new_state = indexShortOffAddr happyTable off_i</span></span>
+<span class="lineno"> 1730 </span>
+<span class="lineno"> 1731 </span>
+<span class="lineno"> 1732 </span>
+<span class="lineno"> 1733 </span>
+<span class="lineno"> 1734 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1735 </span>-- Error recovery (ERROR_TOK is the error token)
 <span class="lineno"> 1736 </span>
-<span class="lineno"> 1737 </span>
-<span class="lineno"> 1738 </span>
-<span class="lineno"> 1739 </span>
-<span class="lineno"> 1740 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1741 </span>-- Error recovery (ERROR_TOK is the error token)
-<span class="lineno"> 1742 </span>
-<span class="lineno"> 1743 </span>-- parse error if we are in recovery and we fail again
-<span class="lineno"> 1744 </span><span class="decl"><span class="nottickedoff">happyFail explist 0# tk old_st _ stk@(x `HappyStk` _) =</span>
-<span class="lineno"> 1745 </span><span class="spaces">     </span><span class="nottickedoff">let i = (case Happy_GHC_Exts.unsafeCoerce# x of { (Happy_GHC_Exts.I# (i)) -&gt; i }) in</span>
-<span class="lineno"> 1746 </span><span class="spaces"></span><span class="nottickedoff">--      trace &quot;failing&quot; $ </span>
-<span class="lineno"> 1747 </span><span class="spaces">        </span><span class="nottickedoff">happyError_ explist i tk</span>
-<span class="lineno"> 1748 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1749 </span><span class="spaces"></span><span class="nottickedoff">{-  We don't need state discarding for our restricted implementation of</span>
-<span class="lineno"> 1750 </span><span class="spaces">    </span><span class="nottickedoff">&quot;error&quot;.  In fact, it can cause some bogus parses, so I've disabled it</span>
-<span class="lineno"> 1751 </span><span class="spaces">    </span><span class="nottickedoff">for now --SDM</span>
-<span class="lineno"> 1752 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1753 </span><span class="spaces"></span><span class="nottickedoff">-- discard a state</span>
-<span class="lineno"> 1754 </span><span class="spaces"></span><span class="nottickedoff">happyFail  ERROR_TOK tk old_st CONS(HAPPYSTATE(action),sts) </span>
-<span class="lineno"> 1755 </span><span class="spaces">                                                </span><span class="nottickedoff">(saved_tok `HappyStk` _ `HappyStk` stk) =</span>
-<span class="lineno"> 1756 </span><span class="spaces"></span><span class="nottickedoff">--      trace (&quot;discarding state, depth &quot; ++ show (length stk))  $</span>
-<span class="lineno"> 1757 </span><span class="spaces">        </span><span class="nottickedoff">DO_ACTION(action,ERROR_TOK,tk,sts,(saved_tok`HappyStk`stk))</span>
-<span class="lineno"> 1758 </span><span class="spaces"></span><span class="nottickedoff">-}</span>
-<span class="lineno"> 1759 </span><span class="spaces"></span><span class="nottickedoff"></span>
-<span class="lineno"> 1760 </span><span class="spaces"></span><span class="nottickedoff">-- Enter error recovery: generate an error token,</span>
-<span class="lineno"> 1761 </span><span class="spaces"></span><span class="nottickedoff">--                       save the old token and carry on.</span>
-<span class="lineno"> 1762 </span><span class="spaces"></span><span class="nottickedoff">happyFail explist i tk (action) sts stk =</span>
-<span class="lineno"> 1763 </span><span class="spaces"></span><span class="nottickedoff">--      trace &quot;entering error recovery&quot; $</span>
-<span class="lineno"> 1764 </span><span class="spaces">        </span><span class="nottickedoff">happyDoAction 0# tk action sts ((Happy_GHC_Exts.unsafeCoerce# (Happy_GHC_Exts.I# (i))) `HappyStk` stk)</span></span>
-<span class="lineno"> 1765 </span>
-<span class="lineno"> 1766 </span>-- Internal happy errors:
+<span class="lineno"> 1737 </span>-- parse error if we are in recovery and we fail again
+<span class="lineno"> 1738 </span><span class="decl"><span class="nottickedoff">happyFail explist 0# tk old_st _ stk@(x `HappyStk` _) =</span>
+<span class="lineno"> 1739 </span><span class="spaces">     </span><span class="nottickedoff">let i = (case Happy_GHC_Exts.unsafeCoerce# x of { (Happy_GHC_Exts.I# (i)) -&gt; i }) in</span>
+<span class="lineno"> 1740 </span><span class="spaces"></span><span class="nottickedoff">--      trace &quot;failing&quot; $ </span>
+<span class="lineno"> 1741 </span><span class="spaces">        </span><span class="nottickedoff">happyError_ explist i tk</span>
+<span class="lineno"> 1742 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1743 </span><span class="spaces"></span><span class="nottickedoff">{-  We don't need state discarding for our restricted implementation of</span>
+<span class="lineno"> 1744 </span><span class="spaces">    </span><span class="nottickedoff">&quot;error&quot;.  In fact, it can cause some bogus parses, so I've disabled it</span>
+<span class="lineno"> 1745 </span><span class="spaces">    </span><span class="nottickedoff">for now --SDM</span>
+<span class="lineno"> 1746 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1747 </span><span class="spaces"></span><span class="nottickedoff">-- discard a state</span>
+<span class="lineno"> 1748 </span><span class="spaces"></span><span class="nottickedoff">happyFail  ERROR_TOK tk old_st CONS(HAPPYSTATE(action),sts) </span>
+<span class="lineno"> 1749 </span><span class="spaces">                                                </span><span class="nottickedoff">(saved_tok `HappyStk` _ `HappyStk` stk) =</span>
+<span class="lineno"> 1750 </span><span class="spaces"></span><span class="nottickedoff">--      trace (&quot;discarding state, depth &quot; ++ show (length stk))  $</span>
+<span class="lineno"> 1751 </span><span class="spaces">        </span><span class="nottickedoff">DO_ACTION(action,ERROR_TOK,tk,sts,(saved_tok`HappyStk`stk))</span>
+<span class="lineno"> 1752 </span><span class="spaces"></span><span class="nottickedoff">-}</span>
+<span class="lineno"> 1753 </span><span class="spaces"></span><span class="nottickedoff"></span>
+<span class="lineno"> 1754 </span><span class="spaces"></span><span class="nottickedoff">-- Enter error recovery: generate an error token,</span>
+<span class="lineno"> 1755 </span><span class="spaces"></span><span class="nottickedoff">--                       save the old token and carry on.</span>
+<span class="lineno"> 1756 </span><span class="spaces"></span><span class="nottickedoff">happyFail explist i tk (action) sts stk =</span>
+<span class="lineno"> 1757 </span><span class="spaces"></span><span class="nottickedoff">--      trace &quot;entering error recovery&quot; $</span>
+<span class="lineno"> 1758 </span><span class="spaces">        </span><span class="nottickedoff">happyDoAction 0# tk action sts ((Happy_GHC_Exts.unsafeCoerce# (Happy_GHC_Exts.I# (i))) `HappyStk` stk)</span></span>
+<span class="lineno"> 1759 </span>
+<span class="lineno"> 1760 </span>-- Internal happy errors:
+<span class="lineno"> 1761 </span>
+<span class="lineno"> 1762 </span>notHappyAtAll :: a
+<span class="lineno"> 1763 </span><span class="decl"><span class="nottickedoff">notHappyAtAll = Prelude.error &quot;Internal Happy error\n&quot;</span></span>
+<span class="lineno"> 1764 </span>
+<span class="lineno"> 1765 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1766 </span>-- Hack to get the typechecker to accept our action functions
 <span class="lineno"> 1767 </span>
-<span class="lineno"> 1768 </span>notHappyAtAll :: a
-<span class="lineno"> 1769 </span><span class="decl"><span class="nottickedoff">notHappyAtAll = Prelude.error &quot;Internal Happy error\n&quot;</span></span>
-<span class="lineno"> 1770 </span>
-<span class="lineno"> 1771 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1772 </span>-- Hack to get the typechecker to accept our action functions
+<span class="lineno"> 1768 </span>
+<span class="lineno"> 1769 </span>happyTcHack :: Happy_GHC_Exts.Int# -&gt; a -&gt; a
+<span class="lineno"> 1770 </span><span class="decl"><span class="istickedoff">happyTcHack x y = y</span></span>
+<span class="lineno"> 1771 </span>{-# INLINE happyTcHack #-}
+<span class="lineno"> 1772 </span>
 <span class="lineno"> 1773 </span>
-<span class="lineno"> 1774 </span>
-<span class="lineno"> 1775 </span>happyTcHack :: Happy_GHC_Exts.Int# -&gt; a -&gt; a
-<span class="lineno"> 1776 </span><span class="decl"><span class="istickedoff">happyTcHack x y = y</span></span>
-<span class="lineno"> 1777 </span>{-# INLINE happyTcHack #-}
-<span class="lineno"> 1778 </span>
+<span class="lineno"> 1774 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1775 </span>-- Seq-ing.  If the --strict flag is given, then Happy emits 
+<span class="lineno"> 1776 </span>--      happySeq = happyDoSeq
+<span class="lineno"> 1777 </span>-- otherwise it emits
+<span class="lineno"> 1778 </span>--      happySeq = happyDontSeq
 <span class="lineno"> 1779 </span>
-<span class="lineno"> 1780 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1781 </span>-- Seq-ing.  If the --strict flag is given, then Happy emits 
-<span class="lineno"> 1782 </span>--      happySeq = happyDoSeq
-<span class="lineno"> 1783 </span>-- otherwise it emits
-<span class="lineno"> 1784 </span>--      happySeq = happyDontSeq
-<span class="lineno"> 1785 </span>
-<span class="lineno"> 1786 </span>happyDoSeq, happyDontSeq :: a -&gt; b -&gt; b
-<span class="lineno"> 1787 </span><span class="decl"><span class="istickedoff">happyDoSeq   a b = a `Prelude.seq` b</span></span>
-<span class="lineno"> 1788 </span><span class="decl"><span class="istickedoff">happyDontSeq a b = b</span></span>
+<span class="lineno"> 1780 </span>happyDoSeq, happyDontSeq :: a -&gt; b -&gt; b
+<span class="lineno"> 1781 </span><span class="decl"><span class="istickedoff">happyDoSeq   a b = a `Prelude.seq` b</span></span>
+<span class="lineno"> 1782 </span><span class="decl"><span class="istickedoff">happyDontSeq a b = b</span></span>
+<span class="lineno"> 1783 </span>
+<span class="lineno"> 1784 </span>-----------------------------------------------------------------------------
+<span class="lineno"> 1785 </span>-- Don't inline any functions from the template.  GHC has a nasty habit
+<span class="lineno"> 1786 </span>-- of deciding to inline happyGoto everywhere, which increases the size of
+<span class="lineno"> 1787 </span>-- the generated parser quite a bit.
+<span class="lineno"> 1788 </span>
 <span class="lineno"> 1789 </span>
-<span class="lineno"> 1790 </span>-----------------------------------------------------------------------------
-<span class="lineno"> 1791 </span>-- Don't inline any functions from the template.  GHC has a nasty habit
-<span class="lineno"> 1792 </span>-- of deciding to inline happyGoto everywhere, which increases the size of
-<span class="lineno"> 1793 </span>-- the generated parser quite a bit.
-<span class="lineno"> 1794 </span>
-<span class="lineno"> 1795 </span>
-<span class="lineno"> 1796 </span>{-# NOINLINE happyDoAction #-}
-<span class="lineno"> 1797 </span>{-# NOINLINE happyTable #-}
-<span class="lineno"> 1798 </span>{-# NOINLINE happyCheck #-}
-<span class="lineno"> 1799 </span>{-# NOINLINE happyActOffsets #-}
-<span class="lineno"> 1800 </span>{-# NOINLINE happyGotoOffsets #-}
-<span class="lineno"> 1801 </span>{-# NOINLINE happyDefActions #-}
-<span class="lineno"> 1802 </span>
-<span class="lineno"> 1803 </span>{-# NOINLINE happyShift #-}
-<span class="lineno"> 1804 </span>{-# NOINLINE happySpecReduce_0 #-}
-<span class="lineno"> 1805 </span>{-# NOINLINE happySpecReduce_1 #-}
-<span class="lineno"> 1806 </span>{-# NOINLINE happySpecReduce_2 #-}
-<span class="lineno"> 1807 </span>{-# NOINLINE happySpecReduce_3 #-}
-<span class="lineno"> 1808 </span>{-# NOINLINE happyReduce #-}
-<span class="lineno"> 1809 </span>{-# NOINLINE happyMonadReduce #-}
-<span class="lineno"> 1810 </span>{-# NOINLINE happyGoto #-}
-<span class="lineno"> 1811 </span>{-# NOINLINE happyFail #-}
-<span class="lineno"> 1812 </span>
-<span class="lineno"> 1813 </span>-- end of Happy Template.
+<span class="lineno"> 1790 </span>{-# NOINLINE happyDoAction #-}
+<span class="lineno"> 1791 </span>{-# NOINLINE happyTable #-}
+<span class="lineno"> 1792 </span>{-# NOINLINE happyCheck #-}
+<span class="lineno"> 1793 </span>{-# NOINLINE happyActOffsets #-}
+<span class="lineno"> 1794 </span>{-# NOINLINE happyGotoOffsets #-}
+<span class="lineno"> 1795 </span>{-# NOINLINE happyDefActions #-}
+<span class="lineno"> 1796 </span>
+<span class="lineno"> 1797 </span>{-# NOINLINE happyShift #-}
+<span class="lineno"> 1798 </span>{-# NOINLINE happySpecReduce_0 #-}
+<span class="lineno"> 1799 </span>{-# NOINLINE happySpecReduce_1 #-}
+<span class="lineno"> 1800 </span>{-# NOINLINE happySpecReduce_2 #-}
+<span class="lineno"> 1801 </span>{-# NOINLINE happySpecReduce_3 #-}
+<span class="lineno"> 1802 </span>{-# NOINLINE happyReduce #-}
+<span class="lineno"> 1803 </span>{-# NOINLINE happyMonadReduce #-}
+<span class="lineno"> 1804 </span>{-# NOINLINE happyGoto #-}
+<span class="lineno"> 1805 </span>{-# NOINLINE happyFail #-}
+<span class="lineno"> 1806 </span>
+<span class="lineno"> 1807 </span>-- end of Happy Template.
 
 </pre>
 </body>

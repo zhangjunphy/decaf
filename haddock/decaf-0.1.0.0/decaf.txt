@@ -101,12 +101,27 @@ deleteEdge :: (Eq ni, Ord ni) => ni -> ni -> GraphBuilder ni nd ed ()
 update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either Text (Graph ni nd ed)
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 traverseM_ :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m ()
+newtype Memoize ni m a
+Memoize :: State m a -> Memoize ni m a
+[$sel:unmem:Memoize] :: Memoize ni m a -> State m a
+data Memory ni
+Memory :: !Set ni -> !Map ni (Set ni) -> Memory ni
+[$sel:processing:Memory] :: Memory ni -> !Set ni
+[$sel:finished:Memory] :: Memory ni -> !Map ni (Set ni)
+recurse_ :: (Eq ni, Ord ni) => (ni -> Graph ni nd ed -> [ni]) -> ni -> Graph ni nd ed -> Memoize ni (Memory ni) (Set ni)
+strictlyDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
+strictlyPostDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
 instance (GHC.Show.Show ni, GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Util.Graph.Graph ni nd ed)
 instance Control.Monad.State.Class.MonadState (Util.Graph.Graph ni nd ed) (Util.Graph.GraphBuilder ni nd ed)
 instance Control.Monad.Error.Class.MonadError Util.Graph.GraphException (Util.Graph.GraphBuilder ni nd ed)
 instance GHC.Base.Monad (Util.Graph.GraphBuilder ni nd ed)
 instance GHC.Base.Applicative (Util.Graph.GraphBuilder ni nd ed)
 instance GHC.Base.Functor (Util.Graph.GraphBuilder ni nd ed)
+instance Control.Monad.State.Class.MonadState m (Util.Graph.Memoize ni m)
+instance GHC.Base.Monad (Util.Graph.Memoize ni m)
+instance GHC.Base.Applicative (Util.Graph.Memoize ni m)
+instance GHC.Base.Functor (Util.Graph.Memoize ni m)
+instance GHC.Generics.Generic (Util.Graph.Memory ni)
 
 module Util.SourceLoc
 data Posn
@@ -120,7 +135,8 @@ Range :: Posn -> Posn -> Range
 [$sel:stop:Range] :: Range -> Posn
 data Located a
 LocatedAt :: Range -> a -> Located a
-unLocate :: Located a -> a
+unLoc :: Located a -> a
+getLoc :: Located a -> Range
 instance GHC.Classes.Ord Util.SourceLoc.Posn
 instance GHC.Classes.Eq Util.SourceLoc.Posn
 instance GHC.Classes.Ord Util.SourceLoc.Range
@@ -555,12 +571,6 @@ IfStmt :: Expr -> Block -> Maybe Block -> Statement_
 [$sel:pred:AssignStmt] :: Statement_ -> Expr
 [$sel:ifBlock:AssignStmt] :: Statement_ -> Block
 [$sel:elseBlock:AssignStmt] :: Statement_ -> Maybe Block
-ForStmt :: Name -> Expr -> Expr -> Assignment -> Block -> Statement_
-[$sel:counter:AssignStmt] :: Statement_ -> Name
-[$sel:initCounter:AssignStmt] :: Statement_ -> Expr
-[$sel:pred:AssignStmt] :: Statement_ -> Expr
-[$sel:update:AssignStmt] :: Statement_ -> Assignment
-[$sel:block:AssignStmt] :: Statement_ -> Block
 WhileStmt :: Expr -> Block -> Statement_
 [$sel:pred:AssignStmt] :: Statement_ -> Expr
 [$sel:block:AssignStmt] :: Statement_ -> Block
@@ -679,7 +689,7 @@ instance GHC.Show.Show AST.ArithOp
 instance GHC.Show.Show AST.RelOp
 
 module Semantic
-runSemanticAnalysis :: Program -> Either String (ASTRoot, [SemanticError], Map ScopeID SymbolTable)
+runSemanticAnalysis :: Program -> Either String (ASTRoot, [SemanticError], SemanticInfo)
 data SymbolTable
 SymbolTable :: ScopeID -> Maybe SymbolTable -> Maybe (Map Name ImportDecl) -> Map Name FieldDecl -> Maybe (Map Name MethodDecl) -> Maybe (Map Name Argument) -> BlockType -> Maybe MethodSig -> SymbolTable
 [$sel:scopeID:SymbolTable] :: SymbolTable -> ScopeID
@@ -690,6 +700,10 @@ SymbolTable :: ScopeID -> Maybe SymbolTable -> Maybe (Map Name ImportDecl) -> Ma
 [$sel:arguments:SymbolTable] :: SymbolTable -> Maybe (Map Name Argument)
 [$sel:blockType:SymbolTable] :: SymbolTable -> BlockType
 [$sel:methodSig:SymbolTable] :: SymbolTable -> Maybe MethodSig
+data SemanticInfo
+SemanticInfo :: !Map ScopeID SymbolTable -> !Map ScopeID (Set (ScopeID, Name)) -> SemanticInfo
+[$sel:symbolTables:SemanticInfo] :: SemanticInfo -> !Map ScopeID SymbolTable
+[$sel:symbolWrites:SemanticInfo] :: SemanticInfo -> !Map ScopeID (Set (ScopeID, Name))
 type ScopeID = Int
 data BlockType
 RootBlock :: BlockType
@@ -702,7 +716,10 @@ lookupLocalMethodFromST :: Name -> SymbolTable -> Maybe (Either ImportDecl Metho
 instance GHC.Classes.Eq Semantic.BlockType
 instance GHC.Show.Show Semantic.BlockType
 instance GHC.Generics.Generic Semantic.SymbolTable
+instance GHC.Generics.Generic Semantic.SemanticState
 instance GHC.Show.Show Semantic.SemanticState
+instance GHC.Generics.Generic Semantic.SemanticInfo
+instance GHC.Show.Show Semantic.SemanticInfo
 instance Control.Monad.State.Class.MonadState Semantic.SemanticState Semantic.Semantic
 instance Control.Monad.Writer.Class.MonadWriter [Semantic.SemanticError] Semantic.Semantic
 instance Control.Monad.Error.Class.MonadError Semantic.SemanticException Semantic.Semantic
@@ -820,7 +837,7 @@ SymVarMap :: !Map Name VID -> !Maybe ScopeID -> SymVarMap
 [$sel:m:SymVarMap] :: SymVarMap -> !Map Name VID
 [$sel:parent:SymVarMap] :: SymVarMap -> !Maybe ScopeID
 data CFGState
-CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> CFGState
+CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> !Map BBID (Set (ScopeID, Name)) -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> !CFG
 [$sel:astScope:CFGState] :: CFGState -> !ScopeID
 [$sel:sig:CFGState] :: CFGState -> !MethodSig
@@ -831,15 +848,16 @@ CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID 
 [$sel:statements:CFGState] :: CFGState -> ![SSA]
 [$sel:currentControlBlock:CFGState] :: CFGState -> !Maybe (BBID, BBID)
 [$sel:currentFunctionTail:CFGState] :: CFGState -> !Maybe BBID
+[$sel:varWrite:CFGState] :: CFGState -> !Map BBID (Set (ScopeID, Name))
 data BBTransition
 StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
 Deadend :: BBTransition
 initialState :: MethodSig -> CFGState
 updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
-newtype CFGContext
-CFGContext :: Map ScopeID SymbolTable -> CFGContext
-[$sel:symbolTables:CFGContext] :: CFGContext -> Map ScopeID SymbolTable
+data CFGContext
+CFGContext :: SemanticInfo -> CFGContext
+[$sel:semantic:CFGContext] :: CFGContext -> SemanticInfo
 newtype CFGExcept
 CFGExcept :: Text -> CFGExcept
 newtype CFGBuild a
@@ -854,7 +872,11 @@ setFunctionTail :: Maybe BBID -> CFGBuild ()
 getFunctionTail :: CFGBuild (Maybe BBID)
 addVarSym :: Name -> VID -> CFGBuild ()
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
+lookupVar' :: VID -> CFGBuild (ScopeID, Name)
+lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe VID)
+lookupSymInScope' :: Name -> ScopeID -> CFGBuild VID
 lookupSym :: Name -> CFGBuild (Maybe VID)
+lookupSym' :: Name -> CFGBuild VID
 getVarDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
 createEmptyBB :: CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
@@ -866,21 +888,26 @@ newGlobal :: Name -> Type -> Range -> CFGBuild Var
 addSSA :: SSA -> CFGBuild ()
 findVarOfSym :: Name -> CFGBuild (Maybe Var)
 findVarOfSym' :: Name -> CFGBuild Var
+findVarOfSymInScope' :: Name -> ScopeID -> CFGBuild Var
 buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 populateGlobals :: ASTRoot -> CFGBuild ()
 buildMethod :: MethodDecl -> CFGBuild CFG
 buildBlock :: Block -> CFGBuild (BBID, BBID)
+findOuterScopes :: ScopeID -> Map ScopeID SymbolTable -> Set ScopeID
+isDummyPhiNode :: SSA -> Bool
+addDummyPhiNode :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
 buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
 buildReadFromLocation :: Location -> CFGBuild Var
+recordVarWrite :: ScopeID -> Name -> CFGBuild ()
 buildWriteToLocation :: Location -> VarOrImm -> CFGBuild ()
 buildMethodCall :: MethodCall -> Type -> CFGBuild Var
 prettyPrintNode :: CFGNode -> Text
 escape :: Text -> Text
 prettyPrintEdge :: CFGEdge -> Text
 generateDotPlot :: Graph BBID CFGNode CFGEdge -> Text
-plot :: ASTRoot -> Map ScopeID SymbolTable -> Either [String] String
+plot :: ASTRoot -> SemanticInfo -> Either [String] String
 instance GHC.Show.Show CFG.Condition
 instance GHC.Show.Show CFG.BasicBlock
 instance GHC.Generics.Generic CFG.BasicBlock

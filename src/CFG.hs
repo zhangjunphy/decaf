@@ -96,7 +96,7 @@ data CFGState = CFGState
     statements :: ![SSA],
     currentControlBlock :: !(Maybe (BBID, BBID)), -- entry and exit
     currentFunctionTail :: !(Maybe BBID),
-    varWrite :: !(Map BBID (Set (ScopeID, Name)))
+    varWrite :: !(Map BBID (Map (ScopeID, Name) Var))
   }
   deriving (Generic)
 
@@ -184,6 +184,13 @@ setFunctionTail tail = do
 getFunctionTail :: CFGBuild (Maybe BBID)
 getFunctionTail = use #currentFunctionTail
 
+getBasicBlock' :: BBID -> CFGBuild BasicBlock
+getBasicBlock' bbid = do
+  g <- use #cfg
+  case G.lookupNode bbid g of
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) bbid
+    Just node -> return $ node ^. #bb
+
 addVarSym :: Name -> VID -> CFGBuild ()
 addVarSym name vid = do
   sid <- use #astScope
@@ -206,12 +213,14 @@ lookupVar' vid =
     Just res -> return res
 
 -- Look for symbol resursively
-lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe VID)
-lookupSymInScope name sid = do
+lookupSymInBB :: Name -> BBID -> CFGBuild (Maybe Var)
+lookupSymInBB name bbid = do
   sym2var <- use #sym2var
-  return $ Map.lookup sid sym2var >>= (\m' -> lookup name m' sym2var)
+  vars <- use #vars
+  let vid = Map.lookup bbid sym2var >>= (\m' -> lookup name m' sym2var)
+  return $ vid <&> (vars !!)
   where
-    lookup :: Name -> SymVarMap -> Map ScopeID SymVarMap -> Maybe VID
+    lookup :: Name -> SymVarMap -> Map BBID SymVarMap -> Maybe VID
     lookup name symVarMap sym2var = case Map.lookup name (symVarMap ^. #m) of
       Just vid -> Just vid
       Nothing ->
@@ -219,22 +228,22 @@ lookupSymInScope name sid = do
           >>= (`Map.lookup` sym2var)
           >>= \map' -> lookup name map' sym2var
 
-lookupSymInScope' :: Name -> ScopeID -> CFGBuild VID
-lookupSymInScope' name sid = do
-  sym <- lookupSymInScope name sid
-  case sym of
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
-    Just sym' -> return sym'
+lookupSymInBB' :: Name -> BBID -> CFGBuild Var
+lookupSymInBB' name bbid = do
+  var' <- lookupSymInBB name bbid
+  case var' of
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext %+ "in scope" %+ int) name bbid
+    Just var -> return var
 
-lookupSym :: Name -> CFGBuild (Maybe VID)
+lookupSym :: Name -> CFGBuild (Maybe Var)
 lookupSym name = do
-  sid <- use #astScope
-  lookupSymInScope name sid
+  bbid <- use #currentBBID
+  lookupSymInBB name bbid
 
-lookupSym' :: Name -> CFGBuild VID
+lookupSym' :: Name -> CFGBuild Var
 lookupSym' name = do
-  sid <- use #astScope
-  lookupSymInScope' name sid
+  bbid <- use #currentBBID
+  lookupSymInBB' name bbid
 
 getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getVarDecl name = do
@@ -257,6 +266,8 @@ createEmptyBB = do
   sid <- use #astScope
   let bb = BasicBlock bbid sid []
   updateCFG (G.addNode bbid (CFGNode bb))
+  -- create a new varmap for this bb
+  #sym2var %= Map.insert bbid (SymVarMap Map.empty $ Just parentScope)
   return bbid
 
 finishCurrentBB :: CFGBuild BBID
@@ -347,25 +358,6 @@ addSSA ssa = do
   stmts <- use #statements
   #statements .= stmts ++ [ssa]
 
-findVarOfSym :: Name -> CFGBuild (Maybe Var)
-findVarOfSym name = do
-  vars <- use #vars
-  vid <- lookupSym name
-  return $ vid <&> (vars !!)
-
-findVarOfSym' :: Name -> CFGBuild Var
-findVarOfSym' name = do
-  var <- findVarOfSym name
-  case var of
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable " % stext) name
-    Just v -> return v
-
-findVarOfSymInScope' :: Name -> ScopeID -> CFGBuild Var
-findVarOfSymInScope' name sid = do
-  vid <- lookupSymInScope' name sid
-  vars <- use #vars
-  return $ vars !! vid
-
 buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 buildCFG root@(AST.ASTRoot _ _ methods) context =
   let build method =
@@ -413,8 +405,6 @@ buildBlock block@AST.Block {stmts = stmts} = do
   -- enter new block scope
   let scopeID = block ^. #blockID
   setASTScope scopeID
-  -- create a new varmap for this scope
-  #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
   -- handle variable declarations
   mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
   -- handle statements
@@ -476,6 +466,26 @@ addDummyPhiNode divergence outer = do
           let sl = either (view #loc) (view #loc) def
           return (tpe, sl)
 
+patchPhiNode :: BBID -> (BBID, BBID) -> CFGBuild ()
+patchPhiNode bb (s1, s2) = do
+  g <- use #cfg
+  case G.lookupNode bb g of
+    Nothing -> throwError $ CFGExcept $ sformat ("Basic block" %+ int %+ "not found.") bb
+    Just node -> do
+      let ssaList = node ^. (#bb . #statements)
+      ssaList' <- mapM patch ssaList
+      let node' = node & (#bb . #statements) .~ ssaList'
+      #cfg %= G.updateNode bb node'
+  where
+    patch :: SSA -> CFGBuild SSA
+    patch (Phi dst []) = do
+      (sid, name) <- lookupVar' (dst ^. #id)
+      v1 <- lookupSymInBB' name s1
+      v2 <- lookupSymInBB' name s2
+      return $ Phi dst [(v1, s1), (v2, s2)]
+    patch ssa = return ssa
+      
+
 buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
 buildAssignOp prev AST.IncAssign (Just expr) = do
@@ -526,6 +536,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge prevBB elseHead $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
+      patchPhiNode tail (ifTail, elseTail)
       return $ TailAt tail
     Nothing -> do
       checkStmts
@@ -537,6 +548,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
+      patchPhiNode tail (prevBB, ifTail)
       return $ TailAt tail
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   prevBB <- finishCurrentBB
@@ -557,6 +569,7 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
     G.addEdge predBB tail $ CondEdge Complement
     G.addEdge blockTail predBB SeqEdge
   setControlBlock parentControlBlock
+  patchPhiNode predBB (prevBB, blockTail)
   return $ TailAt tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   ret <- case expr' of
@@ -687,7 +700,7 @@ buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
   addSSA $ Phi dst [(exprT', bbTTail), (exprF', bbFTail)]
   return dst
 buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
-  array <- findVarOfSym' name
+  array <- lookupSym' name
   arrType <- case astDecl array of
     Nothing -> throwError $ CFGExcept "Unable to find array def"
     Just (Left (AST.Argument _ arrTpe _)) -> return arrTpe
@@ -703,7 +716,7 @@ buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
 
 buildReadFromLocation :: AST.Location -> CFGBuild Var
 buildReadFromLocation (AST.Location name idx def tpe loc) = do
-  var <- findVarOfSym' name
+  var <- lookupSym' name
   -- NOTE: var^. #tpe might be different from tpe in AST.Location as we
   -- have altered type of global into pointers.
   case var ^. #tpe of
@@ -712,7 +725,7 @@ buildReadFromLocation (AST.Location name idx def tpe loc) = do
         Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
         Just idxExpr -> do
           idxVar <- buildExpr idxExpr
-          arrayPtr <- findVarOfSym' name
+          arrayPtr <- lookupSym' name
           eleSize <- case AST.dataSize eleType of
             Nothing -> throwError $ CFGExcept "Array with void type element."
             Just sz -> return sz
@@ -729,21 +742,21 @@ buildReadFromLocation (AST.Location name idx def tpe loc) = do
       return dst
     _scalarType -> return var
 
-recordVarWrite :: ScopeID -> Name -> CFGBuild ()
-recordVarWrite scope var = do
+recordVarWrite :: Var -> ScopeID -> Name -> CFGBuild ()
+recordVarWrite var scope name = do
   bbid <- use #currentBBID
-  #varWrite %= Map.insertWith Set.union bbid (Set.singleton (scope, var))
+  #varWrite %= Map.insertWith Map.union bbid (Map.singleton (scope, name) var)
 
 buildWriteToLocation :: AST.Location -> VarOrImm -> CFGBuild ()
 buildWriteToLocation (AST.Location name idx def tpe loc) src = do
-  var <- findVarOfSym' name
+  var <- lookupSym' name
   case var ^. #tpe of
     AST.ArrayType eleType size ->
       case idx of
         Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
         Just idxExpr -> do
           idx <- buildExpr idxExpr
-          arrayPtr <- findVarOfSym' name
+          arrayPtr <- lookupSym' name
           eleSize <- case AST.dataSize eleType of
             Nothing -> throwError $ CFGExcept "Array with void type element."
             Just sz -> return sz
@@ -758,7 +771,7 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
       dst <- newLocal (Just name) tpe loc
       -- Record writes to scalars for phi node creation.
       (scope, symName) <- lookupVar' (var ^. #id)
-      recordVarWrite scope symName
+      recordVarWrite dst scope symName
       addSSA $ Assignment dst src
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var

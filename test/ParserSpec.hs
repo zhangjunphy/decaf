@@ -9,7 +9,6 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Either (isRight)
 import Parser (Expr (choicePredExpr))
 import qualified Parser
-import Util.SourceLoc (unLocate)
 import qualified Util.SourceLoc as SL
 import Test.Hspec
 import Util
@@ -26,10 +25,10 @@ parseTopLevel = do
   where
     pred program =
       let (Right p) = Parser.parse program
-          main = unLocate (head (Parser.methodDecls p))
+          main = SL.unLoc (head (Parser.methodDecls p))
           block = Parser.block main
           stmts = Parser.blockStatements block
-          printCall = unLocate $ stmts !! 0
+          printCall = SL.unLoc $ stmts !! 0
           methodName = Parser.methodName $ Parser.methodCallStatement printCall
        in length (Parser.importDecls p) == 1
             && length (Parser.fieldDecls p) == 0
@@ -43,11 +42,11 @@ parseChoiceExpr = do
     checkSample "test/samples/parser/choice_expr.dcf" pred
   where
     getChoiceExpr stmt =
-      let (Parser.AssignStatement {Parser.assignExpr = (Parser.AssignExpr {Parser.assignSourceExpr = expr})}) = SL.unLocate stmt
-       in unLocate expr
+      let (Parser.AssignStatement {Parser.assignExpr = (Parser.AssignExpr {Parser.assignSourceExpr = expr})}) = SL.unLoc stmt
+       in SL.unLoc expr
     pred program =
       let (Right p) = Parser.parse program
-          main = unLocate (head (Parser.methodDecls p))
+          main = SL.unLoc (head (Parser.methodDecls p))
           block = Parser.block main
           stmts = Parser.blockStatements block
           choiceExpr = getChoiceExpr $ stmts !! 0

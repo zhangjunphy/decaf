@@ -34,7 +34,6 @@ import Debug.Trace
 import Formatting
 import GHC.Generics (Generic)
 import SSA
-import Semantic (lookupLocalMethodFromST)
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
@@ -193,7 +192,9 @@ getBasicBlock' bbid = do
 
 addVarSym :: Name -> VID -> CFGBuild ()
 addVarSym name vid = do
-  sid <- use #astScope
+  sid <- getSymScope name >>= \case
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+    Just sid -> return sid
   -- update var->sym
   #var2sym %= Map.insert vid (sid, name)
   -- update sym->var
@@ -213,14 +214,14 @@ lookupVar' vid =
     Just res -> return res
 
 -- Look for symbol resursively
-lookupSymInBB :: Name -> BBID -> CFGBuild (Maybe Var)
-lookupSymInBB name bbid = do
+lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe Var)
+lookupSymInScope name sid = do
   sym2var <- use #sym2var
   vars <- use #vars
-  let vid = Map.lookup bbid sym2var >>= (\m' -> lookup name m' sym2var)
+  let vid = Map.lookup sid sym2var >>= (\m' -> lookup name m' sym2var)
   return $ vid <&> (vars !!)
   where
-    lookup :: Name -> SymVarMap -> Map BBID SymVarMap -> Maybe VID
+    lookup :: Name -> SymVarMap -> Map ScopeID SymVarMap -> Maybe VID
     lookup name symVarMap sym2var = case Map.lookup name (symVarMap ^. #m) of
       Just vid -> Just vid
       Nothing ->
@@ -228,25 +229,25 @@ lookupSymInBB name bbid = do
           >>= (`Map.lookup` sym2var)
           >>= \map' -> lookup name map' sym2var
 
-lookupSymInBB' :: Name -> BBID -> CFGBuild Var
-lookupSymInBB' name bbid = do
-  var' <- lookupSymInBB name bbid
+lookupSymInScope' :: Name -> ScopeID -> CFGBuild Var
+lookupSymInScope' name sid = do
+  var' <- lookupSymInScope name sid
   case var' of
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext %+ "in scope" %+ int) name bbid
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext %+ "in scope" %+ int) name sid
     Just var -> return var
 
 lookupSym :: Name -> CFGBuild (Maybe Var)
 lookupSym name = do
-  bbid <- use #currentBBID
-  lookupSymInBB name bbid
+  sid <- use #astScope
+  lookupSymInScope name sid
 
 lookupSym' :: Name -> CFGBuild Var
 lookupSym' name = do
-  bbid <- use #currentBBID
-  lookupSymInBB' name bbid
+  sid <- use #astScope
+  lookupSymInScope' name sid
 
-getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
-getVarDecl name = do
+getSymDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
+getSymDecl name = do
   sid <- use #astScope
   sts <- view $ #semantic . #symbolTables
   sig <- use #sig
@@ -258,6 +259,20 @@ getVarDecl name = do
       (SE.lookupLocalVariableFromST name st')
         <|> (SE.parent st' >>= lookup name)
 
+getSymScope :: Name -> CFGBuild (Maybe ScopeID)
+getSymScope name = do
+  sid <- use #astScope
+  sts <- view $ #semantic . #symbolTables
+  sig <- use #sig
+  case Map.lookup sid sts of
+    Nothing -> throwError $ CFGExcept (sformat ("Unable to find scope " % int) sid)
+    Just st -> return $ lookup name st
+  where
+    lookup name st' =
+      (SE.lookupLocalVariableFromST name st' <&> \_ -> view #scopeID st')
+        <|> (SE.parent st' >>= lookup name)
+  
+
 createEmptyBB :: CFGBuild BBID
 createEmptyBB = do
   checkStmts
@@ -266,8 +281,6 @@ createEmptyBB = do
   sid <- use #astScope
   let bb = BasicBlock bbid sid []
   updateCFG (G.addNode bbid (CFGNode bb))
-  -- create a new varmap for this bb
-  #sym2var %= Map.insert bbid (SymVarMap Map.empty $ Just parentScope)
   return bbid
 
 finishCurrentBB :: CFGBuild BBID
@@ -323,7 +336,7 @@ newVar Nothing tpe sl locality = do
 newVar (Just name) tpe sl locality = do
   vars <- use #vars
   let vid = length vars
-  decl <- getVarDecl name
+  decl <- getSymDecl name
   when (isNothing decl) $ throwError (CFGExcept $ sformat ("Unable to find decl of variable " % stext) name)
   let var = Var vid tpe decl sl locality
   #vars .= vars ++ [var]
@@ -405,6 +418,8 @@ buildBlock block@AST.Block {stmts = stmts} = do
   -- enter new block scope
   let scopeID = block ^. #blockID
   setASTScope scopeID
+  -- create a new varmap for this scope
+  #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
   -- handle variable declarations
   mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
   -- handle statements
@@ -433,28 +448,24 @@ findOuterScopes scope sts = Set.fromList $ lookup scope sts
             let parentSID = view #scopeID parent
              in scope : lookup parentSID sts
 
-isDummyPhiNode :: SSA -> Bool
-isDummyPhiNode (Phi dst []) = True
-isDummyPhiNode _ = False
-
-addDummyPhiNode :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
-addDummyPhiNode divergence outer = do
+inferPhiList :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
+inferPhiList divergence outer = do
   varWrites <- view $ #semantic . #symbolWrites
-  traceShow varWrites $ return ()
-  traceShow outer $ return ()
   let varList =
         filter (\(sid, _) -> Set.member sid outer) $
           Set.toList $
             Set.unions $
               mapMaybe (`Map.lookup` varWrites) divergence
+  return varList
+
+addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
+addDummyPhiNode =
   mapM_
     ( \(sid, n) -> do
         (tpe, sl) <- getTypeAndSL sid n
         dst <- newLocal (Just n) tpe sl
         addSSA $ Phi dst []
     )
-    varList
-  return varList
   where
     getTypeAndSL :: ScopeID -> Name -> CFGBuild (AST.Type, SL.Range)
     getTypeAndSL sid name = do
@@ -466,8 +477,25 @@ addDummyPhiNode divergence outer = do
           let sl = either (view #loc) (view #loc) def
           return (tpe, sl)
 
-patchPhiNode :: BBID -> (BBID, BBID) -> CFGBuild ()
-patchPhiNode bb (s1, s2) = do
+recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
+recordPhiVar symList = do
+  varList <-
+    mapM
+      ( \(sid, n) -> do
+          var <- lookupSymInScope' n sid
+          return ((sid, n), var)
+      )
+      symList
+  return $ Map.fromList varList
+
+patchPhiNode ::
+  BBID ->
+  BBID ->
+  Map (ScopeID, Name) Var ->
+  BBID ->
+  Map (ScopeID, Name) Var ->
+  CFGBuild ()
+patchPhiNode bb s1 varMap1 s2 varMap2 = do
   g <- use #cfg
   case G.lookupNode bb g of
     Nothing -> throwError $ CFGExcept $ sformat ("Basic block" %+ int %+ "not found.") bb
@@ -480,11 +508,15 @@ patchPhiNode bb (s1, s2) = do
     patch :: SSA -> CFGBuild SSA
     patch (Phi dst []) = do
       (sid, name) <- lookupVar' (dst ^. #id)
-      v1 <- lookupSymInBB' name s1
-      v2 <- lookupSymInBB' name s2
-      return $ Phi dst [(v1, s1), (v2, s2)]
+      let v1 = Map.lookup (sid, name) varMap1
+      let v2 = Map.lookup (sid, name) varMap2
+      case v1 of
+        Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+        Just v1' -> do
+          case v2 of
+            Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+            Just v2' -> return $ Phi dst [(v1', s1), (v2', s2)]
     patch ssa = return ssa
-      
 
 buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
@@ -518,45 +550,54 @@ buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
   buildMethodCall call AST.Void
   use #currentBBID <&> StayIn
 buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
+  let phiBlocks = case maybeElseBlock of
+        Nothing -> [ifBlock ^. #blockID]
+        Just elseBlock -> [ifBlock ^. #blockID, elseBlock ^. #blockID]
+  sid <- use #astScope
+  sts <- view $ #semantic . #symbolTables
+  let outerScopes = findOuterScopes sid sts
+  phiList <- inferPhiList phiBlocks outerScopes
   predVar <- buildExpr expr
   prevBB <- finishCurrentBB
+  prevBBPhiList <- recordPhiVar phiList
   (ifHead, ifTail) <- buildBlock ifBlock
+  ifBBPhiList <- recordPhiVar phiList
   g <- use #cfg
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
+      elseBBPhiList <- recordPhiVar phiList
       checkStmts
-      sid <- use #astScope
-      sts <- view $ #semantic . #symbolTables
-      let outerScopes = findOuterScopes sid sts
-      addDummyPhiNode [ifBlock ^. #blockID, elseBlock ^. #blockID] outerScopes
+      addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB elseHead $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
-      patchPhiNode tail (ifTail, elseTail)
+      patchPhiNode tail ifTail ifBBPhiList elseTail elseBBPhiList
       return $ TailAt tail
     Nothing -> do
       checkStmts
       sid <- use #astScope
       sts <- view $ #semantic . #symbolTables
       let outerScopes = findOuterScopes sid sts
-      addDummyPhiNode [ifBlock ^. #blockID] outerScopes
+      addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
-      patchPhiNode tail (prevBB, ifTail)
+      patchPhiNode tail prevBB prevBBPhiList ifTail ifBBPhiList
       return $ TailAt tail
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
-  prevBB <- finishCurrentBB
-  predVar <- buildExpr pred
   sid <- use #astScope
   sts <- view $ #semantic . #symbolTables
   let outerScopes = findOuterScopes sid sts
-  addDummyPhiNode [block ^. #blockID] outerScopes
+  phiList <- inferPhiList [block ^. #blockID] outerScopes
+  prevBB <- finishCurrentBB
+  prevBBPhiList <- recordPhiVar phiList
+  predVar <- buildExpr pred
+  addDummyPhiNode phiList
   predBB <- finishCurrentBB
   updateCFG $ G.addEdge prevBB predBB SeqEdge
   parentControlBlock <- getControlBlock
@@ -564,12 +605,13 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   setControlBlock $ Just (predBB, tail)
   (blockHead, blockTail) <- buildBlock block
   checkStmts
+  blockBBPhiList <- recordPhiVar phiList
   updateCFG $ do
     G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
     G.addEdge predBB tail $ CondEdge Complement
     G.addEdge blockTail predBB SeqEdge
   setControlBlock parentControlBlock
-  patchPhiNode predBB (prevBB, blockTail)
+  patchPhiNode predBB prevBB prevBBPhiList blockTail blockBBPhiList
   return $ TailAt tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   ret <- case expr' of

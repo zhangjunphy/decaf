@@ -1,4 +1,4 @@
-module Util.SourceLoc (Posn (..), Range (..), Located (..), unLocate) where
+module Util.SourceLoc (Posn (..), Range (..), Located (..), unLoc, getLoc) where
 
 import Formatting (formatToString, int, shown, (%))
 import Control.Monad.State
@@ -32,5 +32,8 @@ instance Show Range where
 data Located a = LocatedAt Range a
   deriving (Show, Functor)
 
-unLocate :: Located a -> a
-unLocate (LocatedAt _ a) = a
+unLoc :: Located a -> a
+unLoc (LocatedAt _ a) = a
+
+getLoc :: Located a -> Range
+getLoc (LocatedAt r _) = r

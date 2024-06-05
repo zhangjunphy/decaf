@@ -235,12 +235,6 @@ lexerwrap s = do
   token <- alexMonadScan
   s token
 
-unLoc :: (SL.Located a) -> a
-unLoc (SL.LocatedAt _ x) = x
-
-getLoc :: (SL.Located a) -> Range
-getLoc (SL.LocatedAt range _) = range
-
 unionOf :: SL.Located a -> SL.Located b -> Range
 unionOf (SL.LocatedAt loc1 _) (SL.LocatedAt loc2 _) = combineRanges loc1 loc2
     where

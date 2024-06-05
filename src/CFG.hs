@@ -25,7 +25,7 @@ import Data.GraphViz.Types.Graph qualified as GV
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
-import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
+import Data.Maybe (fromJust, fromMaybe, isJust, isNothing, mapMaybe)
 import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
@@ -129,9 +129,8 @@ updateCFG update = do
     Left m -> throwError $ CFGExcept m
     Right g -> #cfg .= g
 
-newtype CFGContext = CFGContext
-  { symbolTables :: Map ScopeID SE.SymbolTable
-  }
+data CFGContext = CFGContext
+  {semantic :: SE.SemanticInfo}
   deriving (Generic)
 
 newtype CFGExcept = CFGExcept Text
@@ -207,9 +206,8 @@ lookupVar' vid =
     Just res -> return res
 
 -- Look for symbol resursively
-lookupSym :: Name -> CFGBuild (Maybe VID)
-lookupSym name = do
-  sid <- use #astScope
+lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe VID)
+lookupSymInScope name sid = do
   sym2var <- use #sym2var
   return $ Map.lookup sid sym2var >>= (\m' -> lookup name m' sym2var)
   where
@@ -221,10 +219,27 @@ lookupSym name = do
           >>= (`Map.lookup` sym2var)
           >>= \map' -> lookup name map' sym2var
 
+lookupSymInScope' :: Name -> ScopeID -> CFGBuild VID
+lookupSymInScope' name sid = do
+  sym <- lookupSymInScope name sid
+  case sym of
+    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+    Just sym' -> return sym'
+
+lookupSym :: Name -> CFGBuild (Maybe VID)
+lookupSym name = do
+  sid <- use #astScope
+  lookupSymInScope name sid
+
+lookupSym' :: Name -> CFGBuild VID
+lookupSym' name = do
+  sid <- use #astScope
+  lookupSymInScope' name sid
+
 getVarDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getVarDecl name = do
   sid <- use #astScope
-  sts <- view #symbolTables
+  sts <- view $ #semantic . #symbolTables
   sig <- use #sig
   case Map.lookup sid sts of
     Nothing -> throwError $ CFGExcept (sformat ("Unable to find scope " % int) sid)
@@ -345,6 +360,12 @@ findVarOfSym' name = do
     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable " % stext) name
     Just v -> return v
 
+findVarOfSymInScope' :: Name -> ScopeID -> CFGBuild Var
+findVarOfSymInScope' name sid = do
+  vid <- lookupSymInScope' name sid
+  vars <- use #vars
+  return $ vars !! vid
+
 buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 buildCFG root@(AST.ASTRoot _ _ methods) context =
   let build method =
@@ -409,6 +430,51 @@ buildBlock block@AST.Block {stmts = stmts} = do
   setASTScope parentScope
   return (head, tail)
 
+-- findOuterScopes :: ScopeID -> Map ScopeID SE.SymbolTable -> Set ScopeID
+-- findOuterScopes scope sts = Set.fromList $ lookup scope sts
+--   where
+--     lookup :: ScopeID -> Map ScopeID SE.SymbolTable -> [ScopeID]
+--     lookup scope sts =
+--       case Map.lookup scope sts of
+--         Nothing -> []
+--         Just st -> case view #parent st of
+--           Nothing -> [scope]
+--           Just parent ->
+--             let parentSID = view #scopeID parent
+--              in parentSID : lookup parentSID sts
+
+-- addPhiNodes :: BBID -> BBID -> BBID -> CFGBuild ()
+-- addPhiNodes head b1 b2 = do
+--   g <- use #cfg
+--   let dominates = G.strictlyDominate head g
+--   let postDominates = G.strictlyPostDominate b1 g
+--   let postDominates = G.strictlyPostDominate b2 g
+--   let scopes = Set.intersection dominates $ Set.union postDominates $ Set.fromList [b1, b2]
+--   varW <- use #varWrite
+--   outerScopes <- findOuterScopes
+--   let vars =
+--         filter (\(s, _) -> Set.member s outerScopes) $
+--           Set.toList $
+--             Set.unions $
+--               mapMaybe (`Map.lookup` varW) (Set.toList scopes)
+--   scope1 <- case G.lookupNode b1 g <&> view (#bb . #sid) of
+--     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) b1
+--     Just s' -> return s'
+--   scope2 <- case G.lookupNode b2 g <&> view (#bb . #sid) of
+--     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) b2
+--     Just s' -> return s'
+--   mapM_
+--     ( \(_, n) -> do
+--         vid <- lookupSym' n
+--         use #sym2var
+--         v1 <- findVarOfSymInScope' n scope1
+--         v2 <- findVarOfSymInScope' n scope2
+--         var <- findVarOfSym' n
+--         dst <- newLocal (Just n) (var ^. #tpe) (var ^. #loc)
+--         addSSA $ Phi dst [(v1, b1), (v2, b2)]
+--     )
+--     vars
+
 buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
 buildAssignOp prev AST.IncAssign (Just expr) = do
@@ -446,51 +512,23 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   (ifHead, ifTail) <- buildBlock ifBlock
   g <- use #cfg
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
-  tail <- case maybeElseBlock of
+  case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
       checkStmts
-      tail <- createEmptyBB
+      tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB elseHead $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
-      return tail
+      return $ TailAt tail
     Nothing -> do
       checkStmts
-      tail <- createEmptyBB
+      tail <- finishCurrentBB
       updateCFG $ do
         G.addEdge prevBB tail $ CondEdge Complement
         G.addEdge ifTail tail SeqEdge
-      return tail
-  let dominates = G.strictlyDominate ifHead g
-  let postDominates = G.strictlyPostDominate tail g
-  let scopes = Set.intersection dominates postDominates
-  return $ TailAt tail
-buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
-  var <- findVarOfSym' counter
-  initExpr <- buildExpr init
-  case var ^. #astDecl of
-    Nothing -> throwError $ CFGExcept "Counter var not found in symbol table."
-    (Just decl) -> buildWriteToLocation (AST.Location counter Nothing decl (var ^. #tpe) loc) (Variable initExpr)
-  prevBB <- finishCurrentBB
-  predVar <- buildExpr pred
-  predBB <- finishCurrentBB
-  updateCFG (G.addEdge prevBB predBB SeqEdge)
-  buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
-  updateBB <- finishCurrentBB
-  parentControlBlock <- getControlBlock
-  tail <- createEmptyBB
-  setControlBlock $ Just (updateBB, tail)
-  (blockHead, blockTail) <- buildBlock block
-  checkStmts
-  updateCFG $ do
-    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
-    G.addEdge blockTail updateBB SeqEdge
-    G.addEdge updateBB predBB SeqEdge
-    G.addEdge predBB tail $ CondEdge Complement
-  setControlBlock parentControlBlock
-  return $ TailAt tail
+      return $ TailAt tail
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   prevBB <- finishCurrentBB
   predVar <- buildExpr pred
@@ -504,7 +542,7 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   updateCFG $ do
     G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
     G.addEdge predBB tail $ CondEdge Complement
-    G.addEdge blockTail tail SeqEdge
+    G.addEdge blockTail predBB SeqEdge
   setControlBlock parentControlBlock
   return $ TailAt tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
@@ -762,9 +800,9 @@ generateDotPlot G.Graph {nodes = nodes, edges = edges} =
         to
         (escape (prettyPrintEdge d))
 
-plot :: AST.ASTRoot -> Map ScopeID SE.SymbolTable -> Either [String] String
-plot root st =
-  let context = CFGContext st
+plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [String] String
+plot root si =
+  let context = CFGContext si
       res = buildCFG root context
    in case res of
         Left (CFGExcept msg) -> Left [Text.unpack msg]

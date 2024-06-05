@@ -12,6 +12,7 @@
 module Semantic
   ( runSemanticAnalysis,
     SymbolTable (..),
+    SemanticInfo (..),
     ScopeID,
     BlockType (..),
     lookupLocalVariableFromST,
@@ -22,18 +23,20 @@ where
 import AST
 import Constants
 import Control.Applicative ((<|>))
-import Control.Lens (view, (^.))
+import Control.Lens (view, (%=), (^.), (.=))
 import Control.Monad.Except
 import Control.Monad.State
 import Control.Monad.Writer.Lazy
 import Data.Char (ord)
 import Data.Functor ((<&>))
-import Data.Generics.Labels ()
+import Data.Generics.Labels
 import Data.Int (Int64)
 import Data.List (find)
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (isJust, isNothing)
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Read qualified as T
@@ -95,9 +98,15 @@ data SemanticState = SemanticState
   { nextScopeID :: ScopeID,
     currentScopeID :: ScopeID,
     symbolTables :: Map ScopeID SymbolTable,
-    currentRange :: SL.Range
+    currentRange :: SL.Range,
+    symbolWrites :: Map ScopeID (Set (ScopeID, Name))
   }
-  deriving (Show)
+  deriving (Show, Generic)
+
+data SemanticInfo = SemanticInfo
+  { symbolTables :: !(Map ScopeID SymbolTable),
+    symbolWrites :: !(Map ScopeID (Set (ScopeID, Name)))
+  } deriving (Show, Generic)
 
 -- Monad used for semantic analysis
 -- Symbol tables are built for every scope, and stored in SemanticState.
@@ -107,13 +116,13 @@ data SemanticState = SemanticState
 newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
   deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
 
-runSemanticAnalysis :: P.Program -> Either String (ASTRoot, [SemanticError], Map ScopeID SymbolTable)
+runSemanticAnalysis :: P.Program -> Either String (ASTRoot, [SemanticError], SemanticInfo)
 runSemanticAnalysis p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
         Left except -> Left $ show except
-        Right a -> Right (a, errors, symbolTables state)
+        Right a -> Right (a, errors, SemanticInfo (state ^. #symbolTables) (state ^. #symbolWrites))
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -132,7 +141,8 @@ initialSemanticState =
         { nextScopeID = globalScopeID + 1,
           currentScopeID = globalScopeID,
           symbolTables = Map.fromList [(globalScopeID, globalST)],
-          currentRange = SL.Range (SL.Posn 0 0 0) (SL.Posn 0 0 0)
+          currentRange = SL.Range (SL.Posn 0 0 0) (SL.Posn 0 0 0),
+          symbolWrites = Map.empty
         }
 
 updateCurrentRange :: SL.Range -> Semantic ()
@@ -156,7 +166,7 @@ addSemanticError msg = do
 getGlobalSymbolTable' :: Semantic SymbolTable
 getGlobalSymbolTable' = do
   state <- get
-  case Map.lookup globalScopeID $ symbolTables state of
+  case Map.lookup globalScopeID $ state ^. #symbolTables of
     Nothing -> throwSemanticException "No global symbol table found!"
     Just t -> return t
 
@@ -165,7 +175,7 @@ getSymbolTable :: Semantic (Maybe SymbolTable)
 getSymbolTable = do
   state <- get
   let id = currentScopeID state
-  return $ Map.lookup id $ symbolTables state
+  return $ Map.lookup id $ state ^. #symbolTables
 
 getCurrentScopeID :: Semantic Int
 getCurrentScopeID = gets currentScopeID
@@ -204,7 +214,7 @@ updateSymbolTable t = do
   state <- get
   -- ensure the symbol table is present, otherwise throw an exception
   getSymbolTable'
-  put $ state {symbolTables = Map.insert (currentScopeID state) t (symbolTables state)}
+  #symbolTables .= Map.insert (currentScopeID state) t (state ^. #symbolTables)
 
 getMethodSignature :: Semantic (Maybe MethodSig)
 getMethodSignature = do lookup <$> getSymbolTable'
@@ -242,7 +252,7 @@ enterScope blockType sig = do
     state
       { nextScopeID = nextID + 1,
         currentScopeID = nextID,
-        symbolTables = Map.insert nextID localST $ symbolTables state
+        symbolTables = Map.insert nextID localST $ state ^. #symbolTables
       }
   return nextID
 
@@ -327,6 +337,22 @@ lookupVariable' name = do
   case v of
     Nothing -> throwSemanticException $ sformat ("Varaible " % stext % " not defined") name
     Just v -> return v
+
+lookupVariableScope :: Name -> Semantic (Maybe ScopeID)
+lookupVariableScope name = do
+  st <- getSymbolTable
+  return $ st >>= lookup name
+  where
+    lookup name st' =
+      (lookupLocalVariableFromST name st' <&> \_ -> st' ^. #scopeID)
+        <|> (parent st' >>= lookup name)
+
+lookupVariableScope' :: Name -> Semantic ScopeID
+lookupVariableScope' name = do
+  sid <- lookupVariableScope name
+  case sid of
+    Nothing -> throwSemanticException $ sformat ("Varaible " % stext % " not defined") name
+    Just sid -> return sid
 
 {- Method lookup. -}
 
@@ -567,11 +593,23 @@ irgenMethodDecls ((SL.LocatedAt range decl) : rest) = do
           arguments <&> \(SL.LocatedAt range (P.Argument id tpe)) ->
             Argument id (irgenType tpe) range
 
+translateForToWhile :: [SL.Located P.Statement] -> [SL.Located P.Statement]
+translateForToWhile [] = []
+translateForToWhile (s : ss) = case s of
+  SL.LocatedAt loc (P.ForStatement counter init pred (P.CounterUpdate updateLoc updateExpr) block) ->
+    let initStmt = P.AssignStatement (P.ScalarLocation counter) (P.AssignExpr "=" init)
+        updateStmt = P.AssignStatement updateLoc updateExpr
+        originalStmts = P.blockStatements block
+        -- TODO: This source location is a bit off.
+        block' = block {P.blockStatements = originalStmts ++ [SL.LocatedAt (SL.getLoc init) updateStmt]}
+     in [SL.LocatedAt (SL.getLoc init) initStmt, SL.LocatedAt loc (P.WhileStatement pred block')] ++ translateForToWhile ss
+  s' -> s' : translateForToWhile ss
+
 irgenBlock :: BlockType -> Maybe MethodSig -> P.Block -> Semantic Block
 irgenBlock blockType sig (P.Block fieldDecls statements) = do
   nextID <- enterScope blockType sig
   fields <- irgenFieldDecls fieldDecls
-  stmts <- irgenStatements statements
+  stmts <- irgenStatements $ translateForToWhile statements
   let block = Block fields stmts nextID
   exitScope
   return block
@@ -621,6 +659,19 @@ checkAssignType :: Type -> Type -> Bool
 checkAssignType (ArrayType tpe _) exprType = tpe == exprType
 checkAssignType locType exprType = locType == exprType
 
+recordSymbolWrite :: Location -> Semantic ()
+recordSymbolWrite loc = do
+  sid <- getCurrentScopeID
+  let name = loc ^. #name
+  varScope <- lookupVariableScope' name
+  case typeOfDef (loc ^. #variableDef) of
+    Void -> return ()
+    ArrayType _ _ -> return ()
+    Ptr _ -> return ()
+    _ScalarType -> do
+      let newSet = Set.fromList [(varScope, name)]
+      #symbolWrites %= Map.insertWith Set.union sid newSet
+
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment
 irgenAssign loc (P.AssignExpr op expr) = do
   loc'@Location {tpe = tpe} <- irgenLocation loc
@@ -635,6 +686,8 @@ irgenAssign loc (P.AssignExpr op expr) = do
   when
     ((op' == IncAssign || op' == DecAssign) && (tpe /= IntType))
     (addSemanticError "Inc or dec assign only works with int type!")
+  -- Record symbol write to ease cfg construction
+  recordSymbolWrite loc'
   return $ Assignment loc' op' (Just expr') range
 irgenAssign loc (P.IncrementExpr op) = do
   loc'@Location {tpe = tpe} <- irgenLocation loc
@@ -642,6 +695,8 @@ irgenAssign loc (P.IncrementExpr op) = do
   let op' = parseAssignOp op
   -- Semantic[20]
   when (tpe /= IntType) (addSemanticError "Inc or dec operator only works on int type!")
+  -- Record symbol write to ease cfg construction
+  recordSymbolWrite loc'
   return $ Assignment loc' op' Nothing range
 
 irgenStatements :: [SL.Located P.Statement] -> Semantic [Statement]
@@ -744,16 +799,7 @@ irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
     (addSemanticError $ sformat ("The pred of if statment must have type bool, but got " % shown % " instead!") tpe)
   return $ Statement (IfStmt expr' ifBlock' (Just elseBlock')) range
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
-  block' <- irgenBlock ForBlock Nothing block
-  counterExpr' <- irgenExpr counterExpr
-  predExpr'@Expr {tpe = tpe} <- irgenExpr predExpr
-  range <- getCurrentRange
-  -- Semantic[14]
-  when
-    (tpe /= BoolType)
-    (addSemanticError $ sformat ("The pred of for statment must have type bool, but got " % shown % " instead!") tpe)
-  assign <- irgenAssign loc expr
-  return $ Statement (ForStmt counter counterExpr' predExpr' assign block') range
+  throwSemanticException "Unexpected for loop structure."
 irgenStmt (P.WhileStatement expr block) = do
   block' <- irgenBlock WhileBlock Nothing block
   expr'@Expr {tpe = tpe} <- irgenExpr expr

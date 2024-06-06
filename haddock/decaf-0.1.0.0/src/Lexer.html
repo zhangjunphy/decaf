@@ -1,0 +1,243 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- Scanner entry point</span><span>
+</span><span id="line-2"></span><span class="hs-comment">-- Copyright (C) 2018 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;</span><span>
+</span><span id="line-3"></span><span class="hs-comment">--</span><span>
+</span><span id="line-4"></span><span class="hs-comment">-- This file is a part of decafc.</span><span>
+</span><span id="line-5"></span><span class="hs-comment">--</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- decafc is free software: you can redistribute it and/or modify it under the</span><span>
+</span><span id="line-7"></span><span class="hs-comment">-- terms of the MIT (X11) License as described in the LICENSE file.</span><span>
+</span><span id="line-8"></span><span class="hs-comment">--</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span><span>
+</span><span id="line-11"></span><span class="hs-comment">-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.</span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Lexer</span><span>
+</span><span id="line-13"></span><span>  </span><span class="hs-special">(</span><span> </span><span class="annot"><a href="Lexer.Token.html#Token"><span class="hs-identifier">Token</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-14"></span><span>    </span><span class="annot"><a href="Lexer.Lex.html#Alex"><span class="hs-identifier">Alex</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">,</span><span>
+</span><span id="line-15"></span><span>    </span><span class="annot"><a href="Lexer.html#scan"><span class="hs-identifier">scan</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-16"></span><span>    </span><span class="annot"><a href="Lexer.html#formatTokenOrError"><span class="hs-identifier">formatTokenOrError</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-17"></span><span>    </span><span class="annot"><a href="Lexer.Lex.html#alexMonadScan"><span class="hs-identifier">alexMonadScan</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-18"></span><span>    </span><span class="annot"><a href="Lexer.Lex.html#runAlex"><span class="hs-identifier">runAlex</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-19"></span><span>  </span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">where</span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.ByteString.Lazy</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">ByteString</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Lexer.Lex.html"><span class="hs-identifier">Lexer.Lex</span></a></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Lexer.Token.html"><span class="hs-identifier">Lexer.Token</span></a></span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.SourceLoc.html"><span class="hs-identifier">Util.SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-comment">-- Produce error tokens for later use</span><span>
+</span><span id="line-28"></span><span class="annot"><a href="Lexer.html#catchErrors"><span class="hs-identifier hs-type">catchErrors</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Lexer.Lex.html#Alex"><span class="hs-identifier hs-type">Alex</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Located"><span class="hs-identifier hs-type">SL.Located</span></a></span><span> </span><span class="annot"><a href="Lexer.Token.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Lexer.Lex.html#Alex"><span class="hs-identifier hs-type">Alex</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Located"><span class="hs-identifier hs-type">SL.Located</span></a></span><span> </span><span class="annot"><a href="Lexer.Token.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-29"></span><span id="catchErrors"><span class="annot"><span class="annottext">catchErrors :: Alex (Located Token) -&gt; Alex (Located Token)
+</span><a href="Lexer.html#catchErrors"><span class="hs-identifier hs-var hs-var">catchErrors</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Lexer.Lex.html#Alex"><span class="hs-identifier hs-type">Alex</span></a></span><span> </span><span id="local-6989586621679194015"><span class="annot"><span class="annottext">AlexState -&gt; Either String (AlexState, Located Token)
+</span><a href="#local-6989586621679194015"><span class="hs-identifier hs-var">al</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-30"></span><span>  </span><span class="annot"><span class="annottext">(AlexState -&gt; Either String (AlexState, Located Token))
+-&gt; Alex (Located Token)
+forall a. (AlexState -&gt; Either String (AlexState, a)) -&gt; Alex a
+</span><a href="Lexer.Lex.html#Alex"><span class="hs-identifier hs-var">Alex</span></a></span><span>
+</span><span id="line-31"></span><span>    </span><span class="hs-special">(</span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679194016"><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194016"><span class="hs-identifier hs-var">s</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AlexState -&gt; Either String (AlexState, Located Token)
+</span><a href="#local-6989586621679194015"><span class="hs-identifier hs-var">al</span></a></span><span> </span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194016"><span class="hs-identifier hs-var">s</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-32"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679194017"><span class="annot"><span class="annottext">s' :: AlexState
+</span><a href="#local-6989586621679194017"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Lexer.Lex.html#AlexState"><span class="hs-identifier hs-type">AlexState</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:alex_ust:AlexState :: AlexState -&gt; AlexUserState
+</span><a href="Lexer.Lex.html#%24sel%3Aalex_ust%3AAlexState"><span class="hs-identifier hs-var">alex_ust</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679194020"><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194020"><span class="hs-identifier hs-var">ust</span></a></span></span><span class="hs-special">}</span><span class="hs-special">,</span><span> </span><span id="local-6989586621679194021"><span class="annot"><span class="annottext">t :: Located Token
+</span><a href="#local-6989586621679194021"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="Lexer.Token.html#EOF"><span class="hs-identifier hs-var">EOF</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">AlexState
+-&gt; Located Token -&gt; Either String (AlexState, Located Token)
+forall {a}.
+AlexState -&gt; Located Token -&gt; Either a (AlexState, Located Token)
+</span><a href="#local-6989586621679194024"><span class="hs-identifier hs-var">eofCheck</span></a></span><span> </span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194017"><span class="hs-identifier hs-var">s'</span></a></span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194021"><span class="hs-identifier hs-var">t</span></a></span><span>
+</span><span id="line-33"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679194025"><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194025"><span class="hs-identifier hs-var">s'</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679194026"><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194026"><span class="hs-identifier hs-var">x</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(AlexState, Located Token)
+-&gt; Either String (AlexState, Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194025"><span class="hs-identifier hs-var">s'</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194026"><span class="hs-identifier hs-var">x</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-34"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679194027"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194027"><span class="hs-identifier hs-var">message</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String (AlexState, Located Token)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194027"><span class="hs-identifier hs-var">message</span></a></span><span>
+</span><span id="line-35"></span><span>    </span><span class="hs-special">)</span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>    </span><span id="local-6989586621679194024"><span class="annot"><span class="annottext">eofCheck :: AlexState -&gt; Located Token -&gt; Either a (AlexState, Located Token)
+</span><a href="#local-6989586621679194024"><span class="hs-identifier hs-var hs-var">eofCheck</span></a></span></span><span> </span><span id="local-6989586621679194036"><span class="annot"><span class="annottext">s :: AlexState
+</span><a href="#local-6989586621679194036"><span class="hs-identifier hs-var">s</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="Lexer.Lex.html#AlexState"><span class="hs-identifier hs-type">AlexState</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:alex_ust:AlexState :: AlexState -&gt; AlexUserState
+</span><a href="Lexer.Lex.html#%24sel%3Aalex_ust%3AAlexState"><span class="hs-identifier hs-var">alex_ust</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679194037"><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194037"><span class="hs-identifier hs-var">ust</span></a></span></span><span class="hs-special">}</span><span> </span><span id="local-6989586621679194038"><span class="annot"><span class="annottext">tok :: Located Token
+</span><a href="#local-6989586621679194038"><span class="hs-identifier hs-var">tok</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span id="local-6989586621679194039"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679194039"><span class="hs-identifier hs-var">loc</span></a></span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-38"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679194040"><span class="annot"><span class="annottext">error :: Text -&gt; Token
+</span><a href="#local-6989586621679194040"><span class="hs-identifier hs-var hs-var">error</span></a></span></span><span> </span><span id="local-6989586621679194041"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679194041"><span class="hs-identifier hs-var">message</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Token
+</span><a href="Lexer.Token.html#Error"><span class="hs-identifier hs-var">Error</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679194041"><span class="hs-identifier hs-var">message</span></a></span><span>
+</span><span id="line-39"></span><span>       </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194037"><span class="hs-identifier hs-var">ust</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-40"></span><span>            </span><span id="local-6989586621679194043"><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194043"><span class="hs-identifier hs-var">val</span></a></span></span><span>
+</span><span id="line-41"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexUserState -&gt; Bool
+</span><a href="Lexer.Lex.html#%24sel%3AlexerStringState%3AAlexUserState"><span class="hs-identifier hs-var">lexerStringState</span></a></span><span> </span><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194037"><span class="hs-identifier hs-var">ust</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(AlexState, Located Token) -&gt; Either a (AlexState, Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194036"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Token -&gt; Located Token
+forall a. Range -&gt; a -&gt; Located a
+</span><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-var">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679194039"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; Located Token) -&gt; Token -&gt; Located Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Token
+</span><a href="#local-6989586621679194040"><span class="hs-identifier hs-var">error</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;string not closed at EOF&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-42"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexUserState -&gt; Bool
+</span><a href="Lexer.Lex.html#%24sel%3AlexerCharState%3AAlexUserState"><span class="hs-identifier hs-var">lexerCharState</span></a></span><span> </span><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194037"><span class="hs-identifier hs-var">ust</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(AlexState, Located Token) -&gt; Either a (AlexState, Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194036"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Token -&gt; Located Token
+forall a. Range -&gt; a -&gt; Located a
+</span><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-var">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679194039"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; Located Token) -&gt; Token -&gt; Located Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Token
+</span><a href="#local-6989586621679194040"><span class="hs-identifier hs-var">error</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;char not closed at EOF&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-43"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexUserState -&gt; Int
+</span><a href="Lexer.Lex.html#%24sel%3AlexerCommentDepth%3AAlexUserState"><span class="hs-identifier hs-var">lexerCommentDepth</span></a></span><span> </span><span class="annot"><span class="annottext">AlexUserState
+</span><a href="#local-6989586621679194037"><span class="hs-identifier hs-var">ust</span></a></span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Bool
+forall a. Ord a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">0</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(AlexState, Located Token) -&gt; Either a (AlexState, Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194036"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Range -&gt; Token -&gt; Located Token
+forall a. Range -&gt; a -&gt; Located a
+</span><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-var">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679194039"><span class="hs-identifier hs-var">loc</span></a></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; Located Token) -&gt; Token -&gt; Located Token
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Token
+</span><a href="#local-6989586621679194040"><span class="hs-identifier hs-var">error</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;comment not closed at EOF&quot;</span></span><span class="hs-special">)</span><span>
+</span><span id="line-44"></span><span>              </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(AlexState, Located Token) -&gt; Either a (AlexState, Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679194036"><span class="hs-identifier hs-var">s</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194038"><span class="hs-identifier hs-var">tok</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><a href="Lexer.html#scan"><span class="hs-identifier hs-type">scan</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Located"><span class="hs-identifier hs-type">SL.Located</span></a></span><span> </span><span class="annot"><a href="Lexer.Token.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span class="hs-special">]</span><span>
+</span><span id="line-47"></span><span id="scan"><span class="annot"><span class="annottext">scan :: ByteString -&gt; [Either String (Located Token)]
+</span><a href="Lexer.html#scan"><span class="hs-identifier hs-var hs-var">scan</span></a></span></span><span> </span><span id="local-6989586621679194048"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194048"><span class="hs-identifier hs-var">str</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-48"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679194058"><span class="annot"><span class="annottext">loop :: Alex [Either a (Located Token)]
+</span><a href="#local-6989586621679194058"><span class="hs-identifier hs-var hs-var">loop</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-49"></span><span>        </span><span id="local-6989586621679194059"><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194059"><span class="hs-identifier hs-var">tokOrError</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alex (Located Token) -&gt; Alex (Located Token)
+</span><a href="Lexer.html#catchErrors"><span class="hs-identifier hs-var">catchErrors</span></a></span><span> </span><span class="annot"><span class="annottext">Alex (Located Token)
+</span><a href="Lexer.Lex.html#alexMonadScan"><span class="hs-identifier hs-var">alexMonadScan</span></a></span><span>
+</span><span id="line-50"></span><span>        </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194059"><span class="hs-identifier hs-var">tokOrError</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-51"></span><span>          </span><span id="local-6989586621679194060"><span class="annot"><span class="annottext">t :: Located Token
+</span><a href="#local-6989586621679194060"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Lexer.Token.html#Error"><span class="hs-identifier hs-type">Error</span></a></span><span> </span><span id="local-6989586621679194061"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679194061"><span class="hs-identifier hs-var">m</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-52"></span><span>            </span><span class="hs-keyword">do</span><span>
+</span><span id="line-53"></span><span>              </span><span id="local-6989586621679194062"><span class="annot"><span class="annottext">[Either a (Located Token)]
+</span><a href="#local-6989586621679194062"><span class="hs-identifier hs-var">toks</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alex [Either a (Located Token)]
+</span><a href="#local-6989586621679194058"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-54"></span><span>              </span><span class="annot"><span class="annottext">[Either a (Located Token)] -&gt; Alex [Either a (Located Token)]
+forall a. a -&gt; Alex a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Located Token -&gt; Either a (Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194060"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Either a (Located Token)
+-&gt; [Either a (Located Token)] -&gt; [Either a (Located Token)]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Either a (Located Token)]
+</span><a href="#local-6989586621679194062"><span class="hs-identifier hs-var">toks</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span><span>          </span><span id="local-6989586621679194063"><span class="annot"><span class="annottext">t :: Located Token
+</span><a href="#local-6989586621679194063"><span class="hs-identifier hs-var">t</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679194064"><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621679194064"><span class="hs-identifier hs-var">tok</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-56"></span><span>            </span><span class="hs-keyword">if</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621679194064"><span class="hs-identifier hs-var">tok</span></a></span><span> </span><span class="annot"><span class="annottext">Token -&gt; Token -&gt; Bool
+forall a. Eq a =&gt; a -&gt; a -&gt; Bool
+</span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="Lexer.Token.html#EOF"><span class="hs-identifier hs-var">EOF</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-57"></span><span>              </span><span class="hs-keyword">then</span><span> </span><span class="annot"><span class="annottext">[Either a (Located Token)] -&gt; Alex [Either a (Located Token)]
+forall a. a -&gt; Alex a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span>              </span><span class="hs-keyword">else</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-59"></span><span>                </span><span id="local-6989586621679194065"><span class="annot"><span class="annottext">[Either a (Located Token)]
+</span><a href="#local-6989586621679194065"><span class="hs-identifier hs-var">toks</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alex [Either a (Located Token)]
+</span><a href="#local-6989586621679194058"><span class="hs-identifier hs-var">loop</span></a></span><span>
+</span><span id="line-60"></span><span>                </span><span class="annot"><span class="annottext">[Either a (Located Token)] -&gt; Alex [Either a (Located Token)]
+forall a. a -&gt; Alex a
+forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
+</span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><span class="annottext">Located Token -&gt; Either a (Located Token)
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Located Token
+</span><a href="#local-6989586621679194063"><span class="hs-identifier hs-var">t</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Either a (Located Token)
+-&gt; [Either a (Located Token)] -&gt; [Either a (Located Token)]
+forall a. a -&gt; [a] -&gt; [a]
+</span><span class="hs-glyph hs-var">:</span></span><span> </span><span class="annot"><span class="annottext">[Either a (Located Token)]
+</span><a href="#local-6989586621679194065"><span class="hs-identifier hs-var">toks</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-61"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ByteString
+-&gt; Alex [Either String (Located Token)]
+-&gt; Either String [Either String (Located Token)]
+forall a. ByteString -&gt; Alex a -&gt; Either String a
+</span><a href="Lexer.Lex.html#runAlex"><span class="hs-identifier hs-var">runAlex</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679194048"><span class="hs-identifier hs-var">str</span></a></span><span> </span><span class="annot"><span class="annottext">Alex [Either String (Located Token)]
+forall {a}. Alex [Either a (Located Token)]
+</span><a href="#local-6989586621679194058"><span class="hs-identifier hs-var">loop</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-62"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679194066"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194066"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">String -&gt; Either String (Located Token)
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194066"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-63"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679194067"><span class="annot"><span class="annottext">[Either String (Located Token)]
+</span><a href="#local-6989586621679194067"><span class="hs-identifier hs-var">toks</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[Either String (Located Token)]
+</span><a href="#local-6989586621679194067"><span class="hs-identifier hs-var">toks</span></a></span><span>
+</span><span id="line-64"></span><span>
+</span><span id="line-65"></span><span class="annot"><a href="Lexer.html#formatTokenOrError"><span class="hs-identifier hs-type">formatTokenOrError</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Located"><span class="hs-identifier hs-type">SL.Located</span></a></span><span> </span><span class="annot"><a href="Lexer.Token.html#Token"><span class="hs-identifier hs-type">Token</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span> </span><span class="annot"><span class="hs-identifier hs-type">String</span></span><span>
+</span><span id="line-66"></span><span id="formatTokenOrError"><span class="annot"><span class="annottext">formatTokenOrError :: Either String (Located Token) -&gt; Either String String
+</span><a href="Lexer.html#formatTokenOrError"><span class="hs-identifier hs-var hs-var">formatTokenOrError</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679194068"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194068"><span class="hs-identifier hs-var">err</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String -&gt; Either String String
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679194068"><span class="hs-identifier hs-var">err</span></a></span><span>
+</span><span id="line-67"></span><span class="annot"><a href="Lexer.html#formatTokenOrError"><span class="hs-identifier hs-var">formatTokenOrError</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#LocatedAt"><span class="hs-identifier hs-type">SL.LocatedAt</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Range"><span class="hs-identifier hs-type">SL.Range</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Util.SourceLoc.html#Posn"><span class="hs-identifier hs-type">SL.Posn</span></a></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679194071"><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679194071"><span class="hs-identifier hs-var">line</span></a></span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Posn
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679194072"><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621679194072"><span class="hs-identifier hs-var">tok</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="annottext">String -&gt; Either String String
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">(String -&gt; Either String String) -&gt; String -&gt; Either String String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-69"></span><span>    </span><span class="annot"><span class="annottext">[String] -&gt; String
+</span><span class="hs-identifier hs-var">unwords</span></span><span>
+</span><span id="line-70"></span><span>      </span><span class="hs-special">[</span><span> </span><span class="annot"><span class="annottext">Int -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">(Int -&gt; String) -&gt; Int -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><a href="#local-6989586621679194071"><span class="hs-identifier hs-var">line</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-71"></span><span>        </span><span class="annot"><span class="annottext">Token -&gt; String
+forall a. Show a =&gt; a -&gt; String
+</span><span class="hs-identifier hs-var">show</span></span><span> </span><span class="annot"><span class="annottext">(Token -&gt; String) -&gt; Token -&gt; String
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Token
+</span><a href="#local-6989586621679194072"><span class="hs-identifier hs-var">tok</span></a></span><span>
+</span><span id="line-72"></span><span>      </span><span class="hs-special">]</span><span>
+</span><span id="line-73"></span></pre></body></html>

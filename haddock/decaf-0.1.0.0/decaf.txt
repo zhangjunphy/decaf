@@ -65,6 +65,39 @@ mainMethodName :: Text
 
 module DominatorTree
 
+module Lexer.Token
+
+-- | A token.
+data Token
+Keyword :: !Text -> Token
+Identifier :: !Text -> Token
+CharLiteral :: !Text -> Token
+IntLiteral :: !Text -> Token
+BooleanLiteral :: !Text -> Token
+StringLiteral :: !Text -> Token
+AssignOp :: Token
+CompoundAssignOp :: !Text -> Token
+IncrementOp :: !Text -> Token
+ArithmeticOp :: !Text -> Token
+RelationOp :: !Text -> Token
+EquationOp :: !Text -> Token
+ConditionOp :: !Text -> Token
+LCurly :: Token
+RCurly :: Token
+LParen :: Token
+RParen :: Token
+LBrack :: Token
+RBrack :: Token
+Choice :: Token
+Colon :: Token
+Semicolon :: Token
+Comma :: Token
+Negate :: Token
+EOF :: Token
+Error :: !Text -> Token
+instance GHC.Classes.Eq Lexer.Token.Token
+instance GHC.Show.Show Lexer.Token.Token
+
 module Types
 type VID = Int
 type Name = Text
@@ -146,23 +179,51 @@ instance GHC.Show.Show a => GHC.Show.Show (Util.SourceLoc.Located a)
 instance GHC.Show.Show Util.SourceLoc.Range
 instance GHC.Show.Show Util.SourceLoc.Posn
 
-module Parser.Scanner
+module Lexer.Lex
+newtype Alex a
+Alex :: (AlexState -> Either String (AlexState, a)) -> Alex a
+[$sel:unAlex:Alex] :: Alex a -> AlexState -> Either String (AlexState, a)
+alexMonadScan :: Alex (Located Token)
+runAlex :: ByteString -> Alex a -> Either String a
+data AlexState
+AlexState :: !AlexPosn -> !Int64 -> ByteString -> !Char -> !Int -> AlexUserState -> AlexState
+[$sel:alex_pos:AlexState] :: AlexState -> !AlexPosn
+[$sel:alex_bpos:AlexState] :: AlexState -> !Int64
+[$sel:alex_inp:AlexState] :: AlexState -> ByteString
+[$sel:alex_chr:AlexState] :: AlexState -> !Char
+[$sel:alex_scd:AlexState] :: AlexState -> !Int
+[$sel:alex_ust:AlexState] :: AlexState -> AlexUserState
+data AlexUserState
+AlexUserState :: Int -> Bool -> Bool -> ByteString -> [ByteString] -> AlexUserState
+[$sel:lexerCommentDepth:AlexUserState] :: AlexUserState -> Int
+[$sel:lexerStringState:AlexUserState] :: AlexUserState -> Bool
+[$sel:lexerCharState:AlexUserState] :: AlexUserState -> Bool
+[$sel:lexerStringValue:AlexUserState] :: AlexUserState -> ByteString
+[$sel:inputLines:AlexUserState] :: AlexUserState -> [ByteString]
+instance GHC.Classes.Ord Lexer.Lex.AlexPosn
+instance GHC.Show.Show Lexer.Lex.AlexPosn
+instance GHC.Classes.Eq Lexer.Lex.AlexPosn
+instance GHC.Base.Functor Lexer.Lex.Alex
+instance GHC.Base.Applicative Lexer.Lex.Alex
+instance GHC.Base.Monad Lexer.Lex.Alex
+
+module Lexer
 
 -- | A token.
 data Token
-Keyword :: Text -> Token
-Identifier :: Text -> Token
-CharLiteral :: Text -> Token
-IntLiteral :: Text -> Token
-BooleanLiteral :: Text -> Token
-StringLiteral :: Text -> Token
+Keyword :: !Text -> Token
+Identifier :: !Text -> Token
+CharLiteral :: !Text -> Token
+IntLiteral :: !Text -> Token
+BooleanLiteral :: !Text -> Token
+StringLiteral :: !Text -> Token
 AssignOp :: Token
-CompoundAssignOp :: Text -> Token
-IncrementOp :: Text -> Token
-ArithmeticOp :: Text -> Token
-RelationOp :: Text -> Token
-EquationOp :: Text -> Token
-ConditionOp :: Text -> Token
+CompoundAssignOp :: !Text -> Token
+IncrementOp :: !Text -> Token
+ArithmeticOp :: !Text -> Token
+RelationOp :: !Text -> Token
+EquationOp :: !Text -> Token
+ConditionOp :: !Text -> Token
 LCurly :: Token
 RCurly :: Token
 LParen :: Token
@@ -175,7 +236,7 @@ Semicolon :: Token
 Comma :: Token
 Negate :: Token
 EOF :: Token
-Error :: Text -> Token
+Error :: !Text -> Token
 newtype Alex a
 Alex :: (AlexState -> Either String (AlexState, a)) -> Alex a
 [$sel:unAlex:Alex] :: Alex a -> AlexState -> Either String (AlexState, a)
@@ -183,14 +244,6 @@ scan :: ByteString -> [Either String (Located Token)]
 formatTokenOrError :: Either String (Located Token) -> Either String String
 alexMonadScan :: Alex (Located Token)
 runAlex :: ByteString -> Alex a -> Either String a
-instance GHC.Classes.Ord Parser.Scanner.AlexPosn
-instance GHC.Show.Show Parser.Scanner.AlexPosn
-instance GHC.Classes.Eq Parser.Scanner.AlexPosn
-instance GHC.Classes.Eq Parser.Scanner.Token
-instance GHC.Base.Functor Parser.Scanner.Alex
-instance GHC.Base.Applicative Parser.Scanner.Alex
-instance GHC.Base.Monad Parser.Scanner.Alex
-instance GHC.Show.Show Parser.Scanner.Token
 
 module Parser.Parser
 parse :: ByteString -> Either String Program

@@ -1,5 +1,4 @@
--- CFG -- Control Flow Graph with SSA nodes
--- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,6 +8,8 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- CFG -- Control Flow Graph with SSA nodes
 module CFG where
 
 import AST qualified
@@ -21,7 +22,6 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Generics.Labels
-import Data.GraphViz.Types.Graph qualified as GV
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map

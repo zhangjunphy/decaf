@@ -1,5 +1,5 @@
--- Parser -- Decaf parser                                       -*- haskell -*-
--- Copyright (C) 2013  Benjamin Barenblat <bbaren@mit.edu>
+-- -*- haskell -*-
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,37 +9,15 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
-{
-module Parser.Parser
-  ( parse
-  , Program(..)
-  , ImportDecl(..)
-  , FieldDecl(..)
-  , MethodDecl(..)
-  , FieldElem(..)
-  , Type(..)
-  , Argument(..)
-  , Block(..)
-  , Statement(..)
-  , Location(..)
-  , AssignExpr(..)
-  , MethodCall(..)
-  , ImportArg(..)
-  , CounterUpdate(..)
-  , Expr(..)
-  ) where
 
-import Lexer ( Token(..)
-             , Alex(..)
-             , runAlex
-             , alexMonadScan
-             )
+
+{
+module Parser.Grammar where
 
 import Util.SourceLoc as SL
-
-import Text.Printf (printf)
-import Data.Text (Text)
-import Data.ByteString.Lazy (ByteString)
+import Parser.Tree
+import Parser.Helper
+import Lexer (Alex (..), Token (..))
 }
 
 --------------------------------- Directives ----------------------------------
@@ -213,121 +191,3 @@ Expr1 : Location                                            { SL.LocatedAt (getL
       | '-' Expr1 %prec NEG                                 { SL.LocatedAt (unionOf $1 $2) $ NegativeExpr $2 }
       | '!' Expr1                                           { SL.LocatedAt (unionOf $1 $2) $ NegateExpr $2 }
       | '(' Expr ')'                                        { SL.LocatedAt (unionOf $1 $3) $ ParenExpr $2 }
-
------------------------------------ Haskell -----------------------------------
-{
-
-getID :: Token -> Text
-getID (Identifier id) = id
-
-getLiteral :: Token -> Text
-getLiteral (IntLiteral i) = i
-getLiteral (BooleanLiteral b) = b
-getLiteral (CharLiteral c) = c
-getLiteral (StringLiteral s) = s
-
-getOp :: Token -> Text
-getOp (IncrementOp op) = op
-getOp (CompoundAssignOp op) = op
-
-lexerwrap :: (SL.Located Token -> Alex a) -> Alex a
-lexerwrap s = do
-  token <- alexMonadScan
-  s token
-
-unionOf :: SL.Located a -> SL.Located b -> Range
-unionOf (SL.LocatedAt loc1 _) (SL.LocatedAt loc2 _) = combineRanges loc1 loc2
-    where
-        combineRanges (SL.Range start1 stop1) (SL.Range start2 stop2) = 
-            let start = if (SL.offset start1) < (SL.offset start2) then start1 else start2
-                stop = if (SL.offset stop1) > (SL.offset stop2) then stop1 else stop2
-            in SL.Range start stop
-
-data Program = Program { importDecls :: [SL.Located ImportDecl]
-                       , fieldDecls :: [SL.Located FieldDecl]
-                       , methodDecls :: [SL.Located MethodDecl]
-                       } deriving (Show)
-
-data ImportDecl = ImportDecl { importId :: Text }
-                  deriving (Show)
-
-data FieldDecl = FieldDecl { fieldType :: Type
-                           , elems:: [SL.Located FieldElem]
-                           } deriving (Show)
-
-data FieldElem = ScalarField { fieldId :: Text }
-               | VectorField { fieldId :: Text, size :: Text }
-                 deriving (Show)
-
-data Type = IntType | BoolType
-            deriving (Show)
-
-data MethodDecl = MethodDecl { methodId :: Text
-                             , returnType :: Maybe Type
-                             , arguments :: [SL.Located Argument]
-                             , block :: Block
-                             } deriving (Show)
-
-data Argument = Argument { argumentId :: Text
-                         , argumentType :: Type
-                         } deriving (Show)
-
-data Block = Block { blockFieldDecls :: [SL.Located FieldDecl]
-                   , blockStatements :: [SL.Located Statement]
-                   } deriving (Show)
-
-data Statement = AssignStatement { assignLocation :: Location, assignExpr :: AssignExpr }
-               | MethodCallStatement { methodCallStatement :: MethodCall }
-               | IfStatement { ifExpr :: SL.Located Expr, ifBlock :: Block }
-               | IfElseStatement { ifExpr :: SL.Located Expr, ifBlock :: Block, elseBlock :: Block}
-               | ForStatement { counterId :: Text, counterExpr :: SL.Located Expr, forPredExpr :: SL.Located Expr,
-                                counterUpdate :: CounterUpdate, forBlock :: Block }
-               | WhileStatement { whileExpr :: SL.Located Expr, whileBlock :: Block }
-               | ReturnVoidStatement
-               | ReturnExprStatement { returnExpr :: SL.Located Expr }
-               | BreakStatement
-               | ContinueStatement
-               | ErrorStatement
-                 deriving (Show)
-
-data Location = ScalarLocation { locationId :: Text }
-              | VectorLocation { locationId :: Text, arrayIndexExpr :: SL.Located Expr }
-                deriving (Show)
-
-data AssignExpr = AssignExpr { assignOp :: Text, assignSourceExpr:: SL.Located Expr }
-                | IncrementExpr { incrementOp :: Text }
-                  deriving (Show)
-
-data MethodCall = MethodCall { methodName :: Text, importArguments :: [SL.Located ImportArg] }
-                  deriving (Show)
-
-data ImportArg = ExprImportArg { argumentExpr :: SL.Located Expr }
-               | StringImportArg { argumentString :: Text }
-                 deriving (Show)
-
-data CounterUpdate = CounterUpdate { counterLocation :: Location, updateExpr :: AssignExpr }
-                     deriving (Show)
-
-data Expr = LocationExpr { location :: Location }
-          | MethodCallExpr { methodCallExpr :: MethodCall }
-          | IntLiteralExpr { intLiteral :: Text }
-          | CharLiteralExpr { charLiteral :: Text }
-          | BoolLiteralExpr { boolLiteral :: Text }
-          | LenExpr { lenId :: Text }
-          | ArithOpExpr { arithOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-          | RelOpExpr { relOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-          | EqOpExpr { eqOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-          | CondOpExpr { condOp :: Text, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-          | NegativeExpr { negativeExpr :: SL.Located Expr }
-          | NegateExpr { negateExpr :: SL.Located Expr }
-          | ParenExpr { parenExpr :: SL.Located Expr }
-          | ChoiceExpr { choicePredExpr :: SL.Located Expr, lExpr :: SL.Located Expr, rExpr :: SL.Located Expr }
-          deriving (Show)
-
-parseError :: SL.Located Token -> Alex a
-parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do
-  Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" row col (show tok)
-
-parse :: ByteString -> Either String Program
-parse input = runAlex input parseInternal
-}

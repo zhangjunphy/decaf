@@ -1,5 +1,4 @@
--- SSA -- SSA Form Low Level IR
--- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,20 +8,21 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- SSA -- SSA Form Low Level IR
 module SSA where
 
 import AST (ArithOp, AssignOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified
-import Control.Lens (_1, _2)
+import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 import Control.Monad.State
+import Data.Generics.Labels
 import Data.Int (Int64)
 import Data.Text (Text)
 import Formatting
+import GHC.Generics (Generic)
 import Types
 import Util.SourceLoc qualified as SL
-import GHC.Generics (Generic)
-import Data.Generics.Labels
-import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 
 data Locality
   = Global

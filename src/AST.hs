@@ -1,5 +1,4 @@
--- AST -- AST after type checking and clean up
--- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,6 +8,8 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- AST -- AST after type checking and clean up
 module AST where
 
 import GHC.Generics (Generic)
@@ -162,11 +163,11 @@ parseAssignOp s = case s of
 
 -- auxiliary data types
 data Location = Location
-  { name :: Name,
-    idx :: Maybe Expr,
-    variableDef :: Either Argument FieldDecl,
-    tpe :: Type,
-    loc :: SL.Range
+  { name :: !Name,
+    idx :: !(Maybe Expr),
+    variableDef :: !(Either Argument FieldDecl),
+    tpe :: !Type,
+    loc :: !SL.Range
   } deriving (Generic)
 
 typeOfDef :: Either Argument FieldDecl -> Type
@@ -177,103 +178,103 @@ instance Show Location where
   show Location{name=nm, idx=idx} = printf "Location {name=%s, idx=%s}" nm (show idx)
 
 data Assignment = Assignment
-  { location :: Location,
-    op :: AssignOp,
-    expr :: Maybe Expr,
-    loc :: SL.Range
+  { location :: !Location,
+    op :: !AssignOp,
+    expr :: !(Maybe Expr),
+    loc :: !SL.Range
   } deriving (Generic, Show)
 
 data MethodCall = MethodCall
-  { name :: Name,
-    args :: [Expr],
-    loc :: SL.Range
+  { name :: !Name,
+    args :: ![Expr],
+    loc :: !SL.Range
   } deriving (Generic, Show)
 
 -- AST nodes
 data ASTRoot = ASTRoot
-  { imports :: [ImportDecl],
-    vars :: [FieldDecl],
-    methods :: [MethodDecl]
+  { imports :: ![ImportDecl],
+    vars :: ![FieldDecl],
+    methods :: ![MethodDecl]
   } deriving (Generic, Show)
 
 data ImportDecl = ImportDecl
-  { name :: Name
-  , loc :: SL.Range
+  { name :: !Name
+  , loc :: !SL.Range
   } deriving (Generic, Show)
 
 data FieldDecl = FieldDecl
-  { name :: Name,
-    tpe :: Type,
-    loc :: SL.Range
+  { name :: !Name,
+    tpe :: !Type,
+    loc :: !SL.Range
   }
   deriving (Generic, Show)
 
 data Argument = Argument
-  { name :: Name,
-    tpe :: Type,
-    loc :: SL.Range
+  { name :: !Name,
+    tpe :: !Type,
+    loc :: !SL.Range
   }
   deriving (Generic, Show)
 
 data MethodSig = MethodSig
-  { name :: Name,
-    tpe :: Maybe Type,
-    args :: [Argument]
+  { name :: !Name,
+    tpe :: !(Maybe Type),
+    args :: ![Argument]
   }
   deriving (Generic, Show)
 
 data MethodDecl = MethodDecl
-  { sig :: MethodSig,
-    block :: Block,
-    loc :: SL.Range
+  { sig :: !MethodSig,
+    block :: !Block,
+    loc :: !SL.Range
   }
   deriving (Generic, Show)
 
 data Statement = Statement
-  { statement_ :: Statement_
-  , loc :: SL.Range
+  { statement_ :: !Statement_
+  , loc :: !SL.Range
   } deriving (Generic, Show)
 data Statement_
-  = AssignStmt {assign :: Assignment}
-  | IfStmt {pred :: Expr, ifBlock :: Block, elseBlock :: Maybe Block}
-  | ForStmt { counter :: Name, initCounter :: Expr, pred :: Expr, update :: Assignment, block :: Block}
-  | WhileStmt {pred :: Expr, block :: Block}
-  | ReturnStmt {expr :: Maybe Expr}
-  | MethodCallStmt {methodCall :: MethodCall}
+  = AssignStmt {assign :: !Assignment}
+  | IfStmt {pred :: !Expr, ifBlock :: !Block, elseBlock :: !(Maybe Block)}
+  | ForStmt { counter :: !Name, initCounter :: !Expr, pred :: !Expr, update :: !Assignment, block :: !Block}
+  | WhileStmt {pred :: !Expr, block :: !Block}
+  | ReturnStmt {expr :: !(Maybe Expr)}
+  | MethodCallStmt {methodCall :: !MethodCall}
   | BreakStmt
   | ContinueStmt
   deriving (Generic, Show)
 
 data Expr = Expr
-  { expr_ :: Expr_
-  , tpe :: Type
-  , loc :: SL.Range
+  { expr_ :: !Expr_
+  , tpe :: !Type
+  , loc :: !SL.Range
   } deriving (Generic, Show)
 
 data Expr_
-  = LocationExpr {location :: Location}
-  | MethodCallExpr {methodCall :: MethodCall}
-  | ExternCallExpr {name :: Name, args :: [Expr]}
-  | IntLiteralExpr {intVal :: Int64}
-  | BoolLiteralExpr {boolVal :: Bool}
-  | CharLiteralExpr {charVal :: Char}
-  | StringLiteralExpr {strVal :: Text}
-  | ArithOpExpr {arithOp :: ArithOp, lhs :: Expr, rhs :: Expr}
-  | RelOpExpr {relOp :: RelOp, lhs :: Expr, rhs :: Expr}
-  | CondOpExpr {condOp :: CondOp, lhs :: Expr, rhs :: Expr}
-  | EqOpExpr {eqOp :: EqOp, lhs :: Expr, rhs :: Expr}
-  | NegOpExpr {negOp :: NegOp, expr :: Expr}
-  | NotOpExpr {notOp :: NotOp, expr :: Expr}
-  | ChoiceOpExpr {choiceOp :: ChoiceOp, expr1 :: Expr, expr2 :: Expr, expr3 :: Expr}
-  | LengthExpr {name :: Name}
+  = LocationExpr {location :: !Location}
+  | MethodCallExpr {methodCall :: !MethodCall}
+  | ExternCallExpr {name :: !Name, args :: ![Expr]}
+  | IntLiteralExpr {intVal :: !Int64}
+  | BoolLiteralExpr {boolVal :: !Bool}
+  | CharLiteralExpr {charVal :: !Char}
+  | StringLiteralExpr {strVal :: !Text}
+  | ArithOpExpr {arithOp :: !ArithOp, lhs :: !Expr, rhs :: !Expr}
+  | RelOpExpr {relOp :: !RelOp, lhs :: !Expr, rhs :: !Expr}
+  | CondOpExpr {condOp :: !CondOp, lhs :: !Expr, rhs :: !Expr}
+  | EqOpExpr {eqOp :: !EqOp, lhs :: !Expr, rhs :: !Expr}
+  | NegOpExpr {negOp :: !NegOp, expr :: !Expr}
+  | NotOpExpr {notOp :: !NotOp, expr :: !Expr}
+  | ChoiceOpExpr {choiceOp :: !ChoiceOp, expr1 :: !Expr, expr2 :: !Expr, expr3 :: !Expr}
+  | LengthExpr {name :: !Name}
   deriving (Generic, Show)
 
-data Typed a = Typed {ele :: a, tpe :: Type}
+data Typed a = Typed {ele :: !a, tpe :: !Type}
   deriving (Generic, Show)
 
 data Block = Block
-  { vars :: [FieldDecl],
-    stmts :: [Statement],
-    blockID :: ScopeID
+  { vars :: ![FieldDecl],
+    stmts :: ![Statement],
+    blockID :: !ScopeID
   }
   deriving (Generic, Show)

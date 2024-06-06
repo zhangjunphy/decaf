@@ -1,4 +1,3 @@
--- Types -- Common types
 -- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
@@ -9,6 +8,8 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- Types -- Common types
 module Types where
 
 import Data.Text (Text)

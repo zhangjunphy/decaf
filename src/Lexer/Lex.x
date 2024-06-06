@@ -1,5 +1,5 @@
--- Scanner -- Decaf scanner                                     -*- haskell -*-
--- Copyright (C) 2013  Benjamin Barenblat <bbaren@mit.edu>
+-- -*- haskell -*-
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,6 +9,8 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- Decaf scanner
 {
 {-# OPTIONS_GHC -w #-}
 module Lexer.Lex ( Alex(..)
@@ -18,9 +20,8 @@ module Lexer.Lex ( Alex(..)
                  , AlexUserState(..)
                  ) where
 
-import qualified Util.SourceLoc as SL
-
 import Lexer.Token
+import qualified Util.SourceLoc as SL
 
 import Control.Monad.State
 import Data.ByteString.Lazy (ByteString)

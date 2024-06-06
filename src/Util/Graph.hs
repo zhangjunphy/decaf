@@ -1,5 +1,4 @@
--- Graph -- A graph implementation to help build CFG
--- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -9,6 +8,8 @@
 -- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+
+-- Graph -- A graph implementation to help build CFG
 module Util.Graph where
 
 import Control.Lens ((%=))
@@ -16,7 +17,7 @@ import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
 import Data.Functor
-import Data.Graph.Inductive.Graph qualified as FGL
+import Data.Generics.Labels
 import Data.List qualified as List
 import Data.Map (Map, mapWithKey)
 import Data.Map.Strict qualified as Map
@@ -26,11 +27,10 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text.Lazy.Builder qualified as Text
 import GHC.Generics (Generic)
-import Data.Generics.Labels
 
 data Graph ni nd ed = Graph
-  { nodes :: Map ni nd,
-    edges :: Map ni [(ni, ed)]
+  { nodes :: !(Map ni nd),
+    edges :: !(Map ni [(ni, ed)])
   }
   deriving (Show)
 

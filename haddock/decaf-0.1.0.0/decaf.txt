@@ -67,7 +67,7 @@ module DominatorTree
 
 module Lexer.Token
 
--- | A token.
+-- | Lexer tokens.
 data Token
 Keyword :: !Text -> Token
 Identifier :: !Text -> Token
@@ -113,9 +113,9 @@ getConfiguration :: IO (Either String Configuration)
 
 module Util.Graph
 data Graph ni nd ed
-Graph :: Map ni nd -> Map ni [(ni, ed)] -> Graph ni nd ed
-[$sel:nodes:Graph] :: Graph ni nd ed -> Map ni nd
-[$sel:edges:Graph] :: Graph ni nd ed -> Map ni [(ni, ed)]
+Graph :: !Map ni nd -> !Map ni [(ni, ed)] -> Graph ni nd ed
+[$sel:nodes:Graph] :: Graph ni nd ed -> !Map ni nd
+[$sel:edges:Graph] :: Graph ni nd ed -> !Map ni [(ni, ed)]
 type GraphException = Text
 empty :: Graph ni nd ed
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
@@ -179,6 +179,150 @@ instance GHC.Show.Show a => GHC.Show.Show (Util.SourceLoc.Located a)
 instance GHC.Show.Show Util.SourceLoc.Range
 instance GHC.Show.Show Util.SourceLoc.Posn
 
+module Parser.Tree
+data Program
+Program :: ![Located ImportDecl] -> ![Located FieldDecl] -> ![Located MethodDecl] -> Program
+[$sel:importDecls:Program] :: Program -> ![Located ImportDecl]
+[$sel:fieldDecls:Program] :: Program -> ![Located FieldDecl]
+[$sel:methodDecls:Program] :: Program -> ![Located MethodDecl]
+data ImportDecl
+ImportDecl :: !Text -> ImportDecl
+[$sel:importId:ImportDecl] :: ImportDecl -> !Text
+data FieldDecl
+FieldDecl :: !Type -> ![Located FieldElem] -> FieldDecl
+[$sel:fieldType:FieldDecl] :: FieldDecl -> !Type
+[$sel:elems:FieldDecl] :: FieldDecl -> ![Located FieldElem]
+data FieldElem
+ScalarField :: !Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> !Text
+VectorField :: !Text -> !Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> !Text
+[$sel:size:ScalarField] :: FieldElem -> !Text
+data Type
+IntType :: Type
+BoolType :: Type
+data MethodDecl
+MethodDecl :: !Text -> !Maybe Type -> ![Located Argument] -> !Block -> MethodDecl
+[$sel:methodId:MethodDecl] :: MethodDecl -> !Text
+[$sel:returnType:MethodDecl] :: MethodDecl -> !Maybe Type
+[$sel:arguments:MethodDecl] :: MethodDecl -> ![Located Argument]
+[$sel:block:MethodDecl] :: MethodDecl -> !Block
+data Argument
+Argument :: !Text -> !Type -> Argument
+[$sel:argumentId:Argument] :: Argument -> !Text
+[$sel:argumentType:Argument] :: Argument -> !Type
+data Block
+Block :: ![Located FieldDecl] -> ![Located Statement] -> Block
+[$sel:blockFieldDecls:Block] :: Block -> ![Located FieldDecl]
+[$sel:blockStatements:Block] :: Block -> ![Located Statement]
+data Statement
+AssignStatement :: !Location -> !AssignExpr -> Statement
+[$sel:assignLocation:AssignStatement] :: Statement -> !Location
+[$sel:assignExpr:AssignStatement] :: Statement -> !AssignExpr
+MethodCallStatement :: !MethodCall -> Statement
+[$sel:methodCallStatement:AssignStatement] :: Statement -> !MethodCall
+IfStatement :: !Located Expr -> !Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> !Block
+IfElseStatement :: !Located Expr -> !Block -> !Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> !Block
+[$sel:elseBlock:AssignStatement] :: Statement -> !Block
+ForStatement :: !Text -> !Located Expr -> !Located Expr -> !CounterUpdate -> !Block -> Statement
+[$sel:counterId:AssignStatement] :: Statement -> !Text
+[$sel:counterExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:forPredExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:counterUpdate:AssignStatement] :: Statement -> !CounterUpdate
+[$sel:forBlock:AssignStatement] :: Statement -> !Block
+WhileStatement :: !Located Expr -> !Block -> Statement
+[$sel:whileExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:whileBlock:AssignStatement] :: Statement -> !Block
+ReturnVoidStatement :: Statement
+ReturnExprStatement :: !Located Expr -> Statement
+[$sel:returnExpr:AssignStatement] :: Statement -> !Located Expr
+BreakStatement :: Statement
+ContinueStatement :: Statement
+ErrorStatement :: Statement
+data Location
+ScalarLocation :: !Text -> Location
+[$sel:locationId:ScalarLocation] :: Location -> !Text
+VectorLocation :: !Text -> !Located Expr -> Location
+[$sel:locationId:ScalarLocation] :: Location -> !Text
+[$sel:arrayIndexExpr:ScalarLocation] :: Location -> !Located Expr
+data AssignExpr
+AssignExpr :: !Text -> !Located Expr -> AssignExpr
+[$sel:assignOp:AssignExpr] :: AssignExpr -> !Text
+[$sel:assignSourceExpr:AssignExpr] :: AssignExpr -> !Located Expr
+IncrementExpr :: !Text -> AssignExpr
+[$sel:incrementOp:AssignExpr] :: AssignExpr -> !Text
+data MethodCall
+MethodCall :: !Text -> ![Located ImportArg] -> MethodCall
+[$sel:methodName:MethodCall] :: MethodCall -> !Text
+[$sel:importArguments:MethodCall] :: MethodCall -> ![Located ImportArg]
+data ImportArg
+ExprImportArg :: !Located Expr -> ImportArg
+[$sel:argumentExpr:ExprImportArg] :: ImportArg -> !Located Expr
+StringImportArg :: !Text -> ImportArg
+[$sel:argumentString:ExprImportArg] :: ImportArg -> !Text
+data CounterUpdate
+CounterUpdate :: !Location -> !AssignExpr -> CounterUpdate
+[$sel:counterLocation:CounterUpdate] :: CounterUpdate -> !Location
+[$sel:updateExpr:CounterUpdate] :: CounterUpdate -> !AssignExpr
+data Expr
+LocationExpr :: !Location -> Expr
+[$sel:location:LocationExpr] :: Expr -> !Location
+MethodCallExpr :: !MethodCall -> Expr
+[$sel:methodCallExpr:LocationExpr] :: Expr -> !MethodCall
+IntLiteralExpr :: !Text -> Expr
+[$sel:intLiteral:LocationExpr] :: Expr -> !Text
+CharLiteralExpr :: !Text -> Expr
+[$sel:charLiteral:LocationExpr] :: Expr -> !Text
+BoolLiteralExpr :: !Text -> Expr
+[$sel:boolLiteral:LocationExpr] :: Expr -> !Text
+LenExpr :: !Text -> Expr
+[$sel:lenId:LocationExpr] :: Expr -> !Text
+ArithOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:arithOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+RelOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:relOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+EqOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:eqOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+CondOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:condOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+NegativeExpr :: !Located Expr -> Expr
+[$sel:negativeExpr:LocationExpr] :: Expr -> !Located Expr
+NegateExpr :: !Located Expr -> Expr
+[$sel:negateExpr:LocationExpr] :: Expr -> !Located Expr
+ParenExpr :: !Located Expr -> Expr
+[$sel:parenExpr:LocationExpr] :: Expr -> !Located Expr
+ChoiceExpr :: !Located Expr -> !Located Expr -> !Located Expr -> Expr
+[$sel:choicePredExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+instance GHC.Show.Show Parser.Tree.ImportDecl
+instance GHC.Show.Show Parser.Tree.FieldElem
+instance GHC.Show.Show Parser.Tree.Type
+instance GHC.Show.Show Parser.Tree.FieldDecl
+instance GHC.Show.Show Parser.Tree.Argument
+instance GHC.Show.Show Parser.Tree.Location
+instance GHC.Show.Show Parser.Tree.ImportArg
+instance GHC.Show.Show Parser.Tree.MethodCall
+instance GHC.Show.Show Parser.Tree.Expr
+instance GHC.Show.Show Parser.Tree.AssignExpr
+instance GHC.Show.Show Parser.Tree.CounterUpdate
+instance GHC.Show.Show Parser.Tree.Block
+instance GHC.Show.Show Parser.Tree.Statement
+instance GHC.Show.Show Parser.Tree.MethodDecl
+instance GHC.Show.Show Parser.Tree.Program
+
 module Lexer.Lex
 newtype Alex a
 Alex :: (AlexState -> Either String (AlexState, a)) -> Alex a
@@ -209,7 +353,7 @@ instance GHC.Base.Monad Lexer.Lex.Alex
 
 module Lexer
 
--- | A token.
+-- | Lexer tokens.
 data Token
 Keyword :: !Text -> Token
 Identifier :: !Text -> Token
@@ -245,280 +389,394 @@ formatTokenOrError :: Either String (Located Token) -> Either String String
 alexMonadScan :: Alex (Located Token)
 runAlex :: ByteString -> Alex a -> Either String a
 
-module Parser.Parser
-parse :: ByteString -> Either String Program
-data Program
-Program :: [Located ImportDecl] -> [Located FieldDecl] -> [Located MethodDecl] -> Program
-[$sel:importDecls:Program] :: Program -> [Located ImportDecl]
-[$sel:fieldDecls:Program] :: Program -> [Located FieldDecl]
-[$sel:methodDecls:Program] :: Program -> [Located MethodDecl]
-data ImportDecl
-ImportDecl :: Text -> ImportDecl
-[$sel:importId:ImportDecl] :: ImportDecl -> Text
-data FieldDecl
-FieldDecl :: Type -> [Located FieldElem] -> FieldDecl
-[$sel:fieldType:FieldDecl] :: FieldDecl -> Type
-[$sel:elems:FieldDecl] :: FieldDecl -> [Located FieldElem]
-data MethodDecl
-MethodDecl :: Text -> Maybe Type -> [Located Argument] -> Block -> MethodDecl
-[$sel:methodId:MethodDecl] :: MethodDecl -> Text
-[$sel:returnType:MethodDecl] :: MethodDecl -> Maybe Type
-[$sel:arguments:MethodDecl] :: MethodDecl -> [Located Argument]
-[$sel:block:MethodDecl] :: MethodDecl -> Block
-data FieldElem
-ScalarField :: Text -> FieldElem
-[$sel:fieldId:ScalarField] :: FieldElem -> Text
-VectorField :: Text -> Text -> FieldElem
-[$sel:fieldId:ScalarField] :: FieldElem -> Text
-[$sel:size:ScalarField] :: FieldElem -> Text
-data Type
-IntType :: Type
-BoolType :: Type
-data Argument
-Argument :: Text -> Type -> Argument
-[$sel:argumentId:Argument] :: Argument -> Text
-[$sel:argumentType:Argument] :: Argument -> Type
-data Block
-Block :: [Located FieldDecl] -> [Located Statement] -> Block
-[$sel:blockFieldDecls:Block] :: Block -> [Located FieldDecl]
-[$sel:blockStatements:Block] :: Block -> [Located Statement]
-data Statement
-AssignStatement :: Location -> AssignExpr -> Statement
-[$sel:assignLocation:AssignStatement] :: Statement -> Location
-[$sel:assignExpr:AssignStatement] :: Statement -> AssignExpr
-MethodCallStatement :: MethodCall -> Statement
-[$sel:methodCallStatement:AssignStatement] :: Statement -> MethodCall
-IfStatement :: Located Expr -> Block -> Statement
-[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:ifBlock:AssignStatement] :: Statement -> Block
-IfElseStatement :: Located Expr -> Block -> Block -> Statement
-[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:ifBlock:AssignStatement] :: Statement -> Block
-[$sel:elseBlock:AssignStatement] :: Statement -> Block
-ForStatement :: Text -> Located Expr -> Located Expr -> CounterUpdate -> Block -> Statement
-[$sel:counterId:AssignStatement] :: Statement -> Text
-[$sel:counterExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:forPredExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:counterUpdate:AssignStatement] :: Statement -> CounterUpdate
-[$sel:forBlock:AssignStatement] :: Statement -> Block
-WhileStatement :: Located Expr -> Block -> Statement
-[$sel:whileExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:whileBlock:AssignStatement] :: Statement -> Block
-ReturnVoidStatement :: Statement
-ReturnExprStatement :: Located Expr -> Statement
-[$sel:returnExpr:AssignStatement] :: Statement -> Located Expr
-BreakStatement :: Statement
-ContinueStatement :: Statement
-ErrorStatement :: Statement
-data Location
-ScalarLocation :: Text -> Location
-[$sel:locationId:ScalarLocation] :: Location -> Text
-VectorLocation :: Text -> Located Expr -> Location
-[$sel:locationId:ScalarLocation] :: Location -> Text
-[$sel:arrayIndexExpr:ScalarLocation] :: Location -> Located Expr
-data AssignExpr
-AssignExpr :: Text -> Located Expr -> AssignExpr
-[$sel:assignOp:AssignExpr] :: AssignExpr -> Text
-[$sel:assignSourceExpr:AssignExpr] :: AssignExpr -> Located Expr
-IncrementExpr :: Text -> AssignExpr
-[$sel:incrementOp:AssignExpr] :: AssignExpr -> Text
-data MethodCall
-MethodCall :: Text -> [Located ImportArg] -> MethodCall
-[$sel:methodName:MethodCall] :: MethodCall -> Text
-[$sel:importArguments:MethodCall] :: MethodCall -> [Located ImportArg]
-data ImportArg
-ExprImportArg :: Located Expr -> ImportArg
-[$sel:argumentExpr:ExprImportArg] :: ImportArg -> Located Expr
-StringImportArg :: Text -> ImportArg
-[$sel:argumentString:ExprImportArg] :: ImportArg -> Text
-data CounterUpdate
-CounterUpdate :: Location -> AssignExpr -> CounterUpdate
-[$sel:counterLocation:CounterUpdate] :: CounterUpdate -> Location
-[$sel:updateExpr:CounterUpdate] :: CounterUpdate -> AssignExpr
-data Expr
-LocationExpr :: Location -> Expr
-[$sel:location:LocationExpr] :: Expr -> Location
-MethodCallExpr :: MethodCall -> Expr
-[$sel:methodCallExpr:LocationExpr] :: Expr -> MethodCall
-IntLiteralExpr :: Text -> Expr
-[$sel:intLiteral:LocationExpr] :: Expr -> Text
-CharLiteralExpr :: Text -> Expr
-[$sel:charLiteral:LocationExpr] :: Expr -> Text
-BoolLiteralExpr :: Text -> Expr
-[$sel:boolLiteral:LocationExpr] :: Expr -> Text
-LenExpr :: Text -> Expr
-[$sel:lenId:LocationExpr] :: Expr -> Text
-ArithOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:arithOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-RelOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:relOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-EqOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:eqOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-CondOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:condOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-NegativeExpr :: Located Expr -> Expr
-[$sel:negativeExpr:LocationExpr] :: Expr -> Located Expr
-NegateExpr :: Located Expr -> Expr
-[$sel:negateExpr:LocationExpr] :: Expr -> Located Expr
-ParenExpr :: Located Expr -> Expr
-[$sel:parenExpr:LocationExpr] :: Expr -> Located Expr
-ChoiceExpr :: Located Expr -> Located Expr -> Located Expr -> Expr
-[$sel:choicePredExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-instance GHC.Show.Show Parser.Parser.ImportDecl
-instance GHC.Show.Show Parser.Parser.FieldElem
-instance GHC.Show.Show Parser.Parser.Type
-instance GHC.Show.Show Parser.Parser.FieldDecl
-instance GHC.Show.Show Parser.Parser.Argument
-instance GHC.Show.Show Parser.Parser.Location
-instance GHC.Show.Show Parser.Parser.ImportArg
-instance GHC.Show.Show Parser.Parser.MethodCall
-instance GHC.Show.Show Parser.Parser.Expr
-instance GHC.Show.Show Parser.Parser.AssignExpr
-instance GHC.Show.Show Parser.Parser.CounterUpdate
-instance GHC.Show.Show Parser.Parser.Block
-instance GHC.Show.Show Parser.Parser.Statement
-instance GHC.Show.Show Parser.Parser.MethodDecl
-instance GHC.Show.Show Parser.Parser.Program
+module Parser.Helper
+getID :: Token -> Text
+getLiteral :: Token -> Text
+getOp :: Token -> Text
+unionOf :: Located a -> Located b -> Range
+lexerwrap :: (Located Token -> Alex a) -> Alex a
+parseError :: Located Token -> Alex a
+
+module Parser.Grammar
+newtype HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+HappyAbsSyn :: HappyAny -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+type HappyAny = Any
+happyIn4 :: t4 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut4 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t4
+happyIn5 :: t5 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut5 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t5
+happyIn6 :: t6 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut6 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t6
+happyIn7 :: t7 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut7 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t7
+happyIn8 :: t8 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut8 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t8
+happyIn9 :: t9 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut9 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t9
+happyIn10 :: t10 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut10 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t10
+happyIn11 :: t11 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut11 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t11
+happyIn12 :: t12 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut12 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t12
+happyIn13 :: t13 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut13 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t13
+happyIn14 :: t14 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut14 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t14
+happyIn15 :: t15 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut15 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t15
+happyIn16 :: t16 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut16 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t16
+happyIn17 :: t17 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut17 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t17
+happyIn18 :: t18 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut18 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t18
+happyIn19 :: t19 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut19 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t19
+happyIn20 :: t20 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut20 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t20
+happyIn21 :: t21 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut21 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t21
+happyIn22 :: t22 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut22 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t22
+happyIn23 :: t23 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut23 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t23
+happyIn24 :: t24 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut24 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t24
+happyIn25 :: t25 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut25 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t25
+happyIn26 :: t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOut26 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> t26
+happyInTok :: Located Token -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyOutTok :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> Located Token
+happyExpList :: HappyAddr
+happyExpListPerState :: IsString b => Int -> [b]
+happyActOffsets :: HappyAddr
+happyGotoOffsets :: HappyAddr
+happyAdjustOffset :: Int# -> Int#
+happyDefActions :: HappyAddr
+happyCheck :: HappyAddr
+happyTable :: HappyAddr
+happy_n_terms :: Int
+happy_n_nonterms :: Int
+happyReduce_1 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_1 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 [Located MethodDecl] t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 [Located FieldDecl] t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 [Located ImportDecl] t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn Program t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_2 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_2 :: HappyAbsSyn t4 [a] t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_3 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_3 :: HappyAbsSyn t4 t5 a t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 [a] t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 [a] t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_4 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_4 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 (Located ImportDecl) t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_5 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_5 :: HappyAbsSyn t4 t5 t6 [a] t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_6 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_6 :: HappyAbsSyn t4 t5 t6 t7 a t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 [a] t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 [a] t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_7 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_7 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 [Located FieldElem] t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 (Located FieldDecl) t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_8 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_8 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 [Located FieldElem] t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 (Located FieldDecl) t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_9 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_9 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 a t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 [a] t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_10 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_10 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 a t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> p -> HappyAbsSyn t4 t5 t6 t7 t8 [a] t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 [a] t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_11 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_11 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 (Located FieldElem) t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_12 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_12 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 (Located FieldElem) t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 (Located FieldElem) t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_13 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_13 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 [a] t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_14 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_14 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 [a] t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 a t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 [a] t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_15 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_15 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_16 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_16 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_17 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_17 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) [Located Argument] t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_18 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_18 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_19 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_19 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_20 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_20 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 (Located MethodDecl) t13 t14 (Located Block) t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_21 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_21 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 a t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 [a] t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_22 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_22 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 a t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 [a] t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 [a] t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_23 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_23 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 (Located Argument) t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_24 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_24 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 (Located Argument) t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_25 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_25 :: HappyStk (HappyAbsSyn t4 t5 t6 [Located FieldDecl] t8 t9 t10 t11 t12 t13 t14 (Located Block) [Located Statement] t17 t18 t19 t20 t21 t22 t23 t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 [Located FieldDecl] t8 t9 t10 t11 t12 t13 t14 (Located Block) [Located Statement] t17 t18 t19 t20 t21 t22 t23 t24 t25 t26)
+happyReduce_26 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_26 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 [a] t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_27 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_27 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 a t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 [a] t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 [a] t17 t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_28 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_28 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 (Located AssignExpr) t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_29 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_29 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 (Located MethodCall) t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_30 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_30 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26)
+happyReduce_31 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_31 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26)
+happyReduce_32 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_32 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) (Located CounterUpdate) t19 t20 t21 t22 t23 t24 (Located Expr) t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) (Located CounterUpdate) t19 t20 t21 t22 t23 t24 (Located Expr) t26)
+happyReduce_33 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_33 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 (Located Block) t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26)
+happyReduce_34 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_34 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_35 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_35 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_36 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_36 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_37 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_37 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 (Located Statement) t18 t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_38 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_38 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 (Located AssignExpr) t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 (Located CounterUpdate) t19 t20 t21 t22 t23 t24 t25 t26
+happyReduce_39 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_39 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 t25 t26
+happyReduce_40 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_40 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 (Located Expr) t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 (Located Expr) t26)
+happyReduce_41 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_41 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 (Located Text) t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 (Located AssignExpr) t21 t22 t23 t24 t25 t26
+happyReduce_42 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_42 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 (Located AssignExpr) t21 t22 t23 t24 t25 t26
+happyReduce_43 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_43 :: IsString a => HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 (Located a) t22 t23 t24 t25 t26
+happyReduce_44 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_44 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 (Located Text) t22 t23 t24 t25 t26
+happyReduce_45 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_45 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 (Located MethodCall) [Located ImportArg] t24 t25 t26) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 (Located MethodCall) [Located ImportArg] t24 t25 t26)
+happyReduce_46 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_46 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 (Located MethodCall) t23 t24 t25 t26
+happyReduce_47 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_47 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 a t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 [a] t24 t25 t26
+happyReduce_48 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_48 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 a t25 t26 -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 [a] t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 [a] t24 t25 t26
+happyReduce_49 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_49 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 (Located ImportArg) t25 t26
+happyReduce_50 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_50 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 (Located ImportArg) t25 t26
+happyReduce_51 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_51 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located a) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located a) t26
+happyReduce_52 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_52 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) (Located Expr)) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) (Located Expr))
+happyReduce_53 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_53 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 (Located Location) t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_54 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_54 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 (Located MethodCall) t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_55 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_55 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_56 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_56 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_57 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_57 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_58 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_58 :: HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)) -> HappyStk (HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr))
+happyReduce_59 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_59 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_60 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_60 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_61 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_61 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_62 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_62 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_63 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_63 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_64 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_64 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_65 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_65 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_66 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_66 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_67 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_67 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_68 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_68 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_69 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_69 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_70 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_70 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_71 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_71 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> p -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_72 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_72 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_73 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_73 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr) -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyReduce_74 :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduction_74 :: HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 (Located Expr) t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 t26 -> HappyAbsSyn t4 t5 t6 t7 t8 t9 t10 t11 t12 t13 t14 t15 t16 t17 t18 t19 t20 t21 t22 t23 t24 t25 (Located Expr)
+happyError_ :: [String] -> Int# -> Located Token -> Alex a
+happyThen :: () => Alex a -> (a -> Alex b) -> Alex b
+happyReturn :: () => a -> Alex a
+happyParse :: () => Int# -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyNewToken :: () => Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyDoAction :: () => Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+happyReduceArr :: () => Array Int (Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _) -> Alex (HappyAbsSyn _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _))
+happyThen1 :: () => Alex a -> (a -> Alex b) -> Alex b
+happyReturn1 :: () => a -> Alex a
+happyError' :: () => (Located Token, [String]) -> Alex a
+parseInternal :: Alex Program
+happySeq :: a -> b -> b
+data Happy_IntList
+HappyCons :: Int# -> Happy_IntList -> Happy_IntList
+data HappyStk a
+HappyStk :: a -> HappyStk a -> HappyStk a
+infixr 9 `HappyStk`
+infixr 9 `HappyStk`
+happyAccept :: Int# -> p -> Int# -> p -> HappyStk a -> Alex a
+indexShortOffAddr :: HappyAddr -> Int# -> Int#
+happyLt :: Int# -> Int# -> Bool
+readArrayBit :: HappyAddr -> Int -> Bool
+data HappyAddr
+HappyA# :: Addr# -> HappyAddr
+happyShift :: Int# -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happySpecReduce_0 :: Int# -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happySpecReduce_1 :: Int# -> (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happySpecReduce_2 :: Int# -> (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happySpecReduce_3 :: Int# -> (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr) -> HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happyReduce :: Int# -> Int# -> (HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happyMonadReduce :: Int# -> Int# -> (HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Located Token -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happyMonad2Reduce :: Int# -> Int# -> (HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Located Token -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))) -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happyDrop :: Int# -> Happy_IntList -> Happy_IntList
+happyDropStk :: Int# -> HappyStk a -> HappyStk a
+happyGoto :: Int# -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+happyFail :: [String] -> Int# -> Located Token -> Int# -> Happy_IntList -> HappyStk (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr)) -> Alex (HappyAbsSyn Program [Located ImportDecl] (Located ImportDecl) [Located FieldDecl] (Located FieldDecl) [Located FieldElem] (Located FieldElem) [Located MethodDecl] (Located MethodDecl) [Located Argument] (Located Argument) (Located Block) [Located Statement] (Located Statement) (Located CounterUpdate) (Located Location) (Located AssignExpr) (Located Text) (Located MethodCall) [Located ImportArg] (Located ImportArg) (Located Expr) (Located Expr))
+notHappyAtAll :: a
+happyTcHack :: Int# -> a -> a
+happyDoSeq :: a -> b -> b
+happyDontSeq :: a -> b -> b
 
 module Parser
 parse :: ByteString -> Either String Program
 data Program
-Program :: [Located ImportDecl] -> [Located FieldDecl] -> [Located MethodDecl] -> Program
-[$sel:importDecls:Program] :: Program -> [Located ImportDecl]
-[$sel:fieldDecls:Program] :: Program -> [Located FieldDecl]
-[$sel:methodDecls:Program] :: Program -> [Located MethodDecl]
+Program :: ![Located ImportDecl] -> ![Located FieldDecl] -> ![Located MethodDecl] -> Program
+[$sel:importDecls:Program] :: Program -> ![Located ImportDecl]
+[$sel:fieldDecls:Program] :: Program -> ![Located FieldDecl]
+[$sel:methodDecls:Program] :: Program -> ![Located MethodDecl]
 data ImportDecl
-ImportDecl :: Text -> ImportDecl
-[$sel:importId:ImportDecl] :: ImportDecl -> Text
+ImportDecl :: !Text -> ImportDecl
+[$sel:importId:ImportDecl] :: ImportDecl -> !Text
 data FieldDecl
-FieldDecl :: Type -> [Located FieldElem] -> FieldDecl
-[$sel:fieldType:FieldDecl] :: FieldDecl -> Type
-[$sel:elems:FieldDecl] :: FieldDecl -> [Located FieldElem]
+FieldDecl :: !Type -> ![Located FieldElem] -> FieldDecl
+[$sel:fieldType:FieldDecl] :: FieldDecl -> !Type
+[$sel:elems:FieldDecl] :: FieldDecl -> ![Located FieldElem]
 data MethodDecl
-MethodDecl :: Text -> Maybe Type -> [Located Argument] -> Block -> MethodDecl
-[$sel:methodId:MethodDecl] :: MethodDecl -> Text
-[$sel:returnType:MethodDecl] :: MethodDecl -> Maybe Type
-[$sel:arguments:MethodDecl] :: MethodDecl -> [Located Argument]
-[$sel:block:MethodDecl] :: MethodDecl -> Block
+MethodDecl :: !Text -> !Maybe Type -> ![Located Argument] -> !Block -> MethodDecl
+[$sel:methodId:MethodDecl] :: MethodDecl -> !Text
+[$sel:returnType:MethodDecl] :: MethodDecl -> !Maybe Type
+[$sel:arguments:MethodDecl] :: MethodDecl -> ![Located Argument]
+[$sel:block:MethodDecl] :: MethodDecl -> !Block
 data FieldElem
-ScalarField :: Text -> FieldElem
-[$sel:fieldId:ScalarField] :: FieldElem -> Text
-VectorField :: Text -> Text -> FieldElem
-[$sel:fieldId:ScalarField] :: FieldElem -> Text
-[$sel:size:ScalarField] :: FieldElem -> Text
+ScalarField :: !Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> !Text
+VectorField :: !Text -> !Text -> FieldElem
+[$sel:fieldId:ScalarField] :: FieldElem -> !Text
+[$sel:size:ScalarField] :: FieldElem -> !Text
 data Type
 IntType :: Type
 BoolType :: Type
 data Argument
-Argument :: Text -> Type -> Argument
-[$sel:argumentId:Argument] :: Argument -> Text
-[$sel:argumentType:Argument] :: Argument -> Type
+Argument :: !Text -> !Type -> Argument
+[$sel:argumentId:Argument] :: Argument -> !Text
+[$sel:argumentType:Argument] :: Argument -> !Type
 data Block
-Block :: [Located FieldDecl] -> [Located Statement] -> Block
-[$sel:blockFieldDecls:Block] :: Block -> [Located FieldDecl]
-[$sel:blockStatements:Block] :: Block -> [Located Statement]
+Block :: ![Located FieldDecl] -> ![Located Statement] -> Block
+[$sel:blockFieldDecls:Block] :: Block -> ![Located FieldDecl]
+[$sel:blockStatements:Block] :: Block -> ![Located Statement]
 data Statement
-AssignStatement :: Location -> AssignExpr -> Statement
-[$sel:assignLocation:AssignStatement] :: Statement -> Location
-[$sel:assignExpr:AssignStatement] :: Statement -> AssignExpr
-MethodCallStatement :: MethodCall -> Statement
-[$sel:methodCallStatement:AssignStatement] :: Statement -> MethodCall
-IfStatement :: Located Expr -> Block -> Statement
-[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:ifBlock:AssignStatement] :: Statement -> Block
-IfElseStatement :: Located Expr -> Block -> Block -> Statement
-[$sel:ifExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:ifBlock:AssignStatement] :: Statement -> Block
-[$sel:elseBlock:AssignStatement] :: Statement -> Block
-ForStatement :: Text -> Located Expr -> Located Expr -> CounterUpdate -> Block -> Statement
-[$sel:counterId:AssignStatement] :: Statement -> Text
-[$sel:counterExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:forPredExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:counterUpdate:AssignStatement] :: Statement -> CounterUpdate
-[$sel:forBlock:AssignStatement] :: Statement -> Block
-WhileStatement :: Located Expr -> Block -> Statement
-[$sel:whileExpr:AssignStatement] :: Statement -> Located Expr
-[$sel:whileBlock:AssignStatement] :: Statement -> Block
+AssignStatement :: !Location -> !AssignExpr -> Statement
+[$sel:assignLocation:AssignStatement] :: Statement -> !Location
+[$sel:assignExpr:AssignStatement] :: Statement -> !AssignExpr
+MethodCallStatement :: !MethodCall -> Statement
+[$sel:methodCallStatement:AssignStatement] :: Statement -> !MethodCall
+IfStatement :: !Located Expr -> !Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> !Block
+IfElseStatement :: !Located Expr -> !Block -> !Block -> Statement
+[$sel:ifExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:ifBlock:AssignStatement] :: Statement -> !Block
+[$sel:elseBlock:AssignStatement] :: Statement -> !Block
+ForStatement :: !Text -> !Located Expr -> !Located Expr -> !CounterUpdate -> !Block -> Statement
+[$sel:counterId:AssignStatement] :: Statement -> !Text
+[$sel:counterExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:forPredExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:counterUpdate:AssignStatement] :: Statement -> !CounterUpdate
+[$sel:forBlock:AssignStatement] :: Statement -> !Block
+WhileStatement :: !Located Expr -> !Block -> Statement
+[$sel:whileExpr:AssignStatement] :: Statement -> !Located Expr
+[$sel:whileBlock:AssignStatement] :: Statement -> !Block
 ReturnVoidStatement :: Statement
-ReturnExprStatement :: Located Expr -> Statement
-[$sel:returnExpr:AssignStatement] :: Statement -> Located Expr
+ReturnExprStatement :: !Located Expr -> Statement
+[$sel:returnExpr:AssignStatement] :: Statement -> !Located Expr
 BreakStatement :: Statement
 ContinueStatement :: Statement
 ErrorStatement :: Statement
 data Location
-ScalarLocation :: Text -> Location
-[$sel:locationId:ScalarLocation] :: Location -> Text
-VectorLocation :: Text -> Located Expr -> Location
-[$sel:locationId:ScalarLocation] :: Location -> Text
-[$sel:arrayIndexExpr:ScalarLocation] :: Location -> Located Expr
+ScalarLocation :: !Text -> Location
+[$sel:locationId:ScalarLocation] :: Location -> !Text
+VectorLocation :: !Text -> !Located Expr -> Location
+[$sel:locationId:ScalarLocation] :: Location -> !Text
+[$sel:arrayIndexExpr:ScalarLocation] :: Location -> !Located Expr
 data AssignExpr
-AssignExpr :: Text -> Located Expr -> AssignExpr
-[$sel:assignOp:AssignExpr] :: AssignExpr -> Text
-[$sel:assignSourceExpr:AssignExpr] :: AssignExpr -> Located Expr
-IncrementExpr :: Text -> AssignExpr
-[$sel:incrementOp:AssignExpr] :: AssignExpr -> Text
+AssignExpr :: !Text -> !Located Expr -> AssignExpr
+[$sel:assignOp:AssignExpr] :: AssignExpr -> !Text
+[$sel:assignSourceExpr:AssignExpr] :: AssignExpr -> !Located Expr
+IncrementExpr :: !Text -> AssignExpr
+[$sel:incrementOp:AssignExpr] :: AssignExpr -> !Text
 data MethodCall
-MethodCall :: Text -> [Located ImportArg] -> MethodCall
-[$sel:methodName:MethodCall] :: MethodCall -> Text
-[$sel:importArguments:MethodCall] :: MethodCall -> [Located ImportArg]
+MethodCall :: !Text -> ![Located ImportArg] -> MethodCall
+[$sel:methodName:MethodCall] :: MethodCall -> !Text
+[$sel:importArguments:MethodCall] :: MethodCall -> ![Located ImportArg]
 data ImportArg
-ExprImportArg :: Located Expr -> ImportArg
-[$sel:argumentExpr:ExprImportArg] :: ImportArg -> Located Expr
-StringImportArg :: Text -> ImportArg
-[$sel:argumentString:ExprImportArg] :: ImportArg -> Text
+ExprImportArg :: !Located Expr -> ImportArg
+[$sel:argumentExpr:ExprImportArg] :: ImportArg -> !Located Expr
+StringImportArg :: !Text -> ImportArg
+[$sel:argumentString:ExprImportArg] :: ImportArg -> !Text
 data CounterUpdate
-CounterUpdate :: Location -> AssignExpr -> CounterUpdate
-[$sel:counterLocation:CounterUpdate] :: CounterUpdate -> Location
-[$sel:updateExpr:CounterUpdate] :: CounterUpdate -> AssignExpr
+CounterUpdate :: !Location -> !AssignExpr -> CounterUpdate
+[$sel:counterLocation:CounterUpdate] :: CounterUpdate -> !Location
+[$sel:updateExpr:CounterUpdate] :: CounterUpdate -> !AssignExpr
 data Expr
-LocationExpr :: Location -> Expr
-[$sel:location:LocationExpr] :: Expr -> Location
-MethodCallExpr :: MethodCall -> Expr
-[$sel:methodCallExpr:LocationExpr] :: Expr -> MethodCall
-IntLiteralExpr :: Text -> Expr
-[$sel:intLiteral:LocationExpr] :: Expr -> Text
-CharLiteralExpr :: Text -> Expr
-[$sel:charLiteral:LocationExpr] :: Expr -> Text
-BoolLiteralExpr :: Text -> Expr
-[$sel:boolLiteral:LocationExpr] :: Expr -> Text
-LenExpr :: Text -> Expr
-[$sel:lenId:LocationExpr] :: Expr -> Text
-ArithOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:arithOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-RelOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:relOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-EqOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:eqOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-CondOpExpr :: Text -> Located Expr -> Located Expr -> Expr
-[$sel:condOp:LocationExpr] :: Expr -> Text
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
-NegativeExpr :: Located Expr -> Expr
-[$sel:negativeExpr:LocationExpr] :: Expr -> Located Expr
-NegateExpr :: Located Expr -> Expr
-[$sel:negateExpr:LocationExpr] :: Expr -> Located Expr
-ParenExpr :: Located Expr -> Expr
-[$sel:parenExpr:LocationExpr] :: Expr -> Located Expr
-ChoiceExpr :: Located Expr -> Located Expr -> Located Expr -> Expr
-[$sel:choicePredExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:lExpr:LocationExpr] :: Expr -> Located Expr
-[$sel:rExpr:LocationExpr] :: Expr -> Located Expr
+LocationExpr :: !Location -> Expr
+[$sel:location:LocationExpr] :: Expr -> !Location
+MethodCallExpr :: !MethodCall -> Expr
+[$sel:methodCallExpr:LocationExpr] :: Expr -> !MethodCall
+IntLiteralExpr :: !Text -> Expr
+[$sel:intLiteral:LocationExpr] :: Expr -> !Text
+CharLiteralExpr :: !Text -> Expr
+[$sel:charLiteral:LocationExpr] :: Expr -> !Text
+BoolLiteralExpr :: !Text -> Expr
+[$sel:boolLiteral:LocationExpr] :: Expr -> !Text
+LenExpr :: !Text -> Expr
+[$sel:lenId:LocationExpr] :: Expr -> !Text
+ArithOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:arithOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+RelOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:relOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+EqOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:eqOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+CondOpExpr :: !Text -> !Located Expr -> !Located Expr -> Expr
+[$sel:condOp:LocationExpr] :: Expr -> !Text
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
+NegativeExpr :: !Located Expr -> Expr
+[$sel:negativeExpr:LocationExpr] :: Expr -> !Located Expr
+NegateExpr :: !Located Expr -> Expr
+[$sel:negateExpr:LocationExpr] :: Expr -> !Located Expr
+ParenExpr :: !Located Expr -> Expr
+[$sel:parenExpr:LocationExpr] :: Expr -> !Located Expr
+ChoiceExpr :: !Located Expr -> !Located Expr -> !Located Expr -> Expr
+[$sel:choicePredExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
+[$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
 
 module AST
 data RelOp
@@ -566,138 +824,138 @@ parseNegOp :: Text -> NegOp
 parseNotOp :: Text -> NotOp
 parseAssignOp :: Text -> AssignOp
 data Location
-Location :: Name -> Maybe Expr -> Either Argument FieldDecl -> Type -> Range -> Location
-[$sel:name:Location] :: Location -> Name
-[$sel:idx:Location] :: Location -> Maybe Expr
-[$sel:variableDef:Location] :: Location -> Either Argument FieldDecl
-[$sel:tpe:Location] :: Location -> Type
-[$sel:loc:Location] :: Location -> Range
+Location :: !Name -> !Maybe Expr -> !Either Argument FieldDecl -> !Type -> !Range -> Location
+[$sel:name:Location] :: Location -> !Name
+[$sel:idx:Location] :: Location -> !Maybe Expr
+[$sel:variableDef:Location] :: Location -> !Either Argument FieldDecl
+[$sel:tpe:Location] :: Location -> !Type
+[$sel:loc:Location] :: Location -> !Range
 typeOfDef :: Either Argument FieldDecl -> Type
 data Assignment
-Assignment :: Location -> AssignOp -> Maybe Expr -> Range -> Assignment
-[$sel:location:Assignment] :: Assignment -> Location
-[$sel:op:Assignment] :: Assignment -> AssignOp
-[$sel:expr:Assignment] :: Assignment -> Maybe Expr
-[$sel:loc:Assignment] :: Assignment -> Range
+Assignment :: !Location -> !AssignOp -> !Maybe Expr -> !Range -> Assignment
+[$sel:location:Assignment] :: Assignment -> !Location
+[$sel:op:Assignment] :: Assignment -> !AssignOp
+[$sel:expr:Assignment] :: Assignment -> !Maybe Expr
+[$sel:loc:Assignment] :: Assignment -> !Range
 data MethodCall
-MethodCall :: Name -> [Expr] -> Range -> MethodCall
-[$sel:name:MethodCall] :: MethodCall -> Name
-[$sel:args:MethodCall] :: MethodCall -> [Expr]
-[$sel:loc:MethodCall] :: MethodCall -> Range
+MethodCall :: !Name -> ![Expr] -> !Range -> MethodCall
+[$sel:name:MethodCall] :: MethodCall -> !Name
+[$sel:args:MethodCall] :: MethodCall -> ![Expr]
+[$sel:loc:MethodCall] :: MethodCall -> !Range
 data ASTRoot
-ASTRoot :: [ImportDecl] -> [FieldDecl] -> [MethodDecl] -> ASTRoot
-[$sel:imports:ASTRoot] :: ASTRoot -> [ImportDecl]
-[$sel:vars:ASTRoot] :: ASTRoot -> [FieldDecl]
-[$sel:methods:ASTRoot] :: ASTRoot -> [MethodDecl]
+ASTRoot :: ![ImportDecl] -> ![FieldDecl] -> ![MethodDecl] -> ASTRoot
+[$sel:imports:ASTRoot] :: ASTRoot -> ![ImportDecl]
+[$sel:vars:ASTRoot] :: ASTRoot -> ![FieldDecl]
+[$sel:methods:ASTRoot] :: ASTRoot -> ![MethodDecl]
 data ImportDecl
-ImportDecl :: Name -> Range -> ImportDecl
-[$sel:name:ImportDecl] :: ImportDecl -> Name
-[$sel:loc:ImportDecl] :: ImportDecl -> Range
+ImportDecl :: !Name -> !Range -> ImportDecl
+[$sel:name:ImportDecl] :: ImportDecl -> !Name
+[$sel:loc:ImportDecl] :: ImportDecl -> !Range
 data FieldDecl
-FieldDecl :: Name -> Type -> Range -> FieldDecl
-[$sel:name:FieldDecl] :: FieldDecl -> Name
-[$sel:tpe:FieldDecl] :: FieldDecl -> Type
-[$sel:loc:FieldDecl] :: FieldDecl -> Range
+FieldDecl :: !Name -> !Type -> !Range -> FieldDecl
+[$sel:name:FieldDecl] :: FieldDecl -> !Name
+[$sel:tpe:FieldDecl] :: FieldDecl -> !Type
+[$sel:loc:FieldDecl] :: FieldDecl -> !Range
 data Argument
-Argument :: Name -> Type -> Range -> Argument
-[$sel:name:Argument] :: Argument -> Name
-[$sel:tpe:Argument] :: Argument -> Type
-[$sel:loc:Argument] :: Argument -> Range
+Argument :: !Name -> !Type -> !Range -> Argument
+[$sel:name:Argument] :: Argument -> !Name
+[$sel:tpe:Argument] :: Argument -> !Type
+[$sel:loc:Argument] :: Argument -> !Range
 data MethodSig
-MethodSig :: Name -> Maybe Type -> [Argument] -> MethodSig
-[$sel:name:MethodSig] :: MethodSig -> Name
-[$sel:tpe:MethodSig] :: MethodSig -> Maybe Type
-[$sel:args:MethodSig] :: MethodSig -> [Argument]
+MethodSig :: !Name -> !Maybe Type -> ![Argument] -> MethodSig
+[$sel:name:MethodSig] :: MethodSig -> !Name
+[$sel:tpe:MethodSig] :: MethodSig -> !Maybe Type
+[$sel:args:MethodSig] :: MethodSig -> ![Argument]
 data MethodDecl
-MethodDecl :: MethodSig -> Block -> Range -> MethodDecl
-[$sel:sig:MethodDecl] :: MethodDecl -> MethodSig
-[$sel:block:MethodDecl] :: MethodDecl -> Block
-[$sel:loc:MethodDecl] :: MethodDecl -> Range
+MethodDecl :: !MethodSig -> !Block -> !Range -> MethodDecl
+[$sel:sig:MethodDecl] :: MethodDecl -> !MethodSig
+[$sel:block:MethodDecl] :: MethodDecl -> !Block
+[$sel:loc:MethodDecl] :: MethodDecl -> !Range
 data Statement
-Statement :: Statement_ -> Range -> Statement
-[$sel:statement_:Statement] :: Statement -> Statement_
-[$sel:loc:Statement] :: Statement -> Range
+Statement :: !Statement_ -> !Range -> Statement
+[$sel:statement_:Statement] :: Statement -> !Statement_
+[$sel:loc:Statement] :: Statement -> !Range
 data Statement_
-AssignStmt :: Assignment -> Statement_
-[$sel:assign:AssignStmt] :: Statement_ -> Assignment
-IfStmt :: Expr -> Block -> Maybe Block -> Statement_
-[$sel:pred:AssignStmt] :: Statement_ -> Expr
-[$sel:ifBlock:AssignStmt] :: Statement_ -> Block
-[$sel:elseBlock:AssignStmt] :: Statement_ -> Maybe Block
-ForStmt :: Name -> Expr -> Expr -> Assignment -> Block -> Statement_
-[$sel:counter:AssignStmt] :: Statement_ -> Name
-[$sel:initCounter:AssignStmt] :: Statement_ -> Expr
-[$sel:pred:AssignStmt] :: Statement_ -> Expr
-[$sel:update:AssignStmt] :: Statement_ -> Assignment
-[$sel:block:AssignStmt] :: Statement_ -> Block
-WhileStmt :: Expr -> Block -> Statement_
-[$sel:pred:AssignStmt] :: Statement_ -> Expr
-[$sel:block:AssignStmt] :: Statement_ -> Block
-ReturnStmt :: Maybe Expr -> Statement_
-[$sel:expr:AssignStmt] :: Statement_ -> Maybe Expr
-MethodCallStmt :: MethodCall -> Statement_
-[$sel:methodCall:AssignStmt] :: Statement_ -> MethodCall
+AssignStmt :: !Assignment -> Statement_
+[$sel:assign:AssignStmt] :: Statement_ -> !Assignment
+IfStmt :: !Expr -> !Block -> !Maybe Block -> Statement_
+[$sel:pred:AssignStmt] :: Statement_ -> !Expr
+[$sel:ifBlock:AssignStmt] :: Statement_ -> !Block
+[$sel:elseBlock:AssignStmt] :: Statement_ -> !Maybe Block
+ForStmt :: !Name -> !Expr -> !Expr -> !Assignment -> !Block -> Statement_
+[$sel:counter:AssignStmt] :: Statement_ -> !Name
+[$sel:initCounter:AssignStmt] :: Statement_ -> !Expr
+[$sel:pred:AssignStmt] :: Statement_ -> !Expr
+[$sel:update:AssignStmt] :: Statement_ -> !Assignment
+[$sel:block:AssignStmt] :: Statement_ -> !Block
+WhileStmt :: !Expr -> !Block -> Statement_
+[$sel:pred:AssignStmt] :: Statement_ -> !Expr
+[$sel:block:AssignStmt] :: Statement_ -> !Block
+ReturnStmt :: !Maybe Expr -> Statement_
+[$sel:expr:AssignStmt] :: Statement_ -> !Maybe Expr
+MethodCallStmt :: !MethodCall -> Statement_
+[$sel:methodCall:AssignStmt] :: Statement_ -> !MethodCall
 BreakStmt :: Statement_
 ContinueStmt :: Statement_
 data Expr
-Expr :: Expr_ -> Type -> Range -> Expr
-[$sel:expr_:Expr] :: Expr -> Expr_
-[$sel:tpe:Expr] :: Expr -> Type
-[$sel:loc:Expr] :: Expr -> Range
+Expr :: !Expr_ -> !Type -> !Range -> Expr
+[$sel:expr_:Expr] :: Expr -> !Expr_
+[$sel:tpe:Expr] :: Expr -> !Type
+[$sel:loc:Expr] :: Expr -> !Range
 data Expr_
-LocationExpr :: Location -> Expr_
-[$sel:location:LocationExpr] :: Expr_ -> Location
-MethodCallExpr :: MethodCall -> Expr_
-[$sel:methodCall:LocationExpr] :: Expr_ -> MethodCall
-ExternCallExpr :: Name -> [Expr] -> Expr_
-[$sel:name:LocationExpr] :: Expr_ -> Name
-[$sel:args:LocationExpr] :: Expr_ -> [Expr]
-IntLiteralExpr :: Int64 -> Expr_
-[$sel:intVal:LocationExpr] :: Expr_ -> Int64
-BoolLiteralExpr :: Bool -> Expr_
-[$sel:boolVal:LocationExpr] :: Expr_ -> Bool
-CharLiteralExpr :: Char -> Expr_
-[$sel:charVal:LocationExpr] :: Expr_ -> Char
-StringLiteralExpr :: Text -> Expr_
-[$sel:strVal:LocationExpr] :: Expr_ -> Text
-ArithOpExpr :: ArithOp -> Expr -> Expr -> Expr_
-[$sel:arithOp:LocationExpr] :: Expr_ -> ArithOp
-[$sel:lhs:LocationExpr] :: Expr_ -> Expr
-[$sel:rhs:LocationExpr] :: Expr_ -> Expr
-RelOpExpr :: RelOp -> Expr -> Expr -> Expr_
-[$sel:relOp:LocationExpr] :: Expr_ -> RelOp
-[$sel:lhs:LocationExpr] :: Expr_ -> Expr
-[$sel:rhs:LocationExpr] :: Expr_ -> Expr
-CondOpExpr :: CondOp -> Expr -> Expr -> Expr_
-[$sel:condOp:LocationExpr] :: Expr_ -> CondOp
-[$sel:lhs:LocationExpr] :: Expr_ -> Expr
-[$sel:rhs:LocationExpr] :: Expr_ -> Expr
-EqOpExpr :: EqOp -> Expr -> Expr -> Expr_
-[$sel:eqOp:LocationExpr] :: Expr_ -> EqOp
-[$sel:lhs:LocationExpr] :: Expr_ -> Expr
-[$sel:rhs:LocationExpr] :: Expr_ -> Expr
-NegOpExpr :: NegOp -> Expr -> Expr_
-[$sel:negOp:LocationExpr] :: Expr_ -> NegOp
-[$sel:expr:LocationExpr] :: Expr_ -> Expr
-NotOpExpr :: NotOp -> Expr -> Expr_
-[$sel:notOp:LocationExpr] :: Expr_ -> NotOp
-[$sel:expr:LocationExpr] :: Expr_ -> Expr
-ChoiceOpExpr :: ChoiceOp -> Expr -> Expr -> Expr -> Expr_
-[$sel:choiceOp:LocationExpr] :: Expr_ -> ChoiceOp
-[$sel:expr1:LocationExpr] :: Expr_ -> Expr
-[$sel:expr2:LocationExpr] :: Expr_ -> Expr
-[$sel:expr3:LocationExpr] :: Expr_ -> Expr
-LengthExpr :: Name -> Expr_
-[$sel:name:LocationExpr] :: Expr_ -> Name
+LocationExpr :: !Location -> Expr_
+[$sel:location:LocationExpr] :: Expr_ -> !Location
+MethodCallExpr :: !MethodCall -> Expr_
+[$sel:methodCall:LocationExpr] :: Expr_ -> !MethodCall
+ExternCallExpr :: !Name -> ![Expr] -> Expr_
+[$sel:name:LocationExpr] :: Expr_ -> !Name
+[$sel:args:LocationExpr] :: Expr_ -> ![Expr]
+IntLiteralExpr :: !Int64 -> Expr_
+[$sel:intVal:LocationExpr] :: Expr_ -> !Int64
+BoolLiteralExpr :: !Bool -> Expr_
+[$sel:boolVal:LocationExpr] :: Expr_ -> !Bool
+CharLiteralExpr :: !Char -> Expr_
+[$sel:charVal:LocationExpr] :: Expr_ -> !Char
+StringLiteralExpr :: !Text -> Expr_
+[$sel:strVal:LocationExpr] :: Expr_ -> !Text
+ArithOpExpr :: !ArithOp -> !Expr -> !Expr -> Expr_
+[$sel:arithOp:LocationExpr] :: Expr_ -> !ArithOp
+[$sel:lhs:LocationExpr] :: Expr_ -> !Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> !Expr
+RelOpExpr :: !RelOp -> !Expr -> !Expr -> Expr_
+[$sel:relOp:LocationExpr] :: Expr_ -> !RelOp
+[$sel:lhs:LocationExpr] :: Expr_ -> !Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> !Expr
+CondOpExpr :: !CondOp -> !Expr -> !Expr -> Expr_
+[$sel:condOp:LocationExpr] :: Expr_ -> !CondOp
+[$sel:lhs:LocationExpr] :: Expr_ -> !Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> !Expr
+EqOpExpr :: !EqOp -> !Expr -> !Expr -> Expr_
+[$sel:eqOp:LocationExpr] :: Expr_ -> !EqOp
+[$sel:lhs:LocationExpr] :: Expr_ -> !Expr
+[$sel:rhs:LocationExpr] :: Expr_ -> !Expr
+NegOpExpr :: !NegOp -> !Expr -> Expr_
+[$sel:negOp:LocationExpr] :: Expr_ -> !NegOp
+[$sel:expr:LocationExpr] :: Expr_ -> !Expr
+NotOpExpr :: !NotOp -> !Expr -> Expr_
+[$sel:notOp:LocationExpr] :: Expr_ -> !NotOp
+[$sel:expr:LocationExpr] :: Expr_ -> !Expr
+ChoiceOpExpr :: !ChoiceOp -> !Expr -> !Expr -> !Expr -> Expr_
+[$sel:choiceOp:LocationExpr] :: Expr_ -> !ChoiceOp
+[$sel:expr1:LocationExpr] :: Expr_ -> !Expr
+[$sel:expr2:LocationExpr] :: Expr_ -> !Expr
+[$sel:expr3:LocationExpr] :: Expr_ -> !Expr
+LengthExpr :: !Name -> Expr_
+[$sel:name:LocationExpr] :: Expr_ -> !Name
 data Typed a
-Typed :: a -> Type -> Typed a
-[$sel:ele:Typed] :: Typed a -> a
-[$sel:tpe:Typed] :: Typed a -> Type
+Typed :: !a -> !Type -> Typed a
+[$sel:ele:Typed] :: Typed a -> !a
+[$sel:tpe:Typed] :: Typed a -> !Type
 data Block
-Block :: [FieldDecl] -> [Statement] -> ScopeID -> Block
-[$sel:vars:Block] :: Block -> [FieldDecl]
-[$sel:stmts:Block] :: Block -> [Statement]
-[$sel:blockID:Block] :: Block -> ScopeID
+Block :: ![FieldDecl] -> ![Statement] -> !ScopeID -> Block
+[$sel:vars:Block] :: Block -> ![FieldDecl]
+[$sel:stmts:Block] :: Block -> ![Statement]
+[$sel:blockID:Block] :: Block -> !ScopeID
 instance GHC.Classes.Eq AST.RelOp
 instance GHC.Classes.Eq AST.ArithOp
 instance GHC.Classes.Eq AST.EqOp

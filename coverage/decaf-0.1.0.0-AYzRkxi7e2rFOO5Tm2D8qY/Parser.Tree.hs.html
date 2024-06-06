@@ -1,0 +1,140 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>-- Copyright (C) 2018-2024 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
+<span class="lineno">    2 </span>--
+<span class="lineno">    3 </span>-- This file is a part of decafc.
+<span class="lineno">    4 </span>--
+<span class="lineno">    5 </span>-- decafc is free software: you can redistribute it and/or modify it under the
+<span class="lineno">    6 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
+<span class="lineno">    7 </span>--
+<span class="lineno">    8 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
+<span class="lineno">    9 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+<span class="lineno">   10 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+<span class="lineno">   11 </span>
+<span class="lineno">   12 </span>module Parser.Tree where
+<span class="lineno">   13 </span>
+<span class="lineno">   14 </span>import Data.Text (Text)
+<span class="lineno">   15 </span>import Util.SourceLoc as SL
+<span class="lineno">   16 </span>
+<span class="lineno">   17 </span>data Program = Program
+<span class="lineno">   18 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">importDecls</span></span></span> :: ![SL.Located ImportDecl],
+<span class="lineno">   19 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">fieldDecls</span></span></span> :: ![SL.Located FieldDecl],
+<span class="lineno">   20 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">methodDecls</span></span></span> :: ![SL.Located MethodDecl]
+<span class="lineno">   21 </span>  }
+<span class="lineno">   22 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   23 </span>
+<span class="lineno">   24 </span>data ImportDecl = ImportDecl {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">importId</span></span></span> :: !Text}
+<span class="lineno">   25 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   26 </span>
+<span class="lineno">   27 </span>data FieldDecl = FieldDecl
+<span class="lineno">   28 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldType</span></span></span> :: !Type,
+<span class="lineno">   29 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elems</span></span></span> :: ![SL.Located FieldElem]
+<span class="lineno">   30 </span>  }
+<span class="lineno">   31 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   32 </span>
+<span class="lineno">   33 </span>data FieldElem
+<span class="lineno">   34 </span>  = ScalarField {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">fieldId</span></span></span> :: !Text}
+<span class="lineno">   35 </span>  | VectorField {fieldId :: !Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">size</span></span></span> :: !Text}
+<span class="lineno">   36 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   37 </span>
+<span class="lineno">   38 </span>data Type = IntType | BoolType
+<span class="lineno">   39 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   40 </span>
+<span class="lineno">   41 </span>data MethodDecl = MethodDecl
+<span class="lineno">   42 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">methodId</span></span></span> :: !Text,
+<span class="lineno">   43 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnType</span></span></span> :: !(Maybe Type),
+<span class="lineno">   44 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arguments</span></span></span> :: ![SL.Located Argument],
+<span class="lineno">   45 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">block</span></span></span> :: !Block
+<span class="lineno">   46 </span>  }
+<span class="lineno">   47 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   48 </span>
+<span class="lineno">   49 </span>data Argument = Argument
+<span class="lineno">   50 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentId</span></span></span> :: !Text,
+<span class="lineno">   51 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentType</span></span></span> :: !Type
+<span class="lineno">   52 </span>  }
+<span class="lineno">   53 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   54 </span>
+<span class="lineno">   55 </span>data Block = Block
+<span class="lineno">   56 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">blockFieldDecls</span></span></span> :: ![SL.Located FieldDecl],
+<span class="lineno">   57 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">blockStatements</span></span></span> :: ![SL.Located Statement]
+<span class="lineno">   58 </span>  }
+<span class="lineno">   59 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   60 </span>
+<span class="lineno">   61 </span>data Statement
+<span class="lineno">   62 </span>  = AssignStatement {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignLocation</span></span></span> :: !Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignExpr</span></span></span> :: !AssignExpr}
+<span class="lineno">   63 </span>  | MethodCallStatement {<span class="istickedoff"><span class="decl"><span class="istickedoff">methodCallStatement</span></span></span> :: !MethodCall}
+<span class="lineno">   64 </span>  | IfStatement {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifExpr</span></span></span> :: !(SL.Located Expr), <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifBlock</span></span></span> :: !Block}
+<span class="lineno">   65 </span>  | IfElseStatement {ifExpr :: !(SL.Located Expr), ifBlock :: !Block, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elseBlock</span></span></span> :: !Block}
+<span class="lineno">   66 </span>  | ForStatement
+<span class="lineno">   67 </span>      { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterId</span></span></span> :: !Text,
+<span class="lineno">   68 </span>        <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterExpr</span></span></span> :: !(SL.Located Expr),
+<span class="lineno">   69 </span>        <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forPredExpr</span></span></span> :: !(SL.Located Expr),
+<span class="lineno">   70 </span>        <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterUpdate</span></span></span> :: !CounterUpdate,
+<span class="lineno">   71 </span>        <span class="nottickedoff"><span class="decl"><span class="nottickedoff">forBlock</span></span></span> :: !Block
+<span class="lineno">   72 </span>      }
+<span class="lineno">   73 </span>  | WhileStatement {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileExpr</span></span></span> :: !(SL.Located Expr), <span class="nottickedoff"><span class="decl"><span class="nottickedoff">whileBlock</span></span></span> :: !Block}
+<span class="lineno">   74 </span>  | ReturnVoidStatement
+<span class="lineno">   75 </span>  | ReturnExprStatement {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">returnExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">   76 </span>  | BreakStatement
+<span class="lineno">   77 </span>  | ContinueStatement
+<span class="lineno">   78 </span>  | ErrorStatement
+<span class="lineno">   79 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   80 </span>
+<span class="lineno">   81 </span>data Location
+<span class="lineno">   82 </span>  = ScalarLocation {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">locationId</span></span></span> :: !Text}
+<span class="lineno">   83 </span>  | VectorLocation {locationId :: !Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">arrayIndexExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">   84 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   85 </span>
+<span class="lineno">   86 </span>data AssignExpr
+<span class="lineno">   87 </span>  = AssignExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignOp</span></span></span> :: !Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">assignSourceExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">   88 </span>  | IncrementExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">incrementOp</span></span></span> :: !Text}
+<span class="lineno">   89 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   90 </span>
+<span class="lineno">   91 </span>data MethodCall = MethodCall {<span class="istickedoff"><span class="decl"><span class="istickedoff">methodName</span></span></span> :: !Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">importArguments</span></span></span> :: ![SL.Located ImportArg]}
+<span class="lineno">   92 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   93 </span>
+<span class="lineno">   94 </span>data ImportArg
+<span class="lineno">   95 </span>  = ExprImportArg {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">   96 </span>  | StringImportArg {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">argumentString</span></span></span> :: !Text}
+<span class="lineno">   97 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">   98 </span>
+<span class="lineno">   99 </span>data CounterUpdate = CounterUpdate {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">counterLocation</span></span></span> :: !Location, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">updateExpr</span></span></span> :: !AssignExpr}
+<span class="lineno">  100 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  101 </span>
+<span class="lineno">  102 </span>data Expr
+<span class="lineno">  103 </span>  = LocationExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">location</span></span></span> :: !Location}
+<span class="lineno">  104 </span>  | MethodCallExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCallExpr</span></span></span> :: !MethodCall}
+<span class="lineno">  105 </span>  | IntLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">intLiteral</span></span></span> :: !Text}
+<span class="lineno">  106 </span>  | CharLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">charLiteral</span></span></span> :: !Text}
+<span class="lineno">  107 </span>  | BoolLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">boolLiteral</span></span></span> :: !Text}
+<span class="lineno">  108 </span>  | LenExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">lenId</span></span></span> :: !Text}
+<span class="lineno">  109 </span>  | ArithOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">arithOp</span></span></span> :: !Text, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lExpr</span></span></span> :: !(SL.Located Expr), <span class="nottickedoff"><span class="decl"><span class="nottickedoff">rExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">  110 </span>  | RelOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">relOp</span></span></span> :: !Text, lExpr :: !(SL.Located Expr), rExpr :: !(SL.Located Expr)}
+<span class="lineno">  111 </span>  | EqOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">eqOp</span></span></span> :: !Text, lExpr :: !(SL.Located Expr), rExpr :: !(SL.Located Expr)}
+<span class="lineno">  112 </span>  | CondOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">condOp</span></span></span> :: !Text, lExpr :: !(SL.Located Expr), rExpr :: !(SL.Located Expr)}
+<span class="lineno">  113 </span>  | NegativeExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">negativeExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">  114 </span>  | NegateExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">negateExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">  115 </span>  | ParenExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">parenExpr</span></span></span> :: !(SL.Located Expr)}
+<span class="lineno">  116 </span>  | ChoiceExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">choicePredExpr</span></span></span> :: !(SL.Located Expr), lExpr :: !(SL.Located Expr), rExpr :: !(SL.Located Expr)}
+<span class="lineno">  117 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+
+</pre>
+</body>
+</html>

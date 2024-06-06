@@ -1,0 +1,70 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>-- Copyright (C) 2018-2024 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
+<span class="lineno">    2 </span>--
+<span class="lineno">    3 </span>-- This file is a part of decafc.
+<span class="lineno">    4 </span>--
+<span class="lineno">    5 </span>-- decafc is free software: you can redistribute it and/or modify it under the
+<span class="lineno">    6 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
+<span class="lineno">    7 </span>--
+<span class="lineno">    8 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
+<span class="lineno">    9 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+<span class="lineno">   10 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+<span class="lineno">   11 </span>
+<span class="lineno">   12 </span>module Parser.Helper where
+<span class="lineno">   13 </span>
+<span class="lineno">   14 </span>import Data.Text (Text)
+<span class="lineno">   15 </span>import Lexer (Alex (..), Token (..), alexMonadScan)
+<span class="lineno">   16 </span>import Util.SourceLoc as SL
+<span class="lineno">   17 </span>import Text.Printf (printf)
+<span class="lineno">   18 </span>
+<span class="lineno">   19 </span>getID :: Token -&gt; Text
+<span class="lineno">   20 </span><span class="decl"><span class="istickedoff">getID (Identifier id) = id</span></span>
+<span class="lineno">   21 </span>
+<span class="lineno">   22 </span>getLiteral :: Token -&gt; Text
+<span class="lineno">   23 </span><span class="decl"><span class="istickedoff">getLiteral (IntLiteral i) = i</span>
+<span class="lineno">   24 </span><span class="spaces"></span><span class="istickedoff">getLiteral (BooleanLiteral b) = b</span>
+<span class="lineno">   25 </span><span class="spaces"></span><span class="istickedoff">getLiteral (CharLiteral c) = <span class="nottickedoff">c</span></span>
+<span class="lineno">   26 </span><span class="spaces"></span><span class="istickedoff">getLiteral (StringLiteral s) = <span class="nottickedoff">s</span></span></span>
+<span class="lineno">   27 </span>
+<span class="lineno">   28 </span>getOp :: Token -&gt; Text
+<span class="lineno">   29 </span><span class="decl"><span class="nottickedoff">getOp (IncrementOp op) = op</span>
+<span class="lineno">   30 </span><span class="spaces"></span><span class="nottickedoff">getOp (CompoundAssignOp op) = op</span></span>
+<span class="lineno">   31 </span>
+<span class="lineno">   32 </span>unionOf :: SL.Located a -&gt; SL.Located b -&gt; Range
+<span class="lineno">   33 </span><span class="decl"><span class="istickedoff">unionOf (SL.LocatedAt loc1 _) (SL.LocatedAt loc2 _) = combineRanges loc1 loc2</span>
+<span class="lineno">   34 </span><span class="spaces">  </span><span class="istickedoff">where</span>
+<span class="lineno">   35 </span><span class="spaces">    </span><span class="istickedoff">combineRanges (SL.Range start1 stop1) (SL.Range start2 stop2) =</span>
+<span class="lineno">   36 </span><span class="spaces">      </span><span class="istickedoff">let <span class="nottickedoff">start = if (SL.offset start1) &lt; (SL.offset start2) then start1 else start2</span></span>
+<span class="lineno">   37 </span><span class="spaces">          </span><span class="istickedoff"><span class="nottickedoff">stop = if (SL.offset stop1) &gt; (SL.offset stop2) then stop1 else stop2</span></span>
+<span class="lineno">   38 </span><span class="spaces">       </span><span class="istickedoff">in SL.Range <span class="nottickedoff">start</span> <span class="nottickedoff">stop</span></span></span>
+<span class="lineno">   39 </span>
+<span class="lineno">   40 </span>lexerwrap :: (SL.Located Token -&gt; Alex a) -&gt; Alex a
+<span class="lineno">   41 </span><span class="decl"><span class="istickedoff">lexerwrap s = do</span>
+<span class="lineno">   42 </span><span class="spaces">  </span><span class="istickedoff">token &lt;- alexMonadScan</span>
+<span class="lineno">   43 </span><span class="spaces">  </span><span class="istickedoff">s token</span></span>
+<span class="lineno">   44 </span>
+<span class="lineno">   45 </span>parseError :: SL.Located Token -&gt; Alex a
+<span class="lineno">   46 </span><span class="decl"><span class="nottickedoff">parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do</span>
+<span class="lineno">   47 </span><span class="spaces">  </span><span class="nottickedoff">Alex $ \_ -&gt; Left $ printf &quot;%d:%d: Error handling token '%s'&quot; row col (show tok)</span></span>
+
+</pre>
+</body>
+</html>

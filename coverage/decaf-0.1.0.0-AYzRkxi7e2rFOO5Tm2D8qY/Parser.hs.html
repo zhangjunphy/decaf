@@ -1,0 +1,63 @@
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<style type="text/css">
+span.lineno { color: white; background: #aaaaaa; border-right: solid white 12px }
+span.nottickedoff { background: yellow}
+span.istickedoff { background: white }
+span.tickonlyfalse { margin: -1px; border: 1px solid #f20913; background: #f20913 }
+span.tickonlytrue  { margin: -1px; border: 1px solid #60de51; background: #60de51 }
+span.funcount { font-size: small; color: orange; z-index: 2; position: absolute; right: 20 }
+span.decl { font-weight: bold }
+span.spaces    { background: white }
+</style>
+</head>
+<body>
+<pre>
+<span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
+</pre>
+<pre>
+<span class="lineno">    1 </span>-- Copyright (C) 2018-2024 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
+<span class="lineno">    2 </span>--
+<span class="lineno">    3 </span>-- This file is a part of decafc.
+<span class="lineno">    4 </span>--
+<span class="lineno">    5 </span>-- decafc is free software: you can redistribute it and/or modify it under the
+<span class="lineno">    6 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
+<span class="lineno">    7 </span>--
+<span class="lineno">    8 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
+<span class="lineno">    9 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+<span class="lineno">   10 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+<span class="lineno">   11 </span>
+<span class="lineno">   12 </span>-- Parser -- Re-export Happy parser functionalities
+<span class="lineno">   13 </span>module Parser
+<span class="lineno">   14 </span>  ( parse,
+<span class="lineno">   15 </span>    Program (..),
+<span class="lineno">   16 </span>    ImportDecl (..),
+<span class="lineno">   17 </span>    FieldDecl (..),
+<span class="lineno">   18 </span>    MethodDecl (..),
+<span class="lineno">   19 </span>    FieldElem (..),
+<span class="lineno">   20 </span>    Type (..),
+<span class="lineno">   21 </span>    Argument (..),
+<span class="lineno">   22 </span>    Block (..),
+<span class="lineno">   23 </span>    Statement (..),
+<span class="lineno">   24 </span>    Location (..),
+<span class="lineno">   25 </span>    AssignExpr (..),
+<span class="lineno">   26 </span>    MethodCall (..),
+<span class="lineno">   27 </span>    ImportArg (..),
+<span class="lineno">   28 </span>    CounterUpdate (..),
+<span class="lineno">   29 </span>    Expr (..),
+<span class="lineno">   30 </span>  )
+<span class="lineno">   31 </span>where
+<span class="lineno">   32 </span>
+<span class="lineno">   33 </span>import Data.ByteString.Lazy (ByteString)
+<span class="lineno">   34 </span>import Lexer (Alex (..), Token, runAlex)
+<span class="lineno">   35 </span>import Parser.Grammar
+<span class="lineno">   36 </span>import Parser.Tree
+<span class="lineno">   37 </span>import Util.SourceLoc as SL
+<span class="lineno">   38 </span>
+<span class="lineno">   39 </span>parse :: ByteString -&gt; Either String Program
+<span class="lineno">   40 </span><span class="decl"><span class="istickedoff">parse input = runAlex input parseInternal</span></span>
+
+</pre>
+</body>
+</html>

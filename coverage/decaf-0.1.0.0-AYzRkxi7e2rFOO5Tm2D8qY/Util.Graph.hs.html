@@ -17,39 +17,39 @@ span.spaces    { background: white }
 <span class="decl"><span class="nottickedoff">never executed</span> <span class="tickonlytrue">always true</span> <span class="tickonlyfalse">always false</span></span>
 </pre>
 <pre>
-<span class="lineno">    1 </span>-- Graph -- A graph implementation to help build CFG
-<span class="lineno">    2 </span>-- Copyright (C) 2018 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
-<span class="lineno">    3 </span>--
-<span class="lineno">    4 </span>-- This file is a part of decafc.
-<span class="lineno">    5 </span>--
-<span class="lineno">    6 </span>-- decafc is free software: you can redistribute it and/or modify it under the
-<span class="lineno">    7 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
-<span class="lineno">    8 </span>--
-<span class="lineno">    9 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
-<span class="lineno">   10 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
-<span class="lineno">   11 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
-<span class="lineno">   12 </span>module Util.Graph where
-<span class="lineno">   13 </span>
-<span class="lineno">   14 </span>import Control.Lens ((%=))
-<span class="lineno">   15 </span>import Control.Monad
-<span class="lineno">   16 </span>import Control.Monad.Except
-<span class="lineno">   17 </span>import Control.Monad.State
-<span class="lineno">   18 </span>import Data.Functor
-<span class="lineno">   19 </span>import Data.Graph.Inductive.Graph qualified as FGL
-<span class="lineno">   20 </span>import Data.List qualified as List
-<span class="lineno">   21 </span>import Data.Map (Map, mapWithKey)
-<span class="lineno">   22 </span>import Data.Map.Strict qualified as Map
-<span class="lineno">   23 </span>import Data.Maybe qualified as Maybe
-<span class="lineno">   24 </span>import Data.Set (Set)
-<span class="lineno">   25 </span>import Data.Set qualified as Set
-<span class="lineno">   26 </span>import Data.Text (Text)
-<span class="lineno">   27 </span>import Data.Text.Lazy.Builder qualified as Text
-<span class="lineno">   28 </span>import GHC.Generics (Generic)
-<span class="lineno">   29 </span>import Data.Generics.Labels
+<span class="lineno">    1 </span>-- Copyright (C) 2018-2024 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;
+<span class="lineno">    2 </span>--
+<span class="lineno">    3 </span>-- This file is a part of decafc.
+<span class="lineno">    4 </span>--
+<span class="lineno">    5 </span>-- decafc is free software: you can redistribute it and/or modify it under the
+<span class="lineno">    6 </span>-- terms of the MIT (X11) License as described in the LICENSE file.
+<span class="lineno">    7 </span>--
+<span class="lineno">    8 </span>-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY
+<span class="lineno">    9 </span>-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+<span class="lineno">   10 </span>-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
+<span class="lineno">   11 </span>
+<span class="lineno">   12 </span>-- Graph -- A graph implementation to help build CFG
+<span class="lineno">   13 </span>module Util.Graph where
+<span class="lineno">   14 </span>
+<span class="lineno">   15 </span>import Control.Lens ((%=))
+<span class="lineno">   16 </span>import Control.Monad
+<span class="lineno">   17 </span>import Control.Monad.Except
+<span class="lineno">   18 </span>import Control.Monad.State
+<span class="lineno">   19 </span>import Data.Functor
+<span class="lineno">   20 </span>import Data.Generics.Labels
+<span class="lineno">   21 </span>import Data.List qualified as List
+<span class="lineno">   22 </span>import Data.Map (Map, mapWithKey)
+<span class="lineno">   23 </span>import Data.Map.Strict qualified as Map
+<span class="lineno">   24 </span>import Data.Maybe qualified as Maybe
+<span class="lineno">   25 </span>import Data.Set (Set)
+<span class="lineno">   26 </span>import Data.Set qualified as Set
+<span class="lineno">   27 </span>import Data.Text (Text)
+<span class="lineno">   28 </span>import Data.Text.Lazy.Builder qualified as Text
+<span class="lineno">   29 </span>import GHC.Generics (Generic)
 <span class="lineno">   30 </span>
 <span class="lineno">   31 </span>data Graph ni nd ed = Graph
-<span class="lineno">   32 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">nodes</span></span></span> :: Map ni nd,
-<span class="lineno">   33 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">edges</span></span></span> :: Map ni [(ni, ed)]
+<span class="lineno">   32 </span>  { <span class="istickedoff"><span class="decl"><span class="istickedoff">nodes</span></span></span> :: !(Map ni nd),
+<span class="lineno">   33 </span>    <span class="istickedoff"><span class="decl"><span class="istickedoff">edges</span></span></span> :: !(Map ni [(ni, ed)])
 <span class="lineno">   34 </span>  }
 <span class="lineno">   35 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
 <span class="lineno">   36 </span>

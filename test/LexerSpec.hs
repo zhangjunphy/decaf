@@ -1,16 +1,16 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module ScannerSpec where
+module LexerSpec where
 
 import Data.ByteString.Lazy (ByteString)
 import Data.Either (isLeft)
-import Parser.Scanner
+import Lexer
 import qualified Util.SourceLoc as SL
 import Test.Hspec
 
 spec :: Spec
 spec = do
-  describe "scanner" $ do
+  describe "lexer" $ do
     scanSingleElement
     scanExpr
     scanStmt

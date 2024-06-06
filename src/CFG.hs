@@ -499,13 +499,7 @@ recordPhiVar symList = do
       symList
   return $ Map.fromList varList
 
-patchPhiNode ::
-  BBID ->
-  BBID ->
-  Map (ScopeID, Name) Var ->
-  BBID ->
-  Map (ScopeID, Name) Var ->
-  CFGBuild ()
+patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 patchPhiNode bb s1 varMap1 s2 varMap2 = do
   g <- use #cfg
   case G.lookupNode bb g of

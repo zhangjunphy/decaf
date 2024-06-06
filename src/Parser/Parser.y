@@ -29,11 +29,11 @@ module Parser.Parser
   , Expr(..)
   ) where
 
-import Parser.Scanner ( Token(..)
-                      , Alex(..)
-                      , runAlex
-                      , alexMonadScan
-                      )
+import Lexer ( Token(..)
+             , Alex(..)
+             , runAlex
+             , alexMonadScan
+             )
 
 import Util.SourceLoc as SL
 

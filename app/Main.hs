@@ -28,7 +28,7 @@ import Data.Text (Text)
 import qualified Data.Text as Text
 import GHC.IO.Handle (hDuplicate)
 import qualified Parser
-import qualified Parser.Scanner as Scanner
+import qualified Lexer
 import qualified Semantic
 import qualified CFG
 import System.Environment (getProgName)
@@ -79,9 +79,9 @@ fatal message = do
 ---------------------------- Pure code: Processing ----------------------------
 
 {- Since our compiler only handles single files, the 'Configuration' struct
-doesn't currently get passed through to the scanner and parser code.  (This may
-change--one can see the scanner and parser as acting in a reader monad.)  The
-big problem with this is that error messages generated in the scanner and
+doesn't currently get passed through to the lexer and parser code.  (This may
+change--one can see the lexer and parser as acting in a reader monad.)  The
+big problem with this is that error messages generated in the lexer and
 parser won't contain the file name--the file name has to get added in this
 function. -}
 mungeErrorMessage :: Configuration -> Either String a -> Either String a
@@ -125,9 +125,9 @@ outputStageResult configuration resultOrErrors =
 scan :: Configuration -> ByteString -> Either String [IO ()]
 scan configuration input =
   let tokensAndErrors =
-        Scanner.scan input
+        Lexer.scan input
           <&> mungeErrorMessage configuration
-          <&> Scanner.formatTokenOrError
+          <&> Lexer.formatTokenOrError
       tokens = intercalate "\n" $ tokensAndErrors >>= either (const []) return
       errors = tokensAndErrors >>= either return (const [])
       result = case errors of

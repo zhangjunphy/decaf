@@ -40,29 +40,18 @@ import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
 
 {-
-CFG creation.
-TODO:
-1. Implement Phi for divergent control flows. [DONE]
-2. Merge all binary ops into one SSA [DROP]
-3. ArrayDeref -> Load? [DONE]
-4. Do we really need Len here? [DONE]
-5. Reading from/Writing to global should work as load/store. [DONE]
-6. Use control flow instead of choice. [DONE]
-7. Handle short circuit expressions. [DONE]
-8. Make sure everything works after compliating expr building with control flow. [DONE]?
-9. Ensure bbid are monotonically-increasing with respect to ast statement ordering. [DROP]
--}
-
-{-
 Refactor and clean up.
 TODO:
-1. Find better ways to add phi nodes.
-2. Refactor control start/exit related code.
+1. Find better ways to add phi nodes. [DROP]
+2. Refactor control start/exit related code. [DONE]
 3. Produce dot plot with some proper library.
 4. Add unit tests.
 5. Other chores.
 -}
 
+{------------------------------------------------
+Data types
+------------------------------------------------}
 data Condition
   = Pred {pred :: !VarOrImm}
   | Complement
@@ -105,8 +94,7 @@ data CFGState = CFGState
     var2sym :: !(Map VID (ScopeID, Name)),
     statements :: ![SSA],
     currentControlBlock :: !(Maybe (BBID, BBID)), -- entry and exit
-    currentFunctionTail :: !(Maybe BBID),
-    varWrite :: !(Map BBID (Map (ScopeID, Name) Var))
+    currentFunctionExit :: !(Maybe BBID)
   }
   deriving (Generic)
 
@@ -118,19 +106,21 @@ data BBTransition
 initialState :: AST.MethodSig -> CFGState
 initialState sig =
   CFGState
-    G.empty
-    0
-    sig
-    0
-    []
-    (Map.fromList [(0, SymVarMap Map.empty Nothing)])
-    Map.empty
-    []
-    Nothing
-    Nothing
-    Map.empty
+    { cfg = G.empty,
+      astScope = 0,
+      sig = sig,
+      currentBBID = 0,
+      vars = [],
+      sym2var = (Map.fromList [(0, SymVarMap Map.empty Nothing)]),
+      var2sym = Map.empty,
+      statements = [],
+      currentControlBlock = Nothing,
+      currentFunctionExit = Nothing
+    }
 
--- Helps for CFGBuild monad
+{------------------------------------------------
+Helps for CFGBuild monad
+------------------------------------------------}
 updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
 updateCFG update = do
   g <- use #cfg
@@ -183,16 +173,24 @@ getControlEntry = use #currentControlBlock <&> (<&> (^. _1))
 getControlExit :: CFGBuild (Maybe BBID)
 getControlExit = use #currentControlBlock <&> (<&> (^. _2))
 
+withControlBlock :: BBID -> BBID -> CFGBuild a -> CFGBuild a
+withControlBlock entry exit f = do
+  prevCB <- getControlBlock
+  setControlBlock $ Just (entry, exit)
+  res <- f
+  setControlBlock prevCB
+  return res
+
 {-----------------------------------------------------------
   Record function tail for return to find correct
   successor block.
 ------------------------------------------------------------}
-setFunctionTail :: Maybe BBID -> CFGBuild ()
-setFunctionTail tail = do
-  #currentFunctionTail .= tail
+setFunctionExit :: Maybe BBID -> CFGBuild ()
+setFunctionExit exit = do
+  #currentFunctionExit .= exit
 
-getFunctionTail :: CFGBuild (Maybe BBID)
-getFunctionTail = use #currentFunctionTail
+getFunctionExit :: CFGBuild (Maybe BBID)
+getFunctionExit = use #currentFunctionExit
 
 getBasicBlock' :: BBID -> CFGBuild BasicBlock
 getBasicBlock' bbid = do
@@ -201,6 +199,9 @@ getBasicBlock' bbid = do
     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) bbid
     Just node -> return $ node ^. #bb
 
+{-----------------------------------------------------------
+Add/lookup symbols or variables
+------------------------------------------------------------}
 addVarSym :: Name -> VID -> CFGBuild ()
 addVarSym name vid = do
   sid <-
@@ -284,59 +285,6 @@ getSymScope name = do
       (SE.lookupLocalVariableFromST name st' <&> \_ -> view #scopeID st')
         <|> (SE.parent st' >>= lookup name)
 
-createEmptyBB :: CFGBuild BBID
-createEmptyBB = do
-  checkStmts
-  #currentBBID += 1
-  bbid <- use #currentBBID
-  sid <- use #astScope
-  let bb = BasicBlock bbid sid []
-  updateCFG (G.addNode bbid (CFGNode bb))
-  return bbid
-
-finishCurrentBB :: CFGBuild BBID
-finishCurrentBB = do
-  bbid <- use #currentBBID
-  stmts <- use #statements
-  sid <- use #astScope
-  #statements .= []
-  let bb = BasicBlock bbid sid stmts
-  updateCFG (G.addNode bbid (CFGNode bb))
-  #currentBBID += 1
-  return bbid
-
-checkStmts :: CFGBuild ()
-checkStmts = do
-  stmts <- use #statements
-  unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
-
--- Remove empty seq node one by one
-removeEmptySeqNode :: CFGBuild ()
-removeEmptySeqNode = do
-  g@G.Graph {nodes = nodes} <- gets cfg
-  let emptySeqNode =
-        List.find
-          (\(ni, nd) -> isEmptyNode nd && isSeqOut ni g)
-          $ Map.assocs nodes
-  case emptySeqNode of
-    Nothing -> return ()
-    Just (ni, _) -> do
-      updateCFG $
-        let inEdges = G.inBound ni g
-            outEdge = head $ G.outBound ni g
-         in bridgeEdges ni inEdges outEdge
-      removeEmptySeqNode
-  where
-    isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
-    isSeqOut ni g =
-      let outEdges = G.outBound ni g
-       in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
-    bridgeEdges mid inEdges (out, _) = do
-      G.deleteNode mid
-      forM_ inEdges (\(ni, ed) -> G.addEdge ni out ed)
-    isSeqEdge SeqEdge = True
-    isSeqEdge _ = False
-
 newVar :: Maybe Name -> AST.Type -> SL.Range -> Locality -> CFGBuild Var
 newVar Nothing tpe sl locality = do
   vars <- use #vars
@@ -377,77 +325,63 @@ newGlobal name tpe sl = do
   setASTScope sid
   return ptr
 
+{-----------------------------------------------------------
+Basic block manipulations
+------------------------------------------------------------}
+
+createEmptyBB :: CFGBuild BBID
+createEmptyBB = do
+  checkStmts
+  #currentBBID += 1
+  bbid <- use #currentBBID
+  sid <- use #astScope
+  let bb = BasicBlock bbid sid []
+  updateCFG (G.addNode bbid (CFGNode bb))
+  return bbid
+
+finishCurrentBB :: CFGBuild BBID
+finishCurrentBB = do
+  bbid <- use #currentBBID
+  stmts <- use #statements
+  sid <- use #astScope
+  #statements .= []
+  let bb = BasicBlock bbid sid stmts
+  updateCFG (G.addNode bbid (CFGNode bb))
+  #currentBBID += 1
+  return bbid
+
+checkStmts :: CFGBuild ()
+checkStmts = do
+  stmts <- use #statements
+  unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
+
 addSSA :: SSA -> CFGBuild ()
 addSSA ssa = do
   stmts <- use #statements
   #statements .= stmts ++ [ssa]
 
-buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
-buildCFG root@(AST.ASTRoot _ _ methods) context =
-  let build method =
-        runState $
-          flip runReaderT context $
-            runExceptT $
-              runCFGBuild (populateGlobals root >> buildMethod method)
-      updateMap map m =
-        let (r, _) = build m $ initialState (m ^. #sig)
-         in case r of
-              Left e -> Left e
-              Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
-   in foldM updateMap Map.empty methods
+{-----------------------------------------------------------
+Functionalities to help adding phi nodes.
 
-{----------------------------------------
-Build cfg from ast fragments
------------------------------------------}
+We do this in 4 steps:
+1. Decide which symbols are required to be handled by phi nodes with inferPhiList.
+   This relies on symbol modification information gathered in semantic analysis
+   pass. Due to backward edges introduced by loops this information is
+   not very convinient to get in this module unless we add another pass.
+2. Add dummy phi nodes at the start of control flow merging points.
+3. For each symbol gathered in step 1, record which SSA var corresponds to it
+   at the end each diverging control flow. The order of step 2 and 3 depends on
+   the type of control flow we are dealing with.
+4. Patch SSA var and its source basic block (from step 3) into dummy phi nodes
+   added by step 2.
+------------------------------------------------------------}
 
-populateGlobals :: AST.ASTRoot -> CFGBuild ()
-populateGlobals root@(AST.ASTRoot _ globals _) = do
-  sid <- use #astScope
-  setASTScope 0
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newGlobal name tpe loc) globals
-  finishCurrentBB
-  setASTScope sid
-
-buildMethod :: AST.MethodDecl -> CFGBuild CFG
-buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
-  checkStmts
-  tail <- createEmptyBB
-  setFunctionTail $ Just tail
-  (blockH, blockT) <- buildBlock block
-  updateCFG (G.addEdge blockT tail SeqEdge)
-  -- TODO: Keep empty nodes for now to ease debugging.
-  -- removeEmptySeqNode
-  gets cfg
-
-buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
-buildBlock block@AST.Block {stmts = stmts} = do
-  checkStmts
-  -- always create an empty BB at the start
-  head <- createEmptyBB
-  -- record parent scope
-  parentScope <- use #astScope
-  -- enter new block scope
-  let scopeID = block ^. #blockID
-  setASTScope scopeID
-  -- create a new varmap for this scope
-  #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
-  -- handle variable declarations
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
-  -- handle statements
-  stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
-  -- connect last basic block with dangling statements if necessary
-  tail <- case stmtT of
-    Deadend -> createEmptyBB
-    StayIn bbid ->
-      -- collect dangling statements, possibly left by some previous basic block.
-      finishCurrentBB
-    TailAt bbid -> return bbid
-  -- recover parent scope
-  setASTScope parentScope
-  return (head, tail)
-
-findOuterScopes :: ScopeID -> Map ScopeID SE.SymbolTable -> Set ScopeID
-findOuterScopes scope sts = Set.fromList $ lookup scope sts
+findOuterScopes :: CFGBuild (Set ScopeID)
+findOuterScopes = do
+  -- Set.fromList $ lookup scope sts
+  scope <- use #astScope
+  sts <- view (#semantic . #symbolTables)
+  return $ Set.fromList $ lookup scope sts
   where
     lookup :: ScopeID -> Map ScopeID SE.SymbolTable -> [ScopeID]
     lookup scope sts =
@@ -459,11 +393,12 @@ findOuterScopes scope sts = Set.fromList $ lookup scope sts
             let parentSID = view #scopeID parent
              in scope : lookup parentSID sts
 
-inferPhiList :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
-inferPhiList divergence outer = do
+inferPhiList :: [ScopeID] -> CFGBuild [(ScopeID, Name)]
+inferPhiList divergence = do
+  outerScopes <- findOuterScopes
   varWrites <- view $ #semantic . #symbolWrites
   let varList =
-        filter (\(sid, _) -> Set.member sid outer) $
+        filter (\(sid, _) -> Set.member sid outerScopes) $
           Set.toList $
             Set.unions $
               mapMaybe (`Map.lookup` varWrites) divergence
@@ -523,6 +458,71 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
             Just v2' -> return $ Phi dst [(v1', s1), (v2', s2)]
     patch ssa = return ssa
 
+{----------------------------------------
+Build cfg from ast fragments
+-----------------------------------------}
+
+buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
+buildCFG root@(AST.ASTRoot _ _ methods) context =
+  let build method =
+        runState $
+          flip runReaderT context $
+            runExceptT $
+              runCFGBuild (populateGlobals root >> buildMethod method)
+      updateMap map m =
+        let (r, _) = build m $ initialState (m ^. #sig)
+         in case r of
+              Left e -> Left e
+              Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
+   in foldM updateMap Map.empty methods
+
+populateGlobals :: AST.ASTRoot -> CFGBuild ()
+populateGlobals root@(AST.ASTRoot _ globals _) = do
+  sid <- use #astScope
+  setASTScope 0
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newGlobal name tpe loc) globals
+  finishCurrentBB
+  setASTScope sid
+
+buildMethod :: AST.MethodDecl -> CFGBuild CFG
+buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
+  checkStmts
+  tail <- createEmptyBB
+  setFunctionExit $ Just tail
+  (blockH, blockT) <- buildBlock block
+  updateCFG (G.addEdge blockT tail SeqEdge)
+  gets cfg
+
+buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
+buildBlock block@AST.Block {stmts = stmts} = do
+  checkStmts
+  -- always create an empty BB at the start
+  head <- createEmptyBB
+  -- record parent scope
+  parentScope <- use #astScope
+  -- enter new block scope
+  let scopeID = block ^. #blockID
+  setASTScope scopeID
+  -- create a new varmap for this scope
+  #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
+  -- handle variable declarations
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
+  -- handle statements
+  stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
+  -- connect last basic block with dangling statements if necessary
+  tail <- case stmtT of
+    Deadend -> createEmptyBB
+    StayIn bbid ->
+      -- collect dangling statements, possibly left by some previous basic block.
+      finishCurrentBB
+    TailAt bbid -> do
+      -- some basic blocks were created, we check for dangling statements
+      checkStmts
+      return bbid
+  -- recover parent scope
+  setASTScope parentScope
+  return (head, tail)
+
 buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
 buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
 buildAssignOp prev AST.IncAssign (Just expr) = do
@@ -558,22 +558,20 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   let phiBlocks = case maybeElseBlock of
         Nothing -> [ifBlock ^. #blockID]
         Just elseBlock -> [ifBlock ^. #blockID, elseBlock ^. #blockID]
-  sid <- use #astScope
-  sts <- view $ #semantic . #symbolTables
-  let outerScopes = findOuterScopes sid sts
-  phiList <- inferPhiList phiBlocks outerScopes
+  -- Finish previous basic block. Also append pred calculation to it.
+  phiList <- inferPhiList phiBlocks
   predVar <- buildExpr expr
   prevBB <- finishCurrentBB
   prevBBPhiList <- recordPhiVar phiList
+  -- Build if body
   (ifHead, ifTail) <- buildBlock ifBlock
   ifBBPhiList <- recordPhiVar phiList
-  g <- use #cfg
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
+  -- Build else body if it exist.
   case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail) <- buildBlock elseBlock
       elseBBPhiList <- recordPhiVar phiList
-      checkStmts
       addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
@@ -583,10 +581,6 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
       patchPhiNode tail ifTail ifBBPhiList elseTail elseBBPhiList
       return $ TailAt tail
     Nothing -> do
-      checkStmts
-      sid <- use #astScope
-      sts <- view $ #semantic . #symbolTables
-      let outerScopes = findOuterScopes sid sts
       addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
@@ -594,69 +588,47 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge ifTail tail SeqEdge
       patchPhiNode tail prevBB prevBBPhiList ifTail ifBBPhiList
       return $ TailAt tail
-buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
-  sid <- use #astScope
-  sts <- view $ #semantic . #symbolTables
-  let outerScopes = findOuterScopes sid sts
-  phiList <- inferPhiList [block ^. #blockID] outerScopes
-  var <- lookupSym' counter
-  initExpr <- buildExpr init
-  case var ^. #astDecl of
-    Nothing -> throwError $ CFGExcept "Counter var not found in symbol table."
-    (Just decl) -> buildWriteToLocation (AST.Location counter Nothing decl (var ^. #tpe) loc) (Variable initExpr)
+buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
+  phiList <- inferPhiList [block ^. #blockID]
+  -- append init to previous block
+  case init of
+    Nothing -> return ()
+    Just init -> void $ buildStatement $ AST.Statement (AST.AssignStmt init) (init ^. #loc)
   prevBB <- finishCurrentBB
   prevBBPhiList <- recordPhiVar phiList
+  -- build the pred, also add dummy phi nodes at the start
+  predHead <- use #currentBBID
   addDummyPhiNode phiList
   predVar <- buildExpr pred
-  predBB <- finishCurrentBB
-  updateCFG (G.addEdge prevBB predBB SeqEdge)
+  predTail <- finishCurrentBB
+  updateCFG (G.addEdge prevBB predHead SeqEdge)
+  -- create a dummy update block for continue to jump to
   dummyUpdateBB <- createEmptyBB
-  parentControlBlock <- getControlBlock
+  -- create a dummy tail block fro break to jump to
   tail <- createEmptyBB
-  setControlBlock $ Just (dummyUpdateBB, tail)
-  (blockHead, blockTail) <- buildBlock block
-  checkStmts
-  buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
-  updateBB <- finishCurrentBB
-  dummyNode <- use #cfg <&> fromJust . G.lookupNode dummyUpdateBB
-  updateNode <- use #cfg <&> fromJust . G.lookupNode updateBB
-  updateBBPhiList <- recordPhiVar phiList
-  #cfg
-    %= G.updateNode
+  -- build for body and block connections
+  updateBBPhiList <-
+    withControlBlock
       dummyUpdateBB
-      (dummyNode & #bb . #statements .~ (updateNode ^. #bb . #statements))
-  updateCFG $ do
-    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
-    G.addEdge blockTail dummyUpdateBB SeqEdge
-    G.addEdge dummyUpdateBB predBB SeqEdge
-    G.addEdge predBB tail $ CondEdge Complement
-    G.deleteNode updateBB
-  setControlBlock parentControlBlock
-  patchPhiNode predBB prevBB prevBBPhiList dummyUpdateBB updateBBPhiList
-  return $ TailAt tail
-buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
-  sid <- use #astScope
-  sts <- view $ #semantic . #symbolTables
-  let outerScopes = findOuterScopes sid sts
-  phiList <- inferPhiList [block ^. #blockID] outerScopes
-  prevBB <- finishCurrentBB
-  prevBBPhiList <- recordPhiVar phiList
-  addDummyPhiNode phiList
-  predVar <- buildExpr pred
-  predBB <- finishCurrentBB
-  updateCFG $ G.addEdge prevBB predBB SeqEdge
-  parentControlBlock <- getControlBlock
-  tail <- createEmptyBB
-  setControlBlock $ Just (predBB, tail)
-  (blockHead, blockTail) <- buildBlock block
-  checkStmts
-  blockBBPhiList <- recordPhiVar phiList
-  updateCFG $ do
-    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
-    G.addEdge predBB tail $ CondEdge Complement
-    G.addEdge blockTail predBB SeqEdge
-  setControlBlock parentControlBlock
-  patchPhiNode predBB prevBB prevBBPhiList blockTail blockBBPhiList
+      tail
+      ( do
+          (blockHead, blockTail) <- buildBlock block
+          -- create the actual update block(s)
+          updateHead <- use #currentBBID
+          case update of
+            Nothing -> return ()
+            Just update -> void $ buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
+          updateTail <- finishCurrentBB
+          updateBBPhiList <- recordPhiVar phiList
+          updateCFG $ do
+            G.addEdge predTail blockHead $ CondEdge $ Pred $ Variable predVar
+            G.addEdge blockTail updateHead SeqEdge
+            G.addEdge updateTail dummyUpdateBB SeqEdge
+            G.addEdge dummyUpdateBB predHead SeqEdge
+            G.addEdge predTail tail $ CondEdge Complement
+          return updateBBPhiList
+      )
+  patchPhiNode predHead prevBB prevBBPhiList dummyUpdateBB updateBBPhiList
   return $ TailAt tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   ret <- case expr' of
@@ -665,7 +637,7 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   addSSA $ Return ret
   -- Go directly to function exit
   bbid <- finishCurrentBB
-  funcTail <- getFunctionTail
+  funcTail <- getFunctionExit
   case funcTail of
     Nothing -> throwError $ CFGExcept "Return not in a function context."
     Just tail -> updateCFG $ G.addEdge bbid tail SeqEdge
@@ -829,11 +801,6 @@ buildReadFromLocation (AST.Location name idx def tpe loc) = do
       return dst
     _scalarType -> return var
 
-recordVarWrite :: Var -> ScopeID -> Name -> CFGBuild ()
-recordVarWrite var scope name = do
-  bbid <- use #currentBBID
-  #varWrite %= Map.insertWith Map.union bbid (Map.singleton (scope, name) var)
-
 buildWriteToLocation :: AST.Location -> VarOrImm -> CFGBuild ()
 buildWriteToLocation (AST.Location name idx def tpe loc) src = do
   var <- lookupSym' name
@@ -856,9 +823,6 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
       addSSA $ Store (Variable var) src
     _scalarType -> do
       dst <- newLocal (Just name) tpe loc
-      -- Record writes to scalars for phi node creation.
-      (scope, symName) <- lookupVar' (var ^. #id)
-      recordVarWrite dst scope symName
       addSSA $ Assignment dst src
 
 buildMethodCall :: AST.MethodCall -> AST.Type -> CFGBuild Var
@@ -869,6 +833,33 @@ buildMethodCall (AST.MethodCall name args loc) tpe = do
   return dst
 
 -- Generate a dot plot for cfg
+
+-- Remove empty seq node one by one
+removeEmptySeqNode :: CFGBuild ()
+removeEmptySeqNode = do
+  g@G.Graph {nodes = nodes} <- gets cfg
+  let emptySeqNode =
+        List.find
+          (\(ni, nd) -> isEmptyNode nd && isSeqOut ni g)
+          $ Map.assocs nodes
+  case emptySeqNode of
+    Nothing -> return ()
+    Just (ni, _) -> do
+      updateCFG $
+        let inEdges = G.inBound ni g
+            outEdge = head $ G.outBound ni g
+         in bridgeEdges ni inEdges outEdge
+      removeEmptySeqNode
+  where
+    isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts
+    isSeqOut ni g =
+      let outEdges = G.outBound ni g
+       in length outEdges == 1 && isSeqEdge (snd $ head outEdges)
+    bridgeEdges mid inEdges (out, _) = do
+      G.deleteNode mid
+      forM_ inEdges (\(ni, ed) -> G.addEdge ni out ed)
+    isSeqEdge SeqEdge = True
+    isSeqEdge _ = False
 
 prettyPrintNode :: CFGNode -> Text
 prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =

@@ -14,7 +14,6 @@ module Semantic
   ( runSemanticAnalysis,
     SymbolTable (..),
     SemanticInfo (..),
-    ScopeID,
     BlockType (..),
     lookupLocalVariableFromST,
     lookupLocalMethodFromST,
@@ -22,7 +21,7 @@ module Semantic
 where
 
 import AST
-import Constants
+import Util.Constants
 import Control.Applicative ((<|>))
 import Control.Lens (view, (%=), (^.), (.=))
 import Control.Monad.Except
@@ -787,20 +786,17 @@ irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
     (tpe /= BoolType)
     (addSemanticError $ sformat ("The pred of if statment must have type bool, but got " % shown % " instead!") tpe)
   return $ Statement (IfStmt expr' ifBlock' (Just elseBlock')) range
-irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
-  -- NOTE: For counter is treated as a special write other than assignment.
-  counterLoc <- irgenLocation $ P.ScalarLocation counter
-  recordSymbolWrite counterLoc
+irgenStmt (P.ForStatement counter initExpr predExpr (P.CounterUpdate updateLoc updateExpr) block) = do
+  init <- irgenAssign (P.ScalarLocation counter) (P.AssignExpr "=" initExpr)
   block' <- irgenBlock ForBlock Nothing block
-  counterExpr' <- irgenExpr counterExpr
   predExpr'@Expr {tpe = tpe} <- irgenExpr predExpr
   range <- getCurrentRange
   -- Semantic[14]
   when
     (tpe /= BoolType)
     (addSemanticError $ sformat ("The pred of for statment must have type bool, but got " % shown % " instead!") tpe)
-  assign <- irgenAssign loc expr
-  return $ Statement (ForStmt counter counterExpr' predExpr' assign block') range
+  update <- irgenAssign updateLoc updateExpr
+  return $ Statement (ForStmt (Just init) predExpr' (Just update) block') range
 irgenStmt (P.WhileStatement expr block) = do
   block' <- irgenBlock WhileBlock Nothing block
   expr'@Expr {tpe = tpe} <- irgenExpr expr
@@ -809,7 +805,7 @@ irgenStmt (P.WhileStatement expr block) = do
   when
     (tpe /= BoolType)
     (addSemanticError $ sformat ("The pred of while statment must have type bool, but got " % shown % " instead!") tpe)
-  return $ Statement (WhileStmt expr' block') range
+  return $ Statement (ForStmt Nothing expr' Nothing block') range
 irgenStmt (P.ReturnExprStatement expr) = do
   expr' <- irgenExpr expr
   range <- getCurrentRange

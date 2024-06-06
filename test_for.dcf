@@ -1,8 +1,12 @@
 void main() {
 int a;
 int b;
-for (a = 0; a<10; a++) {
+bool c;
+b = 1;
+c = true;
+for (a = 0; a<(c ? b : 10); a++) {
 a++;
 b++;
+c = !c;
 }
 }

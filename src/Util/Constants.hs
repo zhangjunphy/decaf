@@ -10,7 +10,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- Constants -- Definitions for some constants
-module Constants
+module Util.Constants
 where
 
 import Data.Text (Text)

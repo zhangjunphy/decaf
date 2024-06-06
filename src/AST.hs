@@ -237,8 +237,8 @@ data Statement = Statement
 data Statement_
   = AssignStmt {assign :: !Assignment}
   | IfStmt {pred :: !Expr, ifBlock :: !Block, elseBlock :: !(Maybe Block)}
-  | ForStmt { counter :: !Name, initCounter :: !Expr, pred :: !Expr, update :: !Assignment, block :: !Block}
-  | WhileStmt {pred :: !Expr, block :: !Block}
+  | ForStmt { init :: !(Maybe Assignment), pred :: !Expr, update :: !(Maybe Assignment), block :: !Block}
+  -- | WhileStmt {pred :: !Expr, block :: !Block}
   | ReturnStmt {expr :: !(Maybe Expr)}
   | MethodCallStmt {methodCall :: !MethodCall}
   | BreakStmt

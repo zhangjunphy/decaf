@@ -612,213 +612,213 @@ span.spaces    { background: white }
 <span class="lineno">  593 </span><span class="spaces">          </span><span class="istickedoff">arguments &lt;&amp;&gt; <span class="nottickedoff">\(SL.LocatedAt range (P.Argument id tpe)) -&gt;</span></span>
 <span class="lineno">  594 </span><span class="spaces">            </span><span class="istickedoff"><span class="nottickedoff">Argument id (irgenType tpe) range</span></span></span>
 <span class="lineno">  595 </span>
-<span class="lineno">  596 </span>translateForToWhile :: [SL.Located P.Statement] -&gt; [SL.Located P.Statement]
-<span class="lineno">  597 </span><span class="decl"><span class="istickedoff">translateForToWhile [] = []</span>
-<span class="lineno">  598 </span><span class="spaces"></span><span class="istickedoff">translateForToWhile (s : ss) = case s of</span>
-<span class="lineno">  599 </span><span class="spaces">  </span><span class="istickedoff">SL.LocatedAt loc (P.ForStatement counter init pred (P.CounterUpdate updateLoc updateExpr) block) -&gt;</span>
-<span class="lineno">  600 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">let initStmt = P.AssignStatement (P.ScalarLocation counter) (P.AssignExpr &quot;=&quot; init)</span></span>
-<span class="lineno">  601 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">updateStmt = P.AssignStatement updateLoc updateExpr</span></span>
-<span class="lineno">  602 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">originalStmts = P.blockStatements block</span></span>
-<span class="lineno">  603 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">-- TODO: This source location is a bit off.</span></span>
-<span class="lineno">  604 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">block' = block {P.blockStatements = originalStmts ++ [SL.LocatedAt (SL.getLoc init) updateStmt]}</span></span>
-<span class="lineno">  605 </span><span class="spaces">     </span><span class="istickedoff"><span class="nottickedoff">in [SL.LocatedAt (SL.getLoc init) initStmt, SL.LocatedAt loc (P.WhileStatement pred block')] ++ translateForToWhile ss</span></span>
-<span class="lineno">  606 </span><span class="spaces">  </span><span class="istickedoff">s' -&gt; s' : translateForToWhile ss</span></span>
-<span class="lineno">  607 </span>
-<span class="lineno">  608 </span>irgenBlock :: BlockType -&gt; Maybe MethodSig -&gt; P.Block -&gt; Semantic Block
-<span class="lineno">  609 </span><span class="decl"><span class="istickedoff">irgenBlock blockType sig (P.Block fieldDecls statements) = do</span>
-<span class="lineno">  610 </span><span class="spaces">  </span><span class="istickedoff">nextID &lt;- enterScope <span class="nottickedoff">blockType</span> sig</span>
-<span class="lineno">  611 </span><span class="spaces">  </span><span class="istickedoff">fields &lt;- irgenFieldDecls fieldDecls</span>
-<span class="lineno">  612 </span><span class="spaces">  </span><span class="istickedoff">stmts &lt;- irgenStatements $ translateForToWhile statements</span>
-<span class="lineno">  613 </span><span class="spaces">  </span><span class="istickedoff">let block = Block <span class="nottickedoff">fields</span> stmts <span class="nottickedoff">nextID</span></span>
-<span class="lineno">  614 </span><span class="spaces">  </span><span class="istickedoff">exitScope</span>
-<span class="lineno">  615 </span><span class="spaces">  </span><span class="istickedoff">return block</span></span>
-<span class="lineno">  616 </span>
-<span class="lineno">  617 </span>irgenLocation :: P.Location -&gt; Semantic Location
-<span class="lineno">  618 </span><span class="decl"><span class="istickedoff">irgenLocation (P.ScalarLocation id) = do</span>
-<span class="lineno">  619 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[10] (checked in lookupVariable')</span>
-<span class="lineno">  620 </span><span class="spaces">  </span><span class="istickedoff">def &lt;- lookupVariable' id</span>
-<span class="lineno">  621 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
-<span class="lineno">  622 </span><span class="spaces">  </span><span class="istickedoff">let tpe = either <span class="nottickedoff">(\(Argument _ tpe' _) -&gt; tpe')</span> (\(FieldDecl _ tpe' _) -&gt; tpe') def</span>
-<span class="lineno">  623 </span><span class="spaces">  </span><span class="istickedoff">let sz =</span>
-<span class="lineno">  624 </span><span class="spaces">        </span><span class="istickedoff">either</span>
-<span class="lineno">  625 </span><span class="spaces">          </span><span class="istickedoff"><span class="nottickedoff">(const Nothing)</span></span>
-<span class="lineno">  626 </span><span class="spaces">          </span><span class="istickedoff">( \(FieldDecl _ tpe _) -&gt; case tpe of</span>
-<span class="lineno">  627 </span><span class="spaces">              </span><span class="istickedoff">(ArrayType _ sz') -&gt; <span class="nottickedoff">Just sz'</span></span>
-<span class="lineno">  628 </span><span class="spaces">              </span><span class="istickedoff">_ -&gt; Nothing</span>
-<span class="lineno">  629 </span><span class="spaces">          </span><span class="istickedoff">)</span>
-<span class="lineno">  630 </span><span class="spaces">          </span><span class="istickedoff">def</span>
-<span class="lineno">  631 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[12]</span>
-<span class="lineno">  632 </span><span class="spaces">  </span><span class="istickedoff">case sz of</span>
-<span class="lineno">  633 </span><span class="spaces">    </span><span class="istickedoff">Nothing -&gt; return $ Location id <span class="nottickedoff">Nothing</span> def tpe <span class="nottickedoff">range</span></span>
-<span class="lineno">  634 </span><span class="spaces">    </span><span class="istickedoff">Just v -&gt; <span class="nottickedoff">return $ Location id Nothing def (ArrayType tpe v) range</span></span>
-<span class="lineno">  635 </span><span class="spaces"></span><span class="istickedoff">irgenLocation (P.VectorLocation id expr) = do</span>
-<span class="lineno">  636 </span><span class="spaces">  </span><span class="istickedoff">expr'@(Expr _ indexTpe _) &lt;- irgenExpr expr</span>
-<span class="lineno">  637 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[10] (checked in lookupVariable')</span>
-<span class="lineno">  638 </span><span class="spaces">  </span><span class="istickedoff">def &lt;- lookupVariable' id</span>
-<span class="lineno">  639 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
-<span class="lineno">  640 </span><span class="spaces">  </span><span class="istickedoff">let tpe = either <span class="nottickedoff">(\(Argument _ tpe' _) -&gt; tpe')</span> (\(FieldDecl _ tpe' _) -&gt; tpe') def</span>
-<span class="lineno">  641 </span><span class="spaces">  </span><span class="istickedoff">let sz =</span>
-<span class="lineno">  642 </span><span class="spaces">        </span><span class="istickedoff">either</span>
-<span class="lineno">  643 </span><span class="spaces">          </span><span class="istickedoff"><span class="nottickedoff">(const Nothing)</span></span>
-<span class="lineno">  644 </span><span class="spaces">          </span><span class="istickedoff">( \(FieldDecl _ tpe _) -&gt; case tpe of</span>
-<span class="lineno">  645 </span><span class="spaces">              </span><span class="istickedoff">(ArrayType _ sz') -&gt; Just <span class="nottickedoff">sz'</span></span>
-<span class="lineno">  646 </span><span class="spaces">              </span><span class="istickedoff">_ -&gt; <span class="nottickedoff">Nothing</span></span>
-<span class="lineno">  647 </span><span class="spaces">          </span><span class="istickedoff">)</span>
-<span class="lineno">  648 </span><span class="spaces">          </span><span class="istickedoff">def</span>
-<span class="lineno">  649 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[12]</span>
-<span class="lineno">  650 </span><span class="spaces">  </span><span class="istickedoff">when (indexTpe /= IntType) <span class="nottickedoff">(addSemanticError &quot;Index must be of int type!&quot;)</span></span>
-<span class="lineno">  651 </span><span class="spaces">  </span><span class="istickedoff">case sz of</span>
-<span class="lineno">  652 </span><span class="spaces">    </span><span class="istickedoff">Nothing -&gt; <span class="nottickedoff">do</span></span>
-<span class="lineno">  653 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">addSemanticError $</span></span>
-<span class="lineno">  654 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">sformat (&quot;Cannot access index of scalar variable &quot; % stext % &quot;.&quot;) id</span></span>
-<span class="lineno">  655 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">return $ Location id Nothing def tpe range</span></span>
-<span class="lineno">  656 </span><span class="spaces">    </span><span class="istickedoff">Just _ -&gt; return $ Location id <span class="nottickedoff">(Just expr')</span> def tpe <span class="nottickedoff">range</span></span></span>
-<span class="lineno">  657 </span>
-<span class="lineno">  658 </span>checkAssignType :: Type -&gt; Type -&gt; Bool
-<span class="lineno">  659 </span><span class="decl"><span class="istickedoff">checkAssignType (ArrayType tpe _) exprType = tpe == exprType</span>
-<span class="lineno">  660 </span><span class="spaces"></span><span class="istickedoff">checkAssignType locType exprType = locType == exprType</span></span>
-<span class="lineno">  661 </span>
-<span class="lineno">  662 </span>recordSymbolWrite :: Location -&gt; Semantic ()
-<span class="lineno">  663 </span><span class="decl"><span class="istickedoff">recordSymbolWrite loc = do</span>
-<span class="lineno">  664 </span><span class="spaces">  </span><span class="istickedoff">sid &lt;- getCurrentScopeID</span>
-<span class="lineno">  665 </span><span class="spaces">  </span><span class="istickedoff">let name = loc ^. #name</span>
-<span class="lineno">  666 </span><span class="spaces">  </span><span class="istickedoff">varScope &lt;- lookupVariableScope' name</span>
-<span class="lineno">  667 </span><span class="spaces">  </span><span class="istickedoff">case typeOfDef (loc ^. #variableDef) of</span>
-<span class="lineno">  668 </span><span class="spaces">    </span><span class="istickedoff">Void -&gt; <span class="nottickedoff">return ()</span></span>
-<span class="lineno">  669 </span><span class="spaces">    </span><span class="istickedoff">ArrayType _ _ -&gt; return <span class="nottickedoff">()</span></span>
-<span class="lineno">  670 </span><span class="spaces">    </span><span class="istickedoff">Ptr _ -&gt; <span class="nottickedoff">return ()</span></span>
-<span class="lineno">  671 </span><span class="spaces">    </span><span class="istickedoff">_ScalarType -&gt; do</span>
-<span class="lineno">  672 </span><span class="spaces">      </span><span class="istickedoff">let <span class="nottickedoff">newSet = Set.fromList $ filter (\(s, _) -&gt; s /= 0) [(varScope, name)]</span></span>
-<span class="lineno">  673 </span><span class="spaces">      </span><span class="istickedoff">#symbolWrites %= <span class="nottickedoff">Map.insertWith Set.union sid newSet</span></span></span>
-<span class="lineno">  674 </span>
-<span class="lineno">  675 </span>irgenAssign :: P.Location -&gt; P.AssignExpr -&gt; Semantic Assignment
-<span class="lineno">  676 </span><span class="decl"><span class="istickedoff">irgenAssign loc (P.AssignExpr op expr) = do</span>
-<span class="lineno">  677 </span><span class="spaces">  </span><span class="istickedoff">loc'@Location {tpe = tpe} &lt;- irgenLocation loc</span>
-<span class="lineno">  678 </span><span class="spaces">  </span><span class="istickedoff">expr'@Expr {tpe = tpe'} &lt;- irgenExpr expr</span>
-<span class="lineno">  679 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
-<span class="lineno">  680 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[19]</span>
-<span class="lineno">  681 </span><span class="spaces">  </span><span class="istickedoff">unless</span>
-<span class="lineno">  682 </span><span class="spaces">    </span><span class="istickedoff">(checkAssignType tpe tpe')</span>
-<span class="lineno">  683 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;Assign statement has different types: &quot; % shown % &quot; and &quot; % shown % &quot;&quot;) tpe tpe')</span></span>
-<span class="lineno">  684 </span><span class="spaces">  </span><span class="istickedoff">let op' = parseAssignOp op</span>
-<span class="lineno">  685 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[20]</span>
-<span class="lineno">  686 </span><span class="spaces">  </span><span class="istickedoff">when</span>
-<span class="lineno">  687 </span><span class="spaces">    </span><span class="istickedoff">((op' == IncAssign || op' == DecAssign) &amp;&amp; <span class="nottickedoff">(tpe /= IntType)</span>)</span>
-<span class="lineno">  688 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError &quot;Inc or dec assign only works with int type!&quot;)</span></span>
-<span class="lineno">  689 </span><span class="spaces">  </span><span class="istickedoff">-- Record symbol write to ease cfg construction</span>
-<span class="lineno">  690 </span><span class="spaces">  </span><span class="istickedoff">recordSymbolWrite loc'</span>
-<span class="lineno">  691 </span><span class="spaces">  </span><span class="istickedoff">return $ Assignment <span class="nottickedoff">loc'</span> <span class="nottickedoff">op'</span> (Just expr') <span class="nottickedoff">range</span></span>
-<span class="lineno">  692 </span><span class="spaces"></span><span class="istickedoff">irgenAssign loc (P.IncrementExpr op) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  693 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">loc'@Location {tpe = tpe} &lt;- irgenLocation loc</span></span>
-<span class="lineno">  694 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
-<span class="lineno">  695 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">let op' = parseAssignOp op</span></span>
-<span class="lineno">  696 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[20]</span></span>
-<span class="lineno">  697 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when (tpe /= IntType) (addSemanticError &quot;Inc or dec operator only works on int type!&quot;)</span></span>
-<span class="lineno">  698 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Record symbol write to ease cfg construction</span></span>
-<span class="lineno">  699 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">recordSymbolWrite loc'</span></span>
-<span class="lineno">  700 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Assignment loc' op' Nothing range</span></span></span>
-<span class="lineno">  701 </span>
-<span class="lineno">  702 </span>irgenStatements :: [SL.Located P.Statement] -&gt; Semantic [Statement]
-<span class="lineno">  703 </span><span class="decl"><span class="istickedoff">irgenStatements [] = return <span class="nottickedoff">[]</span></span>
-<span class="lineno">  704 </span><span class="spaces"></span><span class="istickedoff">irgenStatements ((SL.LocatedAt range s) : xs) = do</span>
-<span class="lineno">  705 </span><span class="spaces">  </span><span class="istickedoff">updateCurrentRange <span class="nottickedoff">range</span></span>
-<span class="lineno">  706 </span><span class="spaces">  </span><span class="istickedoff">s' &lt;- irgenStmt s</span>
-<span class="lineno">  707 </span><span class="spaces">  </span><span class="istickedoff">xs' &lt;- irgenStatements xs</span>
-<span class="lineno">  708 </span><span class="spaces">  </span><span class="istickedoff">return (s' : xs')</span></span>
-<span class="lineno">  709 </span>
-<span class="lineno">  710 </span>irgenMethod :: P.MethodCall -&gt; Semantic MethodCall
-<span class="lineno">  711 </span><span class="decl"><span class="nottickedoff">irgenMethod (P.MethodCall method args') = do</span>
-<span class="lineno">  712 </span><span class="spaces">  </span><span class="nottickedoff">-- Semantic[2] and Semantic[11]</span>
-<span class="lineno">  713 </span><span class="spaces">  </span><span class="nottickedoff">decl' &lt;- lookupMethod method</span>
-<span class="lineno">  714 </span><span class="spaces">  </span><span class="nottickedoff">argsTyped &lt;- traverse irgenImportArg args'</span>
-<span class="lineno">  715 </span><span class="spaces">  </span><span class="nottickedoff">range &lt;- getCurrentRange</span>
-<span class="lineno">  716 </span><span class="spaces">  </span><span class="nottickedoff">case decl' of</span>
-<span class="lineno">  717 </span><span class="spaces">    </span><span class="nottickedoff">Nothing -&gt; do</span>
-<span class="lineno">  718 </span><span class="spaces">      </span><span class="nottickedoff">currentMethod &lt;- getMethodSignature</span>
-<span class="lineno">  719 </span><span class="spaces">      </span><span class="nottickedoff">case currentMethod of</span>
-<span class="lineno">  720 </span><span class="spaces">        </span><span class="nottickedoff">-- Recursive method calling itself</span>
-<span class="lineno">  721 </span><span class="spaces">        </span><span class="nottickedoff">(Just (MethodSig name _ formal)) | name == method -&gt; do</span>
-<span class="lineno">  722 </span><span class="spaces">          </span><span class="nottickedoff">checkCallingSemantics formal argsTyped</span>
-<span class="lineno">  723 </span><span class="spaces">          </span><span class="nottickedoff">return $ MethodCall method argsTyped range</span>
-<span class="lineno">  724 </span><span class="spaces">        </span><span class="nottickedoff">_ -&gt; throwSemanticException $ sformat (&quot;method &quot; % stext % &quot; not declared!&quot;) method</span>
-<span class="lineno">  725 </span><span class="spaces">    </span><span class="nottickedoff">Just decl -&gt; case decl of</span>
-<span class="lineno">  726 </span><span class="spaces">      </span><span class="nottickedoff">Left _ -&gt; return $ MethodCall method argsTyped range</span>
-<span class="lineno">  727 </span><span class="spaces">      </span><span class="nottickedoff">Right m -&gt; do</span>
-<span class="lineno">  728 </span><span class="spaces">        </span><span class="nottickedoff">let formal = m ^. (#sig . #args)</span>
-<span class="lineno">  729 </span><span class="spaces">        </span><span class="nottickedoff">-- Semantic[5] and Semantic[7]</span>
-<span class="lineno">  730 </span><span class="spaces">        </span><span class="nottickedoff">checkCallingSemantics formal argsTyped</span>
-<span class="lineno">  731 </span><span class="spaces">        </span><span class="nottickedoff">return $ MethodCall method argsTyped range</span>
-<span class="lineno">  732 </span><span class="spaces">  </span><span class="nottickedoff">where</span>
-<span class="lineno">  733 </span><span class="spaces">    </span><span class="nottickedoff">matchPred (Argument _ tpe _, Expr {tpe = tpe'}) = tpe == tpe'</span>
-<span class="lineno">  734 </span><span class="spaces">    </span><span class="nottickedoff">argName (Argument name _ _, _) = name</span>
-<span class="lineno">  735 </span><span class="spaces">    </span><span class="nottickedoff">checkArgNum formal args =</span>
-<span class="lineno">  736 </span><span class="spaces">      </span><span class="nottickedoff">unless</span>
-<span class="lineno">  737 </span><span class="spaces">        </span><span class="nottickedoff">(length formal == length args)</span>
-<span class="lineno">  738 </span><span class="spaces">        </span><span class="nottickedoff">( addSemanticError $</span>
-<span class="lineno">  739 </span><span class="spaces">            </span><span class="nottickedoff">sformat</span>
-<span class="lineno">  740 </span><span class="spaces">              </span><span class="nottickedoff">(&quot;Calling &quot; % stext % &quot; with wrong number of args. Required: &quot; % int % &quot;, supplied: &quot; % int % &quot;.&quot;)</span>
-<span class="lineno">  741 </span><span class="spaces">              </span><span class="nottickedoff">method</span>
-<span class="lineno">  742 </span><span class="spaces">              </span><span class="nottickedoff">(length formal)</span>
-<span class="lineno">  743 </span><span class="spaces">              </span><span class="nottickedoff">(length args)</span>
-<span class="lineno">  744 </span><span class="spaces">        </span><span class="nottickedoff">)</span>
-<span class="lineno">  745 </span><span class="spaces">    </span><span class="nottickedoff">checkArgType formal args =</span>
-<span class="lineno">  746 </span><span class="spaces">      </span><span class="nottickedoff">let mismatch = map argName $ filter (not . matchPred) $ zip formal args</span>
-<span class="lineno">  747 </span><span class="spaces">       </span><span class="nottickedoff">in unless</span>
-<span class="lineno">  748 </span><span class="spaces">            </span><span class="nottickedoff">(null mismatch)</span>
-<span class="lineno">  749 </span><span class="spaces">            </span><span class="nottickedoff">( addSemanticError $</span>
-<span class="lineno">  750 </span><span class="spaces">                </span><span class="nottickedoff">sformat</span>
-<span class="lineno">  751 </span><span class="spaces">                  </span><span class="nottickedoff">(&quot;Calling &quot; % stext % &quot; with wrong type of args: &quot; % shown)</span>
-<span class="lineno">  752 </span><span class="spaces">                  </span><span class="nottickedoff">method</span>
-<span class="lineno">  753 </span><span class="spaces">                  </span><span class="nottickedoff">mismatch</span>
-<span class="lineno">  754 </span><span class="spaces">            </span><span class="nottickedoff">)</span>
-<span class="lineno">  755 </span><span class="spaces">    </span><span class="nottickedoff">arrayOrStringTypePred Expr {tpe = tpe} = case tpe of</span>
-<span class="lineno">  756 </span><span class="spaces">      </span><span class="nottickedoff">ArrayType _ _ -&gt; True</span>
-<span class="lineno">  757 </span><span class="spaces">      </span><span class="nottickedoff">StringType -&gt; True</span>
-<span class="lineno">  758 </span><span class="spaces">      </span><span class="nottickedoff">_ -&gt; False</span>
-<span class="lineno">  759 </span><span class="spaces">    </span><span class="nottickedoff">checkForArrayArg args =</span>
-<span class="lineno">  760 </span><span class="spaces">      </span><span class="nottickedoff">let arrayArgs = filter arrayOrStringTypePred args</span>
-<span class="lineno">  761 </span><span class="spaces">       </span><span class="nottickedoff">in unless</span>
-<span class="lineno">  762 </span><span class="spaces">            </span><span class="nottickedoff">(null arrayArgs)</span>
-<span class="lineno">  763 </span><span class="spaces">            </span><span class="nottickedoff">( addSemanticError $</span>
-<span class="lineno">  764 </span><span class="spaces">                </span><span class="nottickedoff">sformat</span>
-<span class="lineno">  765 </span><span class="spaces">                  </span><span class="nottickedoff">(&quot;Argument of array or string type can not be used for method &quot; % stext)</span>
-<span class="lineno">  766 </span><span class="spaces">                  </span><span class="nottickedoff">method</span>
-<span class="lineno">  767 </span><span class="spaces">            </span><span class="nottickedoff">)</span>
-<span class="lineno">  768 </span><span class="spaces">    </span><span class="nottickedoff">checkCallingSemantics formal args = do</span>
-<span class="lineno">  769 </span><span class="spaces">      </span><span class="nottickedoff">checkArgNum formal args</span>
-<span class="lineno">  770 </span><span class="spaces">      </span><span class="nottickedoff">checkArgType formal args</span>
-<span class="lineno">  771 </span><span class="spaces">      </span><span class="nottickedoff">checkForArrayArg args</span></span>
-<span class="lineno">  772 </span>
-<span class="lineno">  773 </span>irgenStmt :: P.Statement -&gt; Semantic Statement
-<span class="lineno">  774 </span><span class="decl"><span class="istickedoff">irgenStmt (P.AssignStatement loc expr) = do</span>
-<span class="lineno">  775 </span><span class="spaces">  </span><span class="istickedoff">assign &lt;- irgenAssign loc expr</span>
-<span class="lineno">  776 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
-<span class="lineno">  777 </span><span class="spaces">  </span><span class="istickedoff">return $ Statement (AssignStmt assign) <span class="nottickedoff">range</span></span>
-<span class="lineno">  778 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.MethodCallStatement method) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  779 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">method' &lt;- irgenMethod method</span></span>
-<span class="lineno">  780 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
-<span class="lineno">  781 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (MethodCallStmt method') range</span></span>
-<span class="lineno">  782 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.IfStatement expr block) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  783 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">ifBlock &lt;- irgenBlock IfBlock Nothing block</span></span>
-<span class="lineno">  784 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">expr'@Expr {tpe = tpe} &lt;- irgenExpr expr</span></span>
-<span class="lineno">  785 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
-<span class="lineno">  786 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[14]</span></span>
-<span class="lineno">  787 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
-<span class="lineno">  788 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(tpe /= BoolType)</span></span>
-<span class="lineno">  789 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;The pred of if statment must have type bool, but got &quot; % shown % &quot; instead!&quot;) tpe)</span></span>
-<span class="lineno">  790 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (IfStmt expr' ifBlock Nothing) range</span></span>
-<span class="lineno">  791 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  792 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">ifBlock' &lt;- irgenBlock IfBlock Nothing ifBlock</span></span>
-<span class="lineno">  793 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">elseBlock' &lt;- irgenBlock IfBlock Nothing elseBlock</span></span>
-<span class="lineno">  794 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">expr'@Expr {tpe = tpe} &lt;- irgenExpr expr</span></span>
-<span class="lineno">  795 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
-<span class="lineno">  796 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[14]</span></span>
-<span class="lineno">  797 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
-<span class="lineno">  798 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(tpe /= BoolType)</span></span>
-<span class="lineno">  799 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;The pred of if statment must have type bool, but got &quot; % shown % &quot; instead!&quot;) tpe)</span></span>
-<span class="lineno">  800 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (IfStmt expr' ifBlock' (Just elseBlock')) range</span></span>
-<span class="lineno">  801 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = <span class="nottickedoff">do</span></span>
-<span class="lineno">  802 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">throwSemanticException &quot;Unexpected for loop structure.&quot;</span></span>
+<span class="lineno">  596 </span>irgenBlock :: BlockType -&gt; Maybe MethodSig -&gt; P.Block -&gt; Semantic Block
+<span class="lineno">  597 </span><span class="decl"><span class="istickedoff">irgenBlock blockType sig (P.Block fieldDecls statements) = do</span>
+<span class="lineno">  598 </span><span class="spaces">  </span><span class="istickedoff">nextID &lt;- enterScope <span class="nottickedoff">blockType</span> sig</span>
+<span class="lineno">  599 </span><span class="spaces">  </span><span class="istickedoff">fields &lt;- irgenFieldDecls fieldDecls</span>
+<span class="lineno">  600 </span><span class="spaces">  </span><span class="istickedoff">stmts &lt;- irgenStatements statements</span>
+<span class="lineno">  601 </span><span class="spaces">  </span><span class="istickedoff">let block = Block <span class="nottickedoff">fields</span> stmts <span class="nottickedoff">nextID</span></span>
+<span class="lineno">  602 </span><span class="spaces">  </span><span class="istickedoff">exitScope</span>
+<span class="lineno">  603 </span><span class="spaces">  </span><span class="istickedoff">return block</span></span>
+<span class="lineno">  604 </span>
+<span class="lineno">  605 </span>irgenLocation :: P.Location -&gt; Semantic Location
+<span class="lineno">  606 </span><span class="decl"><span class="istickedoff">irgenLocation (P.ScalarLocation id) = do</span>
+<span class="lineno">  607 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[10] (checked in lookupVariable')</span>
+<span class="lineno">  608 </span><span class="spaces">  </span><span class="istickedoff">def &lt;- lookupVariable' id</span>
+<span class="lineno">  609 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
+<span class="lineno">  610 </span><span class="spaces">  </span><span class="istickedoff">let tpe = either <span class="nottickedoff">(\(Argument _ tpe' _) -&gt; tpe')</span> (\(FieldDecl _ tpe' _) -&gt; tpe') def</span>
+<span class="lineno">  611 </span><span class="spaces">  </span><span class="istickedoff">let sz =</span>
+<span class="lineno">  612 </span><span class="spaces">        </span><span class="istickedoff">either</span>
+<span class="lineno">  613 </span><span class="spaces">          </span><span class="istickedoff"><span class="nottickedoff">(const Nothing)</span></span>
+<span class="lineno">  614 </span><span class="spaces">          </span><span class="istickedoff">( \(FieldDecl _ tpe _) -&gt; case tpe of</span>
+<span class="lineno">  615 </span><span class="spaces">              </span><span class="istickedoff">(ArrayType _ sz') -&gt; <span class="nottickedoff">Just sz'</span></span>
+<span class="lineno">  616 </span><span class="spaces">              </span><span class="istickedoff">_ -&gt; Nothing</span>
+<span class="lineno">  617 </span><span class="spaces">          </span><span class="istickedoff">)</span>
+<span class="lineno">  618 </span><span class="spaces">          </span><span class="istickedoff">def</span>
+<span class="lineno">  619 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[12]</span>
+<span class="lineno">  620 </span><span class="spaces">  </span><span class="istickedoff">case sz of</span>
+<span class="lineno">  621 </span><span class="spaces">    </span><span class="istickedoff">Nothing -&gt; return $ Location id <span class="nottickedoff">Nothing</span> def tpe <span class="nottickedoff">range</span></span>
+<span class="lineno">  622 </span><span class="spaces">    </span><span class="istickedoff">Just v -&gt; <span class="nottickedoff">return $ Location id Nothing def (ArrayType tpe v) range</span></span>
+<span class="lineno">  623 </span><span class="spaces"></span><span class="istickedoff">irgenLocation (P.VectorLocation id expr) = do</span>
+<span class="lineno">  624 </span><span class="spaces">  </span><span class="istickedoff">expr'@(Expr _ indexTpe _) &lt;- irgenExpr expr</span>
+<span class="lineno">  625 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[10] (checked in lookupVariable')</span>
+<span class="lineno">  626 </span><span class="spaces">  </span><span class="istickedoff">def &lt;- lookupVariable' id</span>
+<span class="lineno">  627 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
+<span class="lineno">  628 </span><span class="spaces">  </span><span class="istickedoff">let tpe = either <span class="nottickedoff">(\(Argument _ tpe' _) -&gt; tpe')</span> (\(FieldDecl _ tpe' _) -&gt; tpe') def</span>
+<span class="lineno">  629 </span><span class="spaces">  </span><span class="istickedoff">let sz =</span>
+<span class="lineno">  630 </span><span class="spaces">        </span><span class="istickedoff">either</span>
+<span class="lineno">  631 </span><span class="spaces">          </span><span class="istickedoff"><span class="nottickedoff">(const Nothing)</span></span>
+<span class="lineno">  632 </span><span class="spaces">          </span><span class="istickedoff">( \(FieldDecl _ tpe _) -&gt; case tpe of</span>
+<span class="lineno">  633 </span><span class="spaces">              </span><span class="istickedoff">(ArrayType _ sz') -&gt; Just <span class="nottickedoff">sz'</span></span>
+<span class="lineno">  634 </span><span class="spaces">              </span><span class="istickedoff">_ -&gt; <span class="nottickedoff">Nothing</span></span>
+<span class="lineno">  635 </span><span class="spaces">          </span><span class="istickedoff">)</span>
+<span class="lineno">  636 </span><span class="spaces">          </span><span class="istickedoff">def</span>
+<span class="lineno">  637 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[12]</span>
+<span class="lineno">  638 </span><span class="spaces">  </span><span class="istickedoff">when (indexTpe /= IntType) <span class="nottickedoff">(addSemanticError &quot;Index must be of int type!&quot;)</span></span>
+<span class="lineno">  639 </span><span class="spaces">  </span><span class="istickedoff">case sz of</span>
+<span class="lineno">  640 </span><span class="spaces">    </span><span class="istickedoff">Nothing -&gt; <span class="nottickedoff">do</span></span>
+<span class="lineno">  641 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">addSemanticError $</span></span>
+<span class="lineno">  642 </span><span class="spaces">        </span><span class="istickedoff"><span class="nottickedoff">sformat (&quot;Cannot access index of scalar variable &quot; % stext % &quot;.&quot;) id</span></span>
+<span class="lineno">  643 </span><span class="spaces">      </span><span class="istickedoff"><span class="nottickedoff">return $ Location id Nothing def tpe range</span></span>
+<span class="lineno">  644 </span><span class="spaces">    </span><span class="istickedoff">Just _ -&gt; return $ Location id <span class="nottickedoff">(Just expr')</span> def tpe <span class="nottickedoff">range</span></span></span>
+<span class="lineno">  645 </span>
+<span class="lineno">  646 </span>checkAssignType :: Type -&gt; Type -&gt; Bool
+<span class="lineno">  647 </span><span class="decl"><span class="istickedoff">checkAssignType (ArrayType tpe _) exprType = tpe == exprType</span>
+<span class="lineno">  648 </span><span class="spaces"></span><span class="istickedoff">checkAssignType locType exprType = locType == exprType</span></span>
+<span class="lineno">  649 </span>
+<span class="lineno">  650 </span>recordSymbolWrite :: Location -&gt; Semantic ()
+<span class="lineno">  651 </span><span class="decl"><span class="istickedoff">recordSymbolWrite loc = do</span>
+<span class="lineno">  652 </span><span class="spaces">  </span><span class="istickedoff">sid &lt;- getCurrentScopeID</span>
+<span class="lineno">  653 </span><span class="spaces">  </span><span class="istickedoff">let name = loc ^. #name</span>
+<span class="lineno">  654 </span><span class="spaces">  </span><span class="istickedoff">varScope &lt;- lookupVariableScope' name</span>
+<span class="lineno">  655 </span><span class="spaces">  </span><span class="istickedoff">case typeOfDef (loc ^. #variableDef) of</span>
+<span class="lineno">  656 </span><span class="spaces">    </span><span class="istickedoff">Void -&gt; <span class="nottickedoff">return ()</span></span>
+<span class="lineno">  657 </span><span class="spaces">    </span><span class="istickedoff">ArrayType _ _ -&gt; return <span class="nottickedoff">()</span></span>
+<span class="lineno">  658 </span><span class="spaces">    </span><span class="istickedoff">Ptr _ -&gt; <span class="nottickedoff">return ()</span></span>
+<span class="lineno">  659 </span><span class="spaces">    </span><span class="istickedoff">_ScalarType -&gt; do</span>
+<span class="lineno">  660 </span><span class="spaces">      </span><span class="istickedoff">let <span class="nottickedoff">newSet = Set.fromList $ filter (\(s, _) -&gt; s /= 0) [(varScope, name)]</span></span>
+<span class="lineno">  661 </span><span class="spaces">      </span><span class="istickedoff">#symbolWrites %= <span class="nottickedoff">Map.insertWith Set.union sid newSet</span></span></span>
+<span class="lineno">  662 </span>
+<span class="lineno">  663 </span>irgenAssign :: P.Location -&gt; P.AssignExpr -&gt; Semantic Assignment
+<span class="lineno">  664 </span><span class="decl"><span class="istickedoff">irgenAssign loc (P.AssignExpr op expr) = do</span>
+<span class="lineno">  665 </span><span class="spaces">  </span><span class="istickedoff">loc'@Location {tpe = tpe} &lt;- irgenLocation loc</span>
+<span class="lineno">  666 </span><span class="spaces">  </span><span class="istickedoff">expr'@Expr {tpe = tpe'} &lt;- irgenExpr expr</span>
+<span class="lineno">  667 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
+<span class="lineno">  668 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[19]</span>
+<span class="lineno">  669 </span><span class="spaces">  </span><span class="istickedoff">unless</span>
+<span class="lineno">  670 </span><span class="spaces">    </span><span class="istickedoff">(checkAssignType tpe tpe')</span>
+<span class="lineno">  671 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;Assign statement has different types: &quot; % shown % &quot; and &quot; % shown % &quot;&quot;) tpe tpe')</span></span>
+<span class="lineno">  672 </span><span class="spaces">  </span><span class="istickedoff">let op' = parseAssignOp op</span>
+<span class="lineno">  673 </span><span class="spaces">  </span><span class="istickedoff">-- Semantic[20]</span>
+<span class="lineno">  674 </span><span class="spaces">  </span><span class="istickedoff">when</span>
+<span class="lineno">  675 </span><span class="spaces">    </span><span class="istickedoff">((op' == IncAssign || op' == DecAssign) &amp;&amp; <span class="nottickedoff">(tpe /= IntType)</span>)</span>
+<span class="lineno">  676 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError &quot;Inc or dec assign only works with int type!&quot;)</span></span>
+<span class="lineno">  677 </span><span class="spaces">  </span><span class="istickedoff">-- Record symbol write to ease cfg construction</span>
+<span class="lineno">  678 </span><span class="spaces">  </span><span class="istickedoff">recordSymbolWrite loc'</span>
+<span class="lineno">  679 </span><span class="spaces">  </span><span class="istickedoff">return $ Assignment <span class="nottickedoff">loc'</span> <span class="nottickedoff">op'</span> (Just expr') <span class="nottickedoff">range</span></span>
+<span class="lineno">  680 </span><span class="spaces"></span><span class="istickedoff">irgenAssign loc (P.IncrementExpr op) = <span class="nottickedoff">do</span></span>
+<span class="lineno">  681 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">loc'@Location {tpe = tpe} &lt;- irgenLocation loc</span></span>
+<span class="lineno">  682 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
+<span class="lineno">  683 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">let op' = parseAssignOp op</span></span>
+<span class="lineno">  684 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[20]</span></span>
+<span class="lineno">  685 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when (tpe /= IntType) (addSemanticError &quot;Inc or dec operator only works on int type!&quot;)</span></span>
+<span class="lineno">  686 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Record symbol write to ease cfg construction</span></span>
+<span class="lineno">  687 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">recordSymbolWrite loc'</span></span>
+<span class="lineno">  688 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Assignment loc' op' Nothing range</span></span></span>
+<span class="lineno">  689 </span>
+<span class="lineno">  690 </span>irgenStatements :: [SL.Located P.Statement] -&gt; Semantic [Statement]
+<span class="lineno">  691 </span><span class="decl"><span class="istickedoff">irgenStatements [] = return <span class="nottickedoff">[]</span></span>
+<span class="lineno">  692 </span><span class="spaces"></span><span class="istickedoff">irgenStatements ((SL.LocatedAt range s) : xs) = do</span>
+<span class="lineno">  693 </span><span class="spaces">  </span><span class="istickedoff">updateCurrentRange <span class="nottickedoff">range</span></span>
+<span class="lineno">  694 </span><span class="spaces">  </span><span class="istickedoff">s' &lt;- irgenStmt s</span>
+<span class="lineno">  695 </span><span class="spaces">  </span><span class="istickedoff">xs' &lt;- irgenStatements xs</span>
+<span class="lineno">  696 </span><span class="spaces">  </span><span class="istickedoff">return (s' : xs')</span></span>
+<span class="lineno">  697 </span>
+<span class="lineno">  698 </span>irgenMethod :: P.MethodCall -&gt; Semantic MethodCall
+<span class="lineno">  699 </span><span class="decl"><span class="nottickedoff">irgenMethod (P.MethodCall method args') = do</span>
+<span class="lineno">  700 </span><span class="spaces">  </span><span class="nottickedoff">-- Semantic[2] and Semantic[11]</span>
+<span class="lineno">  701 </span><span class="spaces">  </span><span class="nottickedoff">decl' &lt;- lookupMethod method</span>
+<span class="lineno">  702 </span><span class="spaces">  </span><span class="nottickedoff">argsTyped &lt;- traverse irgenImportArg args'</span>
+<span class="lineno">  703 </span><span class="spaces">  </span><span class="nottickedoff">range &lt;- getCurrentRange</span>
+<span class="lineno">  704 </span><span class="spaces">  </span><span class="nottickedoff">case decl' of</span>
+<span class="lineno">  705 </span><span class="spaces">    </span><span class="nottickedoff">Nothing -&gt; do</span>
+<span class="lineno">  706 </span><span class="spaces">      </span><span class="nottickedoff">currentMethod &lt;- getMethodSignature</span>
+<span class="lineno">  707 </span><span class="spaces">      </span><span class="nottickedoff">case currentMethod of</span>
+<span class="lineno">  708 </span><span class="spaces">        </span><span class="nottickedoff">-- Recursive method calling itself</span>
+<span class="lineno">  709 </span><span class="spaces">        </span><span class="nottickedoff">(Just (MethodSig name _ formal)) | name == method -&gt; do</span>
+<span class="lineno">  710 </span><span class="spaces">          </span><span class="nottickedoff">checkCallingSemantics formal argsTyped</span>
+<span class="lineno">  711 </span><span class="spaces">          </span><span class="nottickedoff">return $ MethodCall method argsTyped range</span>
+<span class="lineno">  712 </span><span class="spaces">        </span><span class="nottickedoff">_ -&gt; throwSemanticException $ sformat (&quot;method &quot; % stext % &quot; not declared!&quot;) method</span>
+<span class="lineno">  713 </span><span class="spaces">    </span><span class="nottickedoff">Just decl -&gt; case decl of</span>
+<span class="lineno">  714 </span><span class="spaces">      </span><span class="nottickedoff">Left _ -&gt; return $ MethodCall method argsTyped range</span>
+<span class="lineno">  715 </span><span class="spaces">      </span><span class="nottickedoff">Right m -&gt; do</span>
+<span class="lineno">  716 </span><span class="spaces">        </span><span class="nottickedoff">let formal = m ^. (#sig . #args)</span>
+<span class="lineno">  717 </span><span class="spaces">        </span><span class="nottickedoff">-- Semantic[5] and Semantic[7]</span>
+<span class="lineno">  718 </span><span class="spaces">        </span><span class="nottickedoff">checkCallingSemantics formal argsTyped</span>
+<span class="lineno">  719 </span><span class="spaces">        </span><span class="nottickedoff">return $ MethodCall method argsTyped range</span>
+<span class="lineno">  720 </span><span class="spaces">  </span><span class="nottickedoff">where</span>
+<span class="lineno">  721 </span><span class="spaces">    </span><span class="nottickedoff">matchPred (Argument _ tpe _, Expr {tpe = tpe'}) = tpe == tpe'</span>
+<span class="lineno">  722 </span><span class="spaces">    </span><span class="nottickedoff">argName (Argument name _ _, _) = name</span>
+<span class="lineno">  723 </span><span class="spaces">    </span><span class="nottickedoff">checkArgNum formal args =</span>
+<span class="lineno">  724 </span><span class="spaces">      </span><span class="nottickedoff">unless</span>
+<span class="lineno">  725 </span><span class="spaces">        </span><span class="nottickedoff">(length formal == length args)</span>
+<span class="lineno">  726 </span><span class="spaces">        </span><span class="nottickedoff">( addSemanticError $</span>
+<span class="lineno">  727 </span><span class="spaces">            </span><span class="nottickedoff">sformat</span>
+<span class="lineno">  728 </span><span class="spaces">              </span><span class="nottickedoff">(&quot;Calling &quot; % stext % &quot; with wrong number of args. Required: &quot; % int % &quot;, supplied: &quot; % int % &quot;.&quot;)</span>
+<span class="lineno">  729 </span><span class="spaces">              </span><span class="nottickedoff">method</span>
+<span class="lineno">  730 </span><span class="spaces">              </span><span class="nottickedoff">(length formal)</span>
+<span class="lineno">  731 </span><span class="spaces">              </span><span class="nottickedoff">(length args)</span>
+<span class="lineno">  732 </span><span class="spaces">        </span><span class="nottickedoff">)</span>
+<span class="lineno">  733 </span><span class="spaces">    </span><span class="nottickedoff">checkArgType formal args =</span>
+<span class="lineno">  734 </span><span class="spaces">      </span><span class="nottickedoff">let mismatch = map argName $ filter (not . matchPred) $ zip formal args</span>
+<span class="lineno">  735 </span><span class="spaces">       </span><span class="nottickedoff">in unless</span>
+<span class="lineno">  736 </span><span class="spaces">            </span><span class="nottickedoff">(null mismatch)</span>
+<span class="lineno">  737 </span><span class="spaces">            </span><span class="nottickedoff">( addSemanticError $</span>
+<span class="lineno">  738 </span><span class="spaces">                </span><span class="nottickedoff">sformat</span>
+<span class="lineno">  739 </span><span class="spaces">                  </span><span class="nottickedoff">(&quot;Calling &quot; % stext % &quot; with wrong type of args: &quot; % shown)</span>
+<span class="lineno">  740 </span><span class="spaces">                  </span><span class="nottickedoff">method</span>
+<span class="lineno">  741 </span><span class="spaces">                  </span><span class="nottickedoff">mismatch</span>
+<span class="lineno">  742 </span><span class="spaces">            </span><span class="nottickedoff">)</span>
+<span class="lineno">  743 </span><span class="spaces">    </span><span class="nottickedoff">arrayOrStringTypePred Expr {tpe = tpe} = case tpe of</span>
+<span class="lineno">  744 </span><span class="spaces">      </span><span class="nottickedoff">ArrayType _ _ -&gt; True</span>
+<span class="lineno">  745 </span><span class="spaces">      </span><span class="nottickedoff">StringType -&gt; True</span>
+<span class="lineno">  746 </span><span class="spaces">      </span><span class="nottickedoff">_ -&gt; False</span>
+<span class="lineno">  747 </span><span class="spaces">    </span><span class="nottickedoff">checkForArrayArg args =</span>
+<span class="lineno">  748 </span><span class="spaces">      </span><span class="nottickedoff">let arrayArgs = filter arrayOrStringTypePred args</span>
+<span class="lineno">  749 </span><span class="spaces">       </span><span class="nottickedoff">in unless</span>
+<span class="lineno">  750 </span><span class="spaces">            </span><span class="nottickedoff">(null arrayArgs)</span>
+<span class="lineno">  751 </span><span class="spaces">            </span><span class="nottickedoff">( addSemanticError $</span>
+<span class="lineno">  752 </span><span class="spaces">                </span><span class="nottickedoff">sformat</span>
+<span class="lineno">  753 </span><span class="spaces">                  </span><span class="nottickedoff">(&quot;Argument of array or string type can not be used for method &quot; % stext)</span>
+<span class="lineno">  754 </span><span class="spaces">                  </span><span class="nottickedoff">method</span>
+<span class="lineno">  755 </span><span class="spaces">            </span><span class="nottickedoff">)</span>
+<span class="lineno">  756 </span><span class="spaces">    </span><span class="nottickedoff">checkCallingSemantics formal args = do</span>
+<span class="lineno">  757 </span><span class="spaces">      </span><span class="nottickedoff">checkArgNum formal args</span>
+<span class="lineno">  758 </span><span class="spaces">      </span><span class="nottickedoff">checkArgType formal args</span>
+<span class="lineno">  759 </span><span class="spaces">      </span><span class="nottickedoff">checkForArrayArg args</span></span>
+<span class="lineno">  760 </span>
+<span class="lineno">  761 </span>irgenStmt :: P.Statement -&gt; Semantic Statement
+<span class="lineno">  762 </span><span class="decl"><span class="istickedoff">irgenStmt (P.AssignStatement loc expr) = do</span>
+<span class="lineno">  763 </span><span class="spaces">  </span><span class="istickedoff">assign &lt;- irgenAssign loc expr</span>
+<span class="lineno">  764 </span><span class="spaces">  </span><span class="istickedoff">range &lt;- getCurrentRange</span>
+<span class="lineno">  765 </span><span class="spaces">  </span><span class="istickedoff">return $ Statement (AssignStmt assign) <span class="nottickedoff">range</span></span>
+<span class="lineno">  766 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.MethodCallStatement method) = <span class="nottickedoff">do</span></span>
+<span class="lineno">  767 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">method' &lt;- irgenMethod method</span></span>
+<span class="lineno">  768 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
+<span class="lineno">  769 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (MethodCallStmt method') range</span></span>
+<span class="lineno">  770 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.IfStatement expr block) = <span class="nottickedoff">do</span></span>
+<span class="lineno">  771 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">ifBlock &lt;- irgenBlock IfBlock Nothing block</span></span>
+<span class="lineno">  772 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">expr'@Expr {tpe = tpe} &lt;- irgenExpr expr</span></span>
+<span class="lineno">  773 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
+<span class="lineno">  774 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[14]</span></span>
+<span class="lineno">  775 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
+<span class="lineno">  776 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(tpe /= BoolType)</span></span>
+<span class="lineno">  777 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;The pred of if statment must have type bool, but got &quot; % shown % &quot; instead!&quot;) tpe)</span></span>
+<span class="lineno">  778 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (IfStmt expr' ifBlock Nothing) range</span></span>
+<span class="lineno">  779 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = <span class="nottickedoff">do</span></span>
+<span class="lineno">  780 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">ifBlock' &lt;- irgenBlock IfBlock Nothing ifBlock</span></span>
+<span class="lineno">  781 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">elseBlock' &lt;- irgenBlock IfBlock Nothing elseBlock</span></span>
+<span class="lineno">  782 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">expr'@Expr {tpe = tpe} &lt;- irgenExpr expr</span></span>
+<span class="lineno">  783 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
+<span class="lineno">  784 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[14]</span></span>
+<span class="lineno">  785 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
+<span class="lineno">  786 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(tpe /= BoolType)</span></span>
+<span class="lineno">  787 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;The pred of if statment must have type bool, but got &quot; % shown % &quot; instead!&quot;) tpe)</span></span>
+<span class="lineno">  788 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (IfStmt expr' ifBlock' (Just elseBlock')) range</span></span>
+<span class="lineno">  789 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = <span class="nottickedoff">do</span></span>
+<span class="lineno">  790 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- NOTE: For counter is treated as a special write other than assignment.</span></span>
+<span class="lineno">  791 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">counterLoc &lt;- irgenLocation $ P.ScalarLocation counter</span></span>
+<span class="lineno">  792 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">recordSymbolWrite counterLoc</span></span>
+<span class="lineno">  793 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">block' &lt;- irgenBlock ForBlock Nothing block</span></span>
+<span class="lineno">  794 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">counterExpr' &lt;- irgenExpr counterExpr</span></span>
+<span class="lineno">  795 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">predExpr'@Expr {tpe = tpe} &lt;- irgenExpr predExpr</span></span>
+<span class="lineno">  796 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">range &lt;- getCurrentRange</span></span>
+<span class="lineno">  797 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">-- Semantic[14]</span></span>
+<span class="lineno">  798 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">when</span></span>
+<span class="lineno">  799 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(tpe /= BoolType)</span></span>
+<span class="lineno">  800 </span><span class="spaces">    </span><span class="istickedoff"><span class="nottickedoff">(addSemanticError $ sformat (&quot;The pred of for statment must have type bool, but got &quot; % shown % &quot; instead!&quot;) tpe)</span></span>
+<span class="lineno">  801 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">assign &lt;- irgenAssign loc expr</span></span>
+<span class="lineno">  802 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Statement (ForStmt counter counterExpr' predExpr' assign block') range</span></span>
 <span class="lineno">  803 </span><span class="spaces"></span><span class="istickedoff">irgenStmt (P.WhileStatement expr block) = <span class="nottickedoff">do</span></span>
 <span class="lineno">  804 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">block' &lt;- irgenBlock WhileBlock Nothing block</span></span>
 <span class="lineno">  805 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">expr'@Expr {tpe = tpe} &lt;- irgenExpr expr</span></span>

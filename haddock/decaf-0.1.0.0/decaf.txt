@@ -571,6 +571,12 @@ IfStmt :: Expr -> Block -> Maybe Block -> Statement_
 [$sel:pred:AssignStmt] :: Statement_ -> Expr
 [$sel:ifBlock:AssignStmt] :: Statement_ -> Block
 [$sel:elseBlock:AssignStmt] :: Statement_ -> Maybe Block
+ForStmt :: Name -> Expr -> Expr -> Assignment -> Block -> Statement_
+[$sel:counter:AssignStmt] :: Statement_ -> Name
+[$sel:initCounter:AssignStmt] :: Statement_ -> Expr
+[$sel:pred:AssignStmt] :: Statement_ -> Expr
+[$sel:update:AssignStmt] :: Statement_ -> Assignment
+[$sel:block:AssignStmt] :: Statement_ -> Block
 WhileStmt :: Expr -> Block -> Statement_
 [$sel:pred:AssignStmt] :: Statement_ -> Expr
 [$sel:block:AssignStmt] :: Statement_ -> Block
@@ -837,7 +843,7 @@ SymVarMap :: !Map Name VID -> !Maybe ScopeID -> SymVarMap
 [$sel:m:SymVarMap] :: SymVarMap -> !Map Name VID
 [$sel:parent:SymVarMap] :: SymVarMap -> !Maybe ScopeID
 data CFGState
-CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> !Map BBID (Set (ScopeID, Name)) -> CFGState
+CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> !Map BBID (Map (ScopeID, Name) Var) -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> !CFG
 [$sel:astScope:CFGState] :: CFGState -> !ScopeID
 [$sel:sig:CFGState] :: CFGState -> !MethodSig
@@ -848,7 +854,7 @@ CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID 
 [$sel:statements:CFGState] :: CFGState -> ![SSA]
 [$sel:currentControlBlock:CFGState] :: CFGState -> !Maybe (BBID, BBID)
 [$sel:currentFunctionTail:CFGState] :: CFGState -> !Maybe BBID
-[$sel:varWrite:CFGState] :: CFGState -> !Map BBID (Set (ScopeID, Name))
+[$sel:varWrite:CFGState] :: CFGState -> !Map BBID (Map (ScopeID, Name) Var)
 data BBTransition
 StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
@@ -870,14 +876,16 @@ getControlEntry :: CFGBuild (Maybe BBID)
 getControlExit :: CFGBuild (Maybe BBID)
 setFunctionTail :: Maybe BBID -> CFGBuild ()
 getFunctionTail :: CFGBuild (Maybe BBID)
+getBasicBlock' :: BBID -> CFGBuild BasicBlock
 addVarSym :: Name -> VID -> CFGBuild ()
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
 lookupVar' :: VID -> CFGBuild (ScopeID, Name)
-lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe VID)
-lookupSymInScope' :: Name -> ScopeID -> CFGBuild VID
-lookupSym :: Name -> CFGBuild (Maybe VID)
-lookupSym' :: Name -> CFGBuild VID
-getVarDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
+lookupSymInScope :: Name -> ScopeID -> CFGBuild (Maybe Var)
+lookupSymInScope' :: Name -> ScopeID -> CFGBuild Var
+lookupSym :: Name -> CFGBuild (Maybe Var)
+lookupSym' :: Name -> CFGBuild Var
+getSymDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
+getSymScope :: Name -> CFGBuild (Maybe ScopeID)
 createEmptyBB :: CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
 checkStmts :: CFGBuild ()
@@ -886,21 +894,20 @@ newVar :: Maybe Name -> Type -> Range -> Locality -> CFGBuild Var
 newLocal :: Maybe Name -> Type -> Range -> CFGBuild Var
 newGlobal :: Name -> Type -> Range -> CFGBuild Var
 addSSA :: SSA -> CFGBuild ()
-findVarOfSym :: Name -> CFGBuild (Maybe Var)
-findVarOfSym' :: Name -> CFGBuild Var
-findVarOfSymInScope' :: Name -> ScopeID -> CFGBuild Var
 buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 populateGlobals :: ASTRoot -> CFGBuild ()
 buildMethod :: MethodDecl -> CFGBuild CFG
 buildBlock :: Block -> CFGBuild (BBID, BBID)
 findOuterScopes :: ScopeID -> Map ScopeID SymbolTable -> Set ScopeID
-isDummyPhiNode :: SSA -> Bool
-addDummyPhiNode :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
+inferPhiList :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
+addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
+recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
+patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
 buildReadFromLocation :: Location -> CFGBuild Var
-recordVarWrite :: ScopeID -> Name -> CFGBuild ()
+recordVarWrite :: Var -> ScopeID -> Name -> CFGBuild ()
 buildWriteToLocation :: Location -> VarOrImm -> CFGBuild ()
 buildMethodCall :: MethodCall -> Type -> CFGBuild Var
 prettyPrintNode :: CFGNode -> Text

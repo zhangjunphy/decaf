@@ -255,46 +255,47 @@ span.spaces    { background: white }
 <span class="lineno">  236 </span>data Statement_
 <span class="lineno">  237 </span>  = AssignStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">assign</span></span></span> :: Assignment}
 <span class="lineno">  238 </span>  | IfStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">pred</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifBlock</span></span></span> :: Block, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elseBlock</span></span></span> :: Maybe Block}
-<span class="lineno">  239 </span>  | WhileStmt {pred :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">block</span></span></span> :: Block}
-<span class="lineno">  240 </span>  | ReturnStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr</span></span></span> :: Maybe Expr}
-<span class="lineno">  241 </span>  | MethodCallStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCall</span></span></span> :: MethodCall}
-<span class="lineno">  242 </span>  | BreakStmt
-<span class="lineno">  243 </span>  | ContinueStmt
-<span class="lineno">  244 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno">  245 </span>
-<span class="lineno">  246 </span>data Expr = Expr
-<span class="lineno">  247 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr_</span></span></span> :: Expr_
-<span class="lineno">  248 </span>  , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">tpe</span></span></span> :: Type
-<span class="lineno">  249 </span>  , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">loc</span></span></span> :: SL.Range
-<span class="lineno">  250 </span>  } deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno">  251 </span>
-<span class="lineno">  252 </span>data Expr_
-<span class="lineno">  253 </span>  = LocationExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">location</span></span></span> :: Location}
-<span class="lineno">  254 </span>  | MethodCallExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCall</span></span></span> :: MethodCall}
-<span class="lineno">  255 </span>  | ExternCallExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">name</span></span></span> :: Name, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">args</span></span></span> :: [Expr]}
-<span class="lineno">  256 </span>  | IntLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">intVal</span></span></span> :: Int64}
-<span class="lineno">  257 </span>  | BoolLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">boolVal</span></span></span> :: Bool}
-<span class="lineno">  258 </span>  | CharLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">charVal</span></span></span> :: Char}
-<span class="lineno">  259 </span>  | StringLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">strVal</span></span></span> :: Text}
-<span class="lineno">  260 </span>  | ArithOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">arithOp</span></span></span> :: ArithOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lhs</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">rhs</span></span></span> :: Expr}
-<span class="lineno">  261 </span>  | RelOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">relOp</span></span></span> :: RelOp, lhs :: Expr, rhs :: Expr}
-<span class="lineno">  262 </span>  | CondOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">condOp</span></span></span> :: CondOp, lhs :: Expr, rhs :: Expr}
-<span class="lineno">  263 </span>  | EqOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">eqOp</span></span></span> :: EqOp, lhs :: Expr, rhs :: Expr}
-<span class="lineno">  264 </span>  | NegOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">negOp</span></span></span> :: NegOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr</span></span></span> :: Expr}
-<span class="lineno">  265 </span>  | NotOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">notOp</span></span></span> :: NotOp, expr :: Expr}
-<span class="lineno">  266 </span>  | ChoiceOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">choiceOp</span></span></span> :: ChoiceOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr1</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr2</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr3</span></span></span> :: Expr}
-<span class="lineno">  267 </span>  | LengthExpr {name :: Name}
-<span class="lineno">  268 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno">  269 </span>
-<span class="lineno">  270 </span>data Typed a = Typed {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">ele</span></span></span> :: a, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">tpe</span></span></span> :: Type}
-<span class="lineno">  271 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
-<span class="lineno">  272 </span>
-<span class="lineno">  273 </span>data Block = Block
-<span class="lineno">  274 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">vars</span></span></span> :: [FieldDecl],
-<span class="lineno">  275 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">stmts</span></span></span> :: [Statement],
-<span class="lineno">  276 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">blockID</span></span></span> :: ScopeID
-<span class="lineno">  277 </span>  }
-<span class="lineno">  278 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  239 </span>  | ForStmt { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counter</span></span></span> :: Name, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">initCounter</span></span></span> :: Expr, pred :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">update</span></span></span> :: Assignment, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">block</span></span></span> :: Block}
+<span class="lineno">  240 </span>  | WhileStmt {pred :: Expr, block :: Block}
+<span class="lineno">  241 </span>  | ReturnStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr</span></span></span> :: Maybe Expr}
+<span class="lineno">  242 </span>  | MethodCallStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCall</span></span></span> :: MethodCall}
+<span class="lineno">  243 </span>  | BreakStmt
+<span class="lineno">  244 </span>  | ContinueStmt
+<span class="lineno">  245 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  246 </span>
+<span class="lineno">  247 </span>data Expr = Expr
+<span class="lineno">  248 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr_</span></span></span> :: Expr_
+<span class="lineno">  249 </span>  , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">tpe</span></span></span> :: Type
+<span class="lineno">  250 </span>  , <span class="nottickedoff"><span class="decl"><span class="nottickedoff">loc</span></span></span> :: SL.Range
+<span class="lineno">  251 </span>  } deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  252 </span>
+<span class="lineno">  253 </span>data Expr_
+<span class="lineno">  254 </span>  = LocationExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">location</span></span></span> :: Location}
+<span class="lineno">  255 </span>  | MethodCallExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCall</span></span></span> :: MethodCall}
+<span class="lineno">  256 </span>  | ExternCallExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">name</span></span></span> :: Name, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">args</span></span></span> :: [Expr]}
+<span class="lineno">  257 </span>  | IntLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">intVal</span></span></span> :: Int64}
+<span class="lineno">  258 </span>  | BoolLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">boolVal</span></span></span> :: Bool}
+<span class="lineno">  259 </span>  | CharLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">charVal</span></span></span> :: Char}
+<span class="lineno">  260 </span>  | StringLiteralExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">strVal</span></span></span> :: Text}
+<span class="lineno">  261 </span>  | ArithOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">arithOp</span></span></span> :: ArithOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">lhs</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">rhs</span></span></span> :: Expr}
+<span class="lineno">  262 </span>  | RelOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">relOp</span></span></span> :: RelOp, lhs :: Expr, rhs :: Expr}
+<span class="lineno">  263 </span>  | CondOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">condOp</span></span></span> :: CondOp, lhs :: Expr, rhs :: Expr}
+<span class="lineno">  264 </span>  | EqOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">eqOp</span></span></span> :: EqOp, lhs :: Expr, rhs :: Expr}
+<span class="lineno">  265 </span>  | NegOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">negOp</span></span></span> :: NegOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr</span></span></span> :: Expr}
+<span class="lineno">  266 </span>  | NotOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">notOp</span></span></span> :: NotOp, expr :: Expr}
+<span class="lineno">  267 </span>  | ChoiceOpExpr {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">choiceOp</span></span></span> :: ChoiceOp, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr1</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr2</span></span></span> :: Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr3</span></span></span> :: Expr}
+<span class="lineno">  268 </span>  | LengthExpr {name :: Name}
+<span class="lineno">  269 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  270 </span>
+<span class="lineno">  271 </span>data Typed a = Typed {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">ele</span></span></span> :: a, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">tpe</span></span></span> :: Type}
+<span class="lineno">  272 </span>  deriving (<span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
+<span class="lineno">  273 </span>
+<span class="lineno">  274 </span>data Block = Block
+<span class="lineno">  275 </span>  { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">vars</span></span></span> :: [FieldDecl],
+<span class="lineno">  276 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">stmts</span></span></span> :: [Statement],
+<span class="lineno">  277 </span>    <span class="nottickedoff"><span class="decl"><span class="nottickedoff">blockID</span></span></span> :: ScopeID
+<span class="lineno">  278 </span>  }
+<span class="lineno">  279 </span>  deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Generic</span></span></span></span>, <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show</span></span></span></span></span></span>)
 
 </pre>
 </body>

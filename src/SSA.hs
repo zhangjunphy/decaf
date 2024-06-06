@@ -10,7 +10,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- SSA -- SSA Form Low Level IR
-module SSA where
+module SSA (Locality(..), Var(..), VarList, Label, VarOrImm(..), SSA(..))  where
 
 import AST (ArithOp, AssignOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified

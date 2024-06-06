@@ -40,8 +40,9 @@ import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
 
 {-
+CFG creation.
 TODO:
-1. Implement Phi for divergent control flows.
+1. Implement Phi for divergent control flows. [DONE]
 2. Merge all binary ops into one SSA [DROP]
 3. ArrayDeref -> Load? [DONE]
 4. Do we really need Len here? [DONE]
@@ -50,6 +51,16 @@ TODO:
 7. Handle short circuit expressions. [DONE]
 8. Make sure everything works after compliating expr building with control flow. [DONE]?
 9. Ensure bbid are monotonically-increasing with respect to ast statement ordering. [DROP]
+-}
+
+{-
+Refactor and clean up.
+TODO:
+1. Find better ways to add phi nodes.
+2. Refactor control start/exit related code.
+3. Produce dot plot with some proper library.
+4. Add unit tests.
+5. Other chores.
 -}
 
 data Condition
@@ -192,9 +203,10 @@ getBasicBlock' bbid = do
 
 addVarSym :: Name -> VID -> CFGBuild ()
 addVarSym name vid = do
-  sid <- getSymScope name >>= \case
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
-    Just sid -> return sid
+  sid <-
+    getSymScope name >>= \case
+      Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+      Just sid -> return sid
   -- update var->sym
   #var2sym %= Map.insert vid (sid, name)
   -- update sym->var
@@ -271,7 +283,6 @@ getSymScope name = do
     lookup name st' =
       (SE.lookupLocalVariableFromST name st' <&> \_ -> view #scopeID st')
         <|> (SE.parent st' >>= lookup name)
-  
 
 createEmptyBB :: CFGBuild BBID
 createEmptyBB = do
@@ -589,6 +600,46 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge ifTail tail SeqEdge
       patchPhiNode tail prevBB prevBBPhiList ifTail ifBBPhiList
       return $ TailAt tail
+buildStatement (AST.Statement (AST.ForStmt counter init pred update block) loc) = do
+  sid <- use #astScope
+  sts <- view $ #semantic . #symbolTables
+  let outerScopes = findOuterScopes sid sts
+  phiList <- inferPhiList [block ^. #blockID] outerScopes
+  var <- lookupSym' counter
+  initExpr <- buildExpr init
+  case var ^. #astDecl of
+    Nothing -> throwError $ CFGExcept "Counter var not found in symbol table."
+    (Just decl) -> buildWriteToLocation (AST.Location counter Nothing decl (var ^. #tpe) loc) (Variable initExpr)
+  prevBB <- finishCurrentBB
+  prevBBPhiList <- recordPhiVar phiList
+  addDummyPhiNode phiList
+  predVar <- buildExpr pred
+  predBB <- finishCurrentBB
+  updateCFG (G.addEdge prevBB predBB SeqEdge)
+  dummyUpdateBB <- createEmptyBB
+  parentControlBlock <- getControlBlock
+  tail <- createEmptyBB
+  setControlBlock $ Just (dummyUpdateBB, tail)
+  (blockHead, blockTail) <- buildBlock block
+  checkStmts
+  buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
+  updateBB <- finishCurrentBB
+  dummyNode <- use #cfg <&> fromJust . G.lookupNode dummyUpdateBB
+  updateNode <- use #cfg <&> fromJust . G.lookupNode updateBB
+  updateBBPhiList <- recordPhiVar phiList
+  #cfg
+    %= G.updateNode
+      dummyUpdateBB
+      (dummyNode & #bb . #statements .~ (updateNode ^. #bb . #statements))
+  updateCFG $ do
+    G.addEdge predBB blockHead $ CondEdge $ Pred $ Variable predVar
+    G.addEdge blockTail dummyUpdateBB SeqEdge
+    G.addEdge dummyUpdateBB predBB SeqEdge
+    G.addEdge predBB tail $ CondEdge Complement
+    G.deleteNode updateBB
+  setControlBlock parentControlBlock
+  patchPhiNode predBB prevBB prevBBPhiList dummyUpdateBB updateBBPhiList
+  return $ TailAt tail
 buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   sid <- use #astScope
   sts <- view $ #semantic . #symbolTables
@@ -596,8 +647,8 @@ buildStatement (AST.Statement (AST.WhileStmt pred block) loc) = do
   phiList <- inferPhiList [block ^. #blockID] outerScopes
   prevBB <- finishCurrentBB
   prevBBPhiList <- recordPhiVar phiList
-  predVar <- buildExpr pred
   addDummyPhiNode phiList
+  predVar <- buildExpr pred
   predBB <- finishCurrentBB
   updateCFG $ G.addEdge prevBB predBB SeqEdge
   parentControlBlock <- getControlBlock

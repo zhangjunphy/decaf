@@ -593,23 +593,11 @@ irgenMethodDecls ((SL.LocatedAt range decl) : rest) = do
           arguments <&> \(SL.LocatedAt range (P.Argument id tpe)) ->
             Argument id (irgenType tpe) range
 
-translateForToWhile :: [SL.Located P.Statement] -> [SL.Located P.Statement]
-translateForToWhile [] = []
-translateForToWhile (s : ss) = case s of
-  SL.LocatedAt loc (P.ForStatement counter init pred (P.CounterUpdate updateLoc updateExpr) block) ->
-    let initStmt = P.AssignStatement (P.ScalarLocation counter) (P.AssignExpr "=" init)
-        updateStmt = P.AssignStatement updateLoc updateExpr
-        originalStmts = P.blockStatements block
-        -- TODO: This source location is a bit off.
-        block' = block {P.blockStatements = originalStmts ++ [SL.LocatedAt (SL.getLoc init) updateStmt]}
-     in [SL.LocatedAt (SL.getLoc init) initStmt, SL.LocatedAt loc (P.WhileStatement pred block')] ++ translateForToWhile ss
-  s' -> s' : translateForToWhile ss
-
 irgenBlock :: BlockType -> Maybe MethodSig -> P.Block -> Semantic Block
 irgenBlock blockType sig (P.Block fieldDecls statements) = do
   nextID <- enterScope blockType sig
   fields <- irgenFieldDecls fieldDecls
-  stmts <- irgenStatements $ translateForToWhile statements
+  stmts <- irgenStatements statements
   let block = Block fields stmts nextID
   exitScope
   return block
@@ -799,7 +787,19 @@ irgenStmt (P.IfElseStatement expr ifBlock elseBlock) = do
     (addSemanticError $ sformat ("The pred of if statment must have type bool, but got " % shown % " instead!") tpe)
   return $ Statement (IfStmt expr' ifBlock' (Just elseBlock')) range
 irgenStmt (P.ForStatement counter counterExpr predExpr (P.CounterUpdate loc expr) block) = do
-  throwSemanticException "Unexpected for loop structure."
+  -- NOTE: For counter is treated as a special write other than assignment.
+  counterLoc <- irgenLocation $ P.ScalarLocation counter
+  recordSymbolWrite counterLoc
+  block' <- irgenBlock ForBlock Nothing block
+  counterExpr' <- irgenExpr counterExpr
+  predExpr'@Expr {tpe = tpe} <- irgenExpr predExpr
+  range <- getCurrentRange
+  -- Semantic[14]
+  when
+    (tpe /= BoolType)
+    (addSemanticError $ sformat ("The pred of for statment must have type bool, but got " % shown % " instead!") tpe)
+  assign <- irgenAssign loc expr
+  return $ Statement (ForStmt counter counterExpr' predExpr' assign block') range
 irgenStmt (P.WhileStatement expr block) = do
   block' <- irgenBlock WhileBlock Nothing block
   expr'@Expr {tpe = tpe} <- irgenExpr expr

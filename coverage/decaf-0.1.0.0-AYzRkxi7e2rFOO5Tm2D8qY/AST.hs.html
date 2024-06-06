@@ -256,8 +256,8 @@ span.spaces    { background: white }
 <span class="lineno">  237 </span>data Statement_
 <span class="lineno">  238 </span>  = AssignStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">assign</span></span></span> :: !Assignment}
 <span class="lineno">  239 </span>  | IfStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">pred</span></span></span> :: !Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">ifBlock</span></span></span> :: !Block, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">elseBlock</span></span></span> :: !(Maybe Block)}
-<span class="lineno">  240 </span>  | ForStmt { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">counter</span></span></span> :: !Name, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">initCounter</span></span></span> :: !Expr, pred :: !Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">update</span></span></span> :: !Assignment, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">block</span></span></span> :: !Block}
-<span class="lineno">  241 </span>  | WhileStmt {pred :: !Expr, block :: !Block}
+<span class="lineno">  240 </span>  | ForStmt { <span class="nottickedoff"><span class="decl"><span class="nottickedoff">init</span></span></span> :: !(Maybe Assignment), pred :: !Expr, <span class="nottickedoff"><span class="decl"><span class="nottickedoff">update</span></span></span> :: !(Maybe Assignment), <span class="nottickedoff"><span class="decl"><span class="nottickedoff">block</span></span></span> :: !Block}
+<span class="lineno">  241 </span>  -- | WhileStmt {pred :: !Expr, block :: !Block}
 <span class="lineno">  242 </span>  | ReturnStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">expr</span></span></span> :: !(Maybe Expr)}
 <span class="lineno">  243 </span>  | MethodCallStmt {<span class="nottickedoff"><span class="decl"><span class="nottickedoff">methodCall</span></span></span> :: !MethodCall}
 <span class="lineno">  244 </span>  | BreakStmt

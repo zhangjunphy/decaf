@@ -59,12 +59,6 @@ data OptimizationName
 Enable :: String -> OptimizationName
 Disable :: String -> OptimizationName
 
-module Constants
-globalScopeID :: Int
-mainMethodName :: Text
-
-module DominatorTree
-
 module Lexer.Token
 
 -- | Lexer tokens.
@@ -110,6 +104,10 @@ generateUsage :: IO String
 -- | Parses command-line options, returning a <a>Configuration</a>
 --   describing the behavior of the compiler.
 getConfiguration :: IO (Either String Configuration)
+
+module Util.Constants
+globalScopeID :: Int
+mainMethodName :: Text
 
 module Util.Graph
 data Graph ni nd ed
@@ -882,15 +880,13 @@ IfStmt :: !Expr -> !Block -> !Maybe Block -> Statement_
 [$sel:pred:AssignStmt] :: Statement_ -> !Expr
 [$sel:ifBlock:AssignStmt] :: Statement_ -> !Block
 [$sel:elseBlock:AssignStmt] :: Statement_ -> !Maybe Block
-ForStmt :: !Name -> !Expr -> !Expr -> !Assignment -> !Block -> Statement_
-[$sel:counter:AssignStmt] :: Statement_ -> !Name
-[$sel:initCounter:AssignStmt] :: Statement_ -> !Expr
+ForStmt :: !Maybe Assignment -> !Expr -> !Maybe Assignment -> !Block -> Statement_
+[$sel:init:AssignStmt] :: Statement_ -> !Maybe Assignment
 [$sel:pred:AssignStmt] :: Statement_ -> !Expr
-[$sel:update:AssignStmt] :: Statement_ -> !Assignment
+[$sel:update:AssignStmt] :: Statement_ -> !Maybe Assignment
 [$sel:block:AssignStmt] :: Statement_ -> !Block
-WhileStmt :: !Expr -> !Block -> Statement_
-[$sel:pred:AssignStmt] :: Statement_ -> !Expr
-[$sel:block:AssignStmt] :: Statement_ -> !Block
+
+-- | WhileStmt {pred :: !Expr, block :: !Block}
 ReturnStmt :: !Maybe Expr -> Statement_
 [$sel:expr:AssignStmt] :: Statement_ -> !Maybe Expr
 MethodCallStmt :: !MethodCall -> Statement_
@@ -1021,7 +1017,6 @@ data SemanticInfo
 SemanticInfo :: !Map ScopeID SymbolTable -> !Map ScopeID (Set (ScopeID, Name)) -> SemanticInfo
 [$sel:symbolTables:SemanticInfo] :: SemanticInfo -> !Map ScopeID SymbolTable
 [$sel:symbolWrites:SemanticInfo] :: SemanticInfo -> !Map ScopeID (Set (ScopeID, Name))
-type ScopeID = Int
 data BlockType
 RootBlock :: BlockType
 IfBlock :: BlockType
@@ -1154,7 +1149,7 @@ SymVarMap :: !Map Name VID -> !Maybe ScopeID -> SymVarMap
 [$sel:m:SymVarMap] :: SymVarMap -> !Map Name VID
 [$sel:parent:SymVarMap] :: SymVarMap -> !Maybe ScopeID
 data CFGState
-CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> !Map BBID (Map (ScopeID, Name) Var) -> CFGState
+CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> CFGState
 [$sel:cfg:CFGState] :: CFGState -> !CFG
 [$sel:astScope:CFGState] :: CFGState -> !ScopeID
 [$sel:sig:CFGState] :: CFGState -> !MethodSig
@@ -1164,8 +1159,7 @@ CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID 
 [$sel:var2sym:CFGState] :: CFGState -> !Map VID (ScopeID, Name)
 [$sel:statements:CFGState] :: CFGState -> ![SSA]
 [$sel:currentControlBlock:CFGState] :: CFGState -> !Maybe (BBID, BBID)
-[$sel:currentFunctionTail:CFGState] :: CFGState -> !Maybe BBID
-[$sel:varWrite:CFGState] :: CFGState -> !Map BBID (Map (ScopeID, Name) Var)
+[$sel:currentFunctionExit:CFGState] :: CFGState -> !Maybe BBID
 data BBTransition
 StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
@@ -1185,8 +1179,9 @@ setControlBlock :: Maybe (BBID, BBID) -> CFGBuild ()
 getControlBlock :: CFGBuild (Maybe (BBID, BBID))
 getControlEntry :: CFGBuild (Maybe BBID)
 getControlExit :: CFGBuild (Maybe BBID)
-setFunctionTail :: Maybe BBID -> CFGBuild ()
-getFunctionTail :: CFGBuild (Maybe BBID)
+withControlBlock :: BBID -> BBID -> CFGBuild a -> CFGBuild a
+setFunctionExit :: Maybe BBID -> CFGBuild ()
+getFunctionExit :: CFGBuild (Maybe BBID)
 getBasicBlock' :: BBID -> CFGBuild BasicBlock
 addVarSym :: Name -> VID -> CFGBuild ()
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
@@ -1197,30 +1192,29 @@ lookupSym :: Name -> CFGBuild (Maybe Var)
 lookupSym' :: Name -> CFGBuild Var
 getSymDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
 getSymScope :: Name -> CFGBuild (Maybe ScopeID)
-createEmptyBB :: CFGBuild BBID
-finishCurrentBB :: CFGBuild BBID
-checkStmts :: CFGBuild ()
-removeEmptySeqNode :: CFGBuild ()
 newVar :: Maybe Name -> Type -> Range -> Locality -> CFGBuild Var
 newLocal :: Maybe Name -> Type -> Range -> CFGBuild Var
 newGlobal :: Name -> Type -> Range -> CFGBuild Var
+createEmptyBB :: CFGBuild BBID
+finishCurrentBB :: CFGBuild BBID
+checkStmts :: CFGBuild ()
 addSSA :: SSA -> CFGBuild ()
+findOuterScopes :: CFGBuild (Set ScopeID)
+inferPhiList :: [ScopeID] -> CFGBuild [(ScopeID, Name)]
+addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
+recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
+patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 buildCFG :: ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
 populateGlobals :: ASTRoot -> CFGBuild ()
 buildMethod :: MethodDecl -> CFGBuild CFG
 buildBlock :: Block -> CFGBuild (BBID, BBID)
-findOuterScopes :: ScopeID -> Map ScopeID SymbolTable -> Set ScopeID
-inferPhiList :: [ScopeID] -> Set ScopeID -> CFGBuild [(ScopeID, Name)]
-addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
-recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
-patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
 buildReadFromLocation :: Location -> CFGBuild Var
-recordVarWrite :: Var -> ScopeID -> Name -> CFGBuild ()
 buildWriteToLocation :: Location -> VarOrImm -> CFGBuild ()
 buildMethodCall :: MethodCall -> Type -> CFGBuild Var
+removeEmptySeqNode :: CFGBuild ()
 prettyPrintNode :: CFGNode -> Text
 escape :: Text -> Text
 prettyPrintEdge :: CFGEdge -> Text

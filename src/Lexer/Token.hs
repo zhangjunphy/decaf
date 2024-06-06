@@ -13,7 +13,7 @@ module Lexer.Token (Token(..)) where
 
 import Data.Text (Text)
 
--- | A token.
+-- | Lexer tokens.
 data Token = Keyword !Text
            | Identifier !Text
            | CharLiteral !Text

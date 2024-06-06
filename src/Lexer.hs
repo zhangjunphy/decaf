@@ -35,15 +35,14 @@ catchErrors (Alex al) =
     )
   where
     eofCheck s@AlexState {alex_ust = ust} tok@(SL.LocatedAt loc _) =
-      let error message = Error message
-       in case ust of
-            val
-              | (lexerStringState ust) -> Right (s, SL.LocatedAt loc $ error "string not closed at EOF")
-              | (lexerCharState ust) -> Right (s, SL.LocatedAt loc $ error "char not closed at EOF")
-              | (lexerCommentDepth ust > 0) -> Right (s, SL.LocatedAt loc $ error "comment not closed at EOF")
-              | otherwise -> Right (s, tok)
+      case ust of
+        val
+          | lexerStringState ust -> Right (s, SL.LocatedAt loc $ Error "string not closed at EOF")
+          | lexerCharState ust -> Right (s, SL.LocatedAt loc $ Error "char not closed at EOF")
+          | lexerCommentDepth ust > 0 -> Right (s, SL.LocatedAt loc $ Error "comment not closed at EOF")
+          | otherwise -> Right (s, tok)
 
-scan :: ByteString -> [(Either String (SL.Located Token))]
+scan :: ByteString -> [Either String (SL.Located Token)]
 scan str =
   let loop = do
         tokOrError <- catchErrors alexMonadScan
@@ -51,13 +50,13 @@ scan str =
           t@(SL.LocatedAt _ (Error m)) ->
             do
               toks <- loop
-              return ((Right t) : toks)
+              return (Right t : toks)
           t@(SL.LocatedAt _ tok) ->
-            if (tok == EOF)
+            if tok == EOF
               then return []
               else do
                 toks <- loop
-                return ((Right t) : toks)
+                return (Right t : toks)
    in case runAlex str loop of
         Left m -> [Left m]
         Right toks -> toks
@@ -65,8 +64,4 @@ scan str =
 formatTokenOrError :: Either String (SL.Located Token) -> Either String String
 formatTokenOrError (Left err) = Left err
 formatTokenOrError (Right (SL.LocatedAt (SL.Range (SL.Posn _ line _) _) tok)) =
-  Right $
-    unwords
-      [ show $ line,
-        show $ tok
-      ]
+  Right $ unwords [show line, show tok]

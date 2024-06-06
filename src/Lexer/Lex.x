@@ -22,9 +22,6 @@ import qualified Util.SourceLoc as SL
 
 import Lexer.Token
 
-import Data.Maybe
-import Data.List.Split
-import Data.Word (Word8)
 import Control.Monad.State
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS

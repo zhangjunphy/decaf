@@ -10,7 +10,29 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- Graph -- A graph implementation to help build CFG
-module Util.Graph where
+-- Supports cyclical graphs. Also allows dynamic updates to the graph for
+-- transformations over CFG.
+-- TODO: Perhaps we could just use FGL/ALGA?
+
+module Util.Graph
+  ( empty
+  , Graph(..) 
+  , outBound
+  , inBound
+  , lookupNode
+  , updateNodeWith
+  , updateNode
+  , union
+  , GraphBuilder(..)
+  , addNode
+  , addEdge
+  , deleteNode
+  , deleteEdge
+  , update
+  , build
+  , strictlyDominate
+  , strictlyPostDominate
+  ) where
 
 import Control.Lens ((%=))
 import Control.Monad

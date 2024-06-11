@@ -9,7 +9,7 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-module CFG.Plot where
+module CFG.Plot (plot) where
 
 import AST qualified
 import CFG.Build
@@ -29,42 +29,57 @@ import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 
-gvizParams :: CFG -> Set (BBID, BBID) -> GViz.GraphvizParams BBID CFGNode CFGEdge () CFGNode
-gvizParams (CFG _ entry exit) backEdges = GViz.nonClusteredParams {GViz.globalAttributes = globalAttrs, GViz.fmtNode = fmtNode, GViz.fmtEdge = fmtEdge}
+edges :: CFG -> [(BBID, BBID, CFGEdge)]
+edges (CFG graph _ _) = concatMap (\(f, t') -> t' <&> \(t, el) -> (f, t, el)) $ Map.toList $ graph ^. #edges
+
+-- Reorder some backward edges introduced by loops so graphviz could find a
+-- clear ordering of the nodes.
+backEdges :: CFG -> Set (BBID, BBID)
+backEdges cfg@(CFG _ _ exit) = Set.fromList $ filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $ fmap (\(b1, b2, _) -> (b1, b2)) (edges cfg)
+
+gvizParams :: CFG -> GViz.GraphvizParams BBID CFGNode CFGEdge () CFGNode
+gvizParams cfg@(CFG _ entry exit) =
+  GViz.nonClusteredParams
+    { GViz.globalAttributes = globalAttrs,
+      GViz.fmtNode = fmtNode,
+      GViz.fmtEdge = fmtEdge
+    }
   where
+    backEdges' = backEdges cfg
     globalAttrs = [GViz.NodeAttrs [GViz.Shape GViz.BoxShape]]
-    fmtNode (bbid, node) = [GViz.Label $ GViz.StrLabel $ prettyPrintNode node]
-      where
-        rank
-          | bbid == entry = [GViz.Rank GViz.SourceRank]
-          | bbid == exit = [GViz.Rank GViz.SinkRank]
-          | otherwise = [GViz.Rank GViz.SameRank]
+    fmtNode (bbid, node) = [GViz.Label $ GViz.StrLabel $ prettyPrintNode bbid node cfg]
     fmtEdge (b1, b2, edge) = [GViz.Label $ GViz.StrLabel $ prettyPrintEdge edge] ++ dir
       where
+        -- Some of the nodes had their src->dst reversed in cfgToDot.
+        -- We need to mark them to get a correct arrow.
         dir
-          | Set.member (b2, b1) backEdges = [GViz.Dir GViz.Back]
+          | Set.member (b2, b1) backEdges' = [GViz.Dir GViz.Back]
           | otherwise = []
 
 cfgToDot :: CFG -> GViz.DotGraph BBID
 cfgToDot cfg@(CFG graph entry exit) =
   GViz.graphElemsToDot
-    (gvizParams cfg backEdges)
+    (gvizParams cfg)
     (Map.toList $ graph ^. #nodes)
     reorderedEdges
   where
-    edges :: [(BBID, BBID, CFGEdge)]
-    edges = concatMap (\(f, t') -> t' <&> \(t, el) -> (f, t, el)) $ Map.toList $ graph ^. #edges
-    backEdges :: Set (BBID, BBID)
-    backEdges = Set.fromList $ filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $ fmap (\(b1, b2, _) -> (b1, b2)) edges
     reorderedEdges =
-      edges
-        <&> \(b1, b2, e) -> if Set.member (b1, b2) backEdges then (b2, b1, e) else (b1, b2, e)
+      edges cfg
+        <&> \(b1, b2, e) ->
+          if Set.member (b1, b2) (backEdges cfg)
+            then (b2, b1, e)
+            else (b1, b2, e)
 
-prettyPrintNode :: CFGNode -> LT.Text
-prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =
-  let idText = [format ("<id:" %+ int % ">") id]
+prettyPrintNode :: BBID -> CFGNode -> CFG -> LT.Text
+prettyPrintNode bbid CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} (CFG _ entry exit) =
+  let idText = [format ("<id:" %+ int %+ stext % ">") id entryExit]
       segments = stmts <&> format shown
    in LT.intercalate "\n" $ idText ++ segments
+  where
+    entryExit
+      | bbid == entry = "[entry]"
+      | bbid == exit = "[exit]"
+      | otherwise = ""
 
 prettyPrintEdge :: CFGEdge -> LT.Text
 prettyPrintEdge SeqEdge = ""

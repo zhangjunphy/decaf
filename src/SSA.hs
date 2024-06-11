@@ -10,7 +10,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- SSA -- SSA Form Low Level IR
-module SSA (Locality(..), Var(..), VarList, Label, VarOrImm(..), SSA(..))  where
+module SSA (Locality (..), Var (..), VarList, Label, VarOrImm (..), SSA (..)) where
 
 import AST (ArithOp, AssignOp, CondOp, EqOp, NegOp, NotOp, RelOp, Type)
 import AST qualified
@@ -19,6 +19,7 @@ import Control.Monad.State
 import Data.Generics.Labels
 import Data.Int (Int64)
 import Data.Text (Text)
+import Data.Text qualified as Text
 import Formatting
 import GHC.Generics (Generic)
 import Types
@@ -51,12 +52,21 @@ data VarOrImm
   | StringImm !Text
   | Variable !Var
 
+escapeChar :: Char -> Text
+escapeChar = \case
+  '\\' -> "\\\\"
+  '"' -> "\\\""
+  c -> Text.singleton c
+
+escape :: Text -> Text
+escape = Text.concatMap escapeChar
+
 instance Show VarOrImm where
   show (BoolImm True) = "true"
   show (BoolImm False) = "false"
   show (IntImm val) = formatToString int val
-  show (CharImm val) = formatToString ("'" % char % "'") val
-  show (StringImm val) = formatToString ("\"" % stext % "\"") val
+  show (CharImm val) = formatToString ("'" % stext % "'") $ escapeChar val
+  show (StringImm val) = formatToString ("\"" % stext % "\"") $ escape val
   show (Variable Var {id = id}) = formatToString ("v" % int) id
 
 data SSA

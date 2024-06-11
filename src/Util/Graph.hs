@@ -54,7 +54,7 @@ data Graph ni nd ed = Graph
   { nodes :: !(Map ni nd),
     edges :: !(Map ni [(ni, ed)])
   }
-  deriving (Show)
+  deriving (Show, Generic)
 
 type GraphException = Text
 

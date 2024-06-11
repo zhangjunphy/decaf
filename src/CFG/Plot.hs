@@ -12,59 +12,67 @@
 module CFG.Plot where
 
 import AST qualified
-import Semantic qualified as SE
-import Data.Functor ( (<&>) )
-import CFG.Types
 import CFG.Build
+import CFG.Types
+import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
+import Data.Functor ((<&>))
+import Data.GraphViz qualified as GViz
+import Data.GraphViz.Attributes.Complete qualified as GViz
+import Data.Map qualified as Map
+import Data.Set (Set)
+import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Data.Map qualified as Map
+import Data.Text.Lazy qualified as LT
 import Formatting
+import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 
-prettyPrintNode :: CFGNode -> Text
+gvizParams :: CFG -> Set (BBID, BBID) -> GViz.GraphvizParams BBID CFGNode CFGEdge () CFGNode
+gvizParams (CFG _ entry exit) backEdges = GViz.nonClusteredParams {GViz.globalAttributes = globalAttrs, GViz.fmtNode = fmtNode, GViz.fmtEdge = fmtEdge}
+  where
+    globalAttrs = [GViz.NodeAttrs [GViz.Shape GViz.BoxShape]]
+    fmtNode (bbid, node) = [GViz.Label $ GViz.StrLabel $ prettyPrintNode node]
+      where
+        rank
+          | bbid == entry = [GViz.Rank GViz.SourceRank]
+          | bbid == exit = [GViz.Rank GViz.SinkRank]
+          | otherwise = [GViz.Rank GViz.SameRank]
+    fmtEdge (b1, b2, edge) = [GViz.Label $ GViz.StrLabel $ prettyPrintEdge edge] ++ dir
+      where
+        dir
+          | Set.member (b2, b1) backEdges = [GViz.Dir GViz.Back]
+          | otherwise = []
+
+cfgToDot :: CFG -> GViz.DotGraph BBID
+cfgToDot cfg@(CFG graph entry exit) =
+  GViz.graphElemsToDot
+    (gvizParams cfg backEdges)
+    (Map.toList $ graph ^. #nodes)
+    reorderedEdges
+  where
+    edges :: [(BBID, BBID, CFGEdge)]
+    edges = concatMap (\(f, t') -> t' <&> \(t, el) -> (f, t, el)) $ Map.toList $ graph ^. #edges
+    backEdges :: Set (BBID, BBID)
+    backEdges = Set.fromList $ filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $ fmap (\(b1, b2, _) -> (b1, b2)) edges
+    reorderedEdges =
+      edges
+        <&> \(b1, b2, e) -> if Set.member (b1, b2) backEdges then (b2, b1, e) else (b1, b2, e)
+
+prettyPrintNode :: CFGNode -> LT.Text
 prettyPrintNode CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} =
-  let idText = [sformat ("id: " % int) id]
-      segments = stmts <&> \s -> sformat shown s
-   in Text.intercalate "\n" $ idText ++ segments
+  let idText = [format ("<id:" %+ int % ">") id]
+      segments = stmts <&> format shown
+   in LT.intercalate "\n" $ idText ++ segments
 
-escape :: Text -> Text
-escape =
-  Text.concatMap
-    ( \case
-        '\\' -> "\\\\"
-        '"' -> "\\\""
-        c -> Text.singleton c
-    )
-
-prettyPrintEdge :: CFGEdge -> Text
+prettyPrintEdge :: CFGEdge -> LT.Text
 prettyPrintEdge SeqEdge = ""
-prettyPrintEdge (CondEdge (Pred var)) = sformat shown var
+prettyPrintEdge (CondEdge (Pred var)) = format shown var
 prettyPrintEdge (CondEdge Complement) = "otherwise"
 
-generateDotPlot :: G.Graph BBID CFGNode CFGEdge -> Text
-generateDotPlot G.Graph {nodes = nodes, edges = edges} =
-  let preamble = "digraph G {\n"
-      postamble = "}"
-      nodeBoxes = Map.assocs nodes <&> uncurry nodeBox
-      edgeLines =
-        concatMap
-          (\(from, tos) -> tos <&> uncurry (edgeLine from))
-          $ Map.assocs edges
-   in mconcat $ [preamble] ++ nodeBoxes ++ edgeLines ++ [postamble]
-  where
-    nodeBox idx d =
-      sformat
-        (int % " [shape=box, label=\"" % stext % "\"];\n")
-        idx
-        (escape (prettyPrintNode d))
-    edgeLine from to d =
-      sformat
-        (int % " -> " % int % " [label=\"" % stext % "\"];\n")
-        from
-        to
-        (escape (prettyPrintEdge d))
+generateDotPlot :: CFG -> Text
+generateDotPlot cfg = LT.toStrict $ GViz.printDotGraph $ cfgToDot cfg
 
 plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [String] String
 plot root si =

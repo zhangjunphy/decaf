@@ -38,6 +38,12 @@ data CFGEdge
   | CondEdge !Condition
   deriving (Show)
 
-type CFG = G.Graph BBID CFGNode CFGEdge
+-- type CFG = G.Graph BBID CFGNode CFGEdge
+
+data CFG = CFG
+  { graph :: !(G.Graph BBID CFGNode CFGEdge)
+  , entry :: !BBID
+  , exit :: !BBID
+  } deriving (Generic)
 
 type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge

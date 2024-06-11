@@ -69,12 +69,12 @@ data BBTransition
 initialState :: AST.MethodSig -> CFGState
 initialState sig =
   CFGState
-    { cfg = G.empty,
+    { cfg = CFG G.empty 0 0,
       astScope = 0,
       sig = sig,
       currentBBID = 0,
       vars = [],
-      sym2var = (Map.fromList [(0, SymVarMap Map.empty Nothing)]),
+      sym2var = Map.fromList [(0, SymVarMap Map.empty Nothing)],
       var2sym = Map.empty,
       statements = [],
       currentControlBlock = Nothing,
@@ -84,13 +84,19 @@ initialState sig =
 {------------------------------------------------
 Helps for CFGBuild monad
 ------------------------------------------------}
+getGraph :: CFGBuild (G.Graph BBID CFGNode CFGEdge)
+getGraph = use $ #cfg . #graph
+
+setGraph :: G.Graph BBID CFGNode CFGEdge -> CFGBuild ()
+setGraph g = #cfg . #graph .= g
+
 updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
 updateCFG update = do
-  g <- use #cfg
+  g <- getGraph
   let g' = G.update update g
   case g' of
     Left m -> throwError $ CFGExcept m
-    Right g -> #cfg .= g
+    Right g -> setGraph g
 
 data CFGContext = CFGContext
   {semantic :: SE.SemanticInfo}
@@ -148,16 +154,21 @@ withControlBlock entry exit f = do
   Record function tail for return to find correct
   successor block.
 ------------------------------------------------------------}
-setFunctionExit :: Maybe BBID -> CFGBuild ()
-setFunctionExit exit = do
-  #currentFunctionExit .= exit
 
-getFunctionExit :: CFGBuild (Maybe BBID)
-getFunctionExit = use #currentFunctionExit
+setFunctionEntry :: BBID -> CFGBuild ()
+setFunctionEntry entry = do
+  #cfg . #entry .= entry
+
+setFunctionExit :: BBID -> CFGBuild ()
+setFunctionExit exit = do
+  #cfg . #exit .= exit
+
+getFunctionExit :: CFGBuild BBID
+getFunctionExit = use $ #cfg . #exit
 
 getBasicBlock' :: BBID -> CFGBuild BasicBlock
 getBasicBlock' bbid = do
-  g <- use #cfg
+  g <- getGraph
   case G.lookupNode bbid g of
     Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) bbid
     Just node -> return $ node ^. #bb
@@ -399,14 +410,14 @@ recordPhiVar symList = do
 
 patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 patchPhiNode bb s1 varMap1 s2 varMap2 = do
-  g <- use #cfg
+  g <- getGraph
   case G.lookupNode bb g of
     Nothing -> throwError $ CFGExcept $ sformat ("Basic block" %+ int %+ "not found.") bb
     Just node -> do
       let ssaList = node ^. (#bb . #statements)
       ssaList' <- mapM patch ssaList
       let node' = node & (#bb . #statements) .~ ssaList'
-      #cfg %= G.updateNode bb node'
+      #cfg . #graph %= G.updateNode bb node'
   where
     patch :: SSA -> CFGBuild SSA
     patch (Phi dst []) = do
@@ -450,10 +461,11 @@ populateGlobals root@(AST.ASTRoot _ globals _) = do
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
   checkStmts
-  tail <- createEmptyBB
-  setFunctionExit $ Just tail
+  exit <- createEmptyBB
+  setFunctionExit exit
   (blockH, blockT) <- buildBlock block
-  updateCFG (G.addEdge blockT tail SeqEdge)
+  setFunctionEntry blockH
+  updateCFG (G.addEdge blockT exit SeqEdge)
   gets cfg
 
 buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
@@ -602,8 +614,8 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   bbid <- finishCurrentBB
   funcTail <- getFunctionExit
   case funcTail of
-    Nothing -> throwError $ CFGExcept "Return not in a function context."
-    Just tail -> updateCFG $ G.addEdge bbid tail SeqEdge
+    0 -> throwError $ CFGExcept "Return not in a function context."
+    tail -> updateCFG $ G.addEdge bbid tail SeqEdge
   -- Create an unreachable bb in case there are still statements after
   -- this point.
   -- We could optimize unreachable blocks away in later passes.

@@ -19,7 +19,7 @@ import Control.Monad.State
 import Data.Functor
 import Data.Generics.Labels
 import Data.List qualified as List
-import Data.Map (Map, mapWithKey)
+import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 import Data.Maybe qualified as Maybe
 import Data.Set (Set)
@@ -74,7 +74,7 @@ union g1 g2 =
     }
 
 newtype GraphBuilder ni nd ed a = GraphBuilder
-  {buildGraph :: (ExceptT GraphException (State (Graph ni nd ed))) a}
+  { buildGraph :: (ExceptT GraphException (State (Graph ni nd ed))) a }
   deriving
     ( Functor,
       Applicative,

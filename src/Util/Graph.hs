@@ -53,7 +53,7 @@ import GHC.Generics (Generic)
 
 data Graph ni nd ed = Graph
   { nodes :: !(Map ni nd),
-    edges :: !(Map ni [(ni, ed)])
+    edges :: !(Map ni (Map ni ed))
   }
   deriving (Show, Generic)
 
@@ -63,7 +63,7 @@ empty :: Graph ni nd ed
 empty = Graph Map.empty Map.empty
 
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
-outBound idx g = concat $ Map.lookup idx (edges g)
+outBound idx g =  maybe [] Map.toList $ Map.lookup idx (edges g)
 
 inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ed)]
 inBound idx cfg =
@@ -75,19 +75,6 @@ inBound idx cfg =
 
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
 lookupNode nid g = Map.lookup nid $ nodes g
-
-updateNodeWith :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> (Maybe nd -> nd) -> Graph ni nd ed
-updateNodeWith nid g f =
-  let nds = nodes g
-      nd = lookupNode nid g
-      nds' = Map.alter (const $ Just $ f nd) nid nds
-   in g {nodes = nds'}
-
-updateNode :: (Eq ni, Ord ni) => ni -> nd -> Graph ni nd ed -> Graph ni nd ed
-updateNode nid d g =
-  let nds = nodes g
-      nds' = Map.alter (const $ Just d) nid nds
-   in g {nodes = nds'}
 
 union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
 union g1 g2 =
@@ -130,6 +117,28 @@ deleteEdge start end = do
   g <- get
   let edges' = Map.update (Just <$> filter (\(e, dt) -> e /= end)) start (edges g)
   modify $ \g -> g {edges = edges'}
+
+updateNodeWith :: (Eq ni, Ord ni) => ni -> (Maybe nd -> nd) -> GraphBuilder ni nd ed ()
+updateNodeWith nid f = do
+  g <- get
+  let nds = nodes g
+  let nd = lookupNode nid g
+  let nds' = Map.alter (const $ Just $ f nd) nid nds
+  modify $ \g -> g {nodes = nds'}
+
+updateNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ()
+updateNode nid d = do
+  g <- get
+  let nds = nodes g
+  let nds' = Map.alter (const $ Just d) nid nds
+  modify $ \g -> g {nodes = nds'}
+
+updateEdge :: (Eq ni, Ord ni) => ni -> ni -> ed -> GraphBuilder ni nd ed ()
+updateEdge src dst d = do
+  g <- get
+  let eds = edges g
+  let eds' = Map.alter (const $ Just d) (src, dst) eds
+  modify $ \g -> g {edges = eds'}
 
 update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either Text (Graph ni nd ed)
 update bd init =

@@ -59,36 +59,34 @@ span.spaces    { background: white }
 <span class="lineno">   40 </span>           | Comma
 <span class="lineno">   41 </span>           | Negate
 <span class="lineno">   42 </span>           | EOF
-<span class="lineno">   43 </span>           | Error !Text
-<span class="lineno">   44 </span>           deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>)
-<span class="lineno">   45 </span>
-<span class="lineno">   46 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Token</span></span></span></span> where
-<span class="lineno">   47 </span>  <span class="decl"><span class="nottickedoff">show (Keyword k) = show k</span>
-<span class="lineno">   48 </span><span class="spaces">  </span><span class="nottickedoff">show (Identifier s) = &quot;IDENTIFIER &quot; ++ show s</span>
-<span class="lineno">   49 </span><span class="spaces">  </span><span class="nottickedoff">show (CharLiteral s) = &quot;CHARLITERAL &quot; ++ show s</span>
-<span class="lineno">   50 </span><span class="spaces">  </span><span class="nottickedoff">show (IntLiteral s) = &quot;INTLITERAL &quot; ++ show s</span>
-<span class="lineno">   51 </span><span class="spaces">  </span><span class="nottickedoff">show (BooleanLiteral s) = &quot;BOOLEANLITERAL &quot; ++ show s</span>
-<span class="lineno">   52 </span><span class="spaces">  </span><span class="nottickedoff">show (StringLiteral s) = &quot;STRINGLITERAL &quot; ++ show s</span>
-<span class="lineno">   53 </span><span class="spaces">  </span><span class="nottickedoff">show AssignOp = &quot;=&quot;</span>
-<span class="lineno">   54 </span><span class="spaces">  </span><span class="nottickedoff">show (IncrementOp s) = show s</span>
-<span class="lineno">   55 </span><span class="spaces">  </span><span class="nottickedoff">show (CompoundAssignOp s) = show s</span>
-<span class="lineno">   56 </span><span class="spaces">  </span><span class="nottickedoff">show (ArithmeticOp s) = show s</span>
-<span class="lineno">   57 </span><span class="spaces">  </span><span class="nottickedoff">show (RelationOp s) = show s</span>
-<span class="lineno">   58 </span><span class="spaces">  </span><span class="nottickedoff">show (EquationOp s) = show s</span>
-<span class="lineno">   59 </span><span class="spaces">  </span><span class="nottickedoff">show (ConditionOp s) = show s</span>
-<span class="lineno">   60 </span><span class="spaces">  </span><span class="nottickedoff">show LCurly = &quot;{&quot;</span>
-<span class="lineno">   61 </span><span class="spaces">  </span><span class="nottickedoff">show RCurly = &quot;}&quot;</span>
-<span class="lineno">   62 </span><span class="spaces">  </span><span class="nottickedoff">show LParen = &quot;(&quot;</span>
-<span class="lineno">   63 </span><span class="spaces">  </span><span class="nottickedoff">show RParen = &quot;)&quot;</span>
-<span class="lineno">   64 </span><span class="spaces">  </span><span class="nottickedoff">show LBrack = &quot;[&quot;</span>
-<span class="lineno">   65 </span><span class="spaces">  </span><span class="nottickedoff">show RBrack = &quot;]&quot;</span>
-<span class="lineno">   66 </span><span class="spaces">  </span><span class="nottickedoff">show Choice = &quot;?&quot;</span>
-<span class="lineno">   67 </span><span class="spaces">  </span><span class="nottickedoff">show Colon = &quot;:&quot;</span>
-<span class="lineno">   68 </span><span class="spaces">  </span><span class="nottickedoff">show Semicolon = &quot;;&quot;</span>
-<span class="lineno">   69 </span><span class="spaces">  </span><span class="nottickedoff">show Comma = &quot;,&quot;</span>
-<span class="lineno">   70 </span><span class="spaces">  </span><span class="nottickedoff">show Negate = &quot;!&quot;</span>
-<span class="lineno">   71 </span><span class="spaces">  </span><span class="nottickedoff">show EOF = &quot;EOF&quot;</span>
-<span class="lineno">   72 </span><span class="spaces">  </span><span class="nottickedoff">show (Error s) = show s</span></span>
+<span class="lineno">   43 </span>           deriving (<span class="decl"><span class="istickedoff"><span class="decl"><span class="nottickedoff">Eq</span></span></span></span>)
+<span class="lineno">   44 </span>
+<span class="lineno">   45 </span>instance <span class="decl"><span class="nottickedoff"><span class="decl"><span class="nottickedoff">Show Token</span></span></span></span> where
+<span class="lineno">   46 </span>  <span class="decl"><span class="nottickedoff">show (Keyword k) = show k</span>
+<span class="lineno">   47 </span><span class="spaces">  </span><span class="nottickedoff">show (Identifier s) = &quot;IDENTIFIER &quot; ++ show s</span>
+<span class="lineno">   48 </span><span class="spaces">  </span><span class="nottickedoff">show (CharLiteral s) = &quot;CHARLITERAL &quot; ++ show s</span>
+<span class="lineno">   49 </span><span class="spaces">  </span><span class="nottickedoff">show (IntLiteral s) = &quot;INTLITERAL &quot; ++ show s</span>
+<span class="lineno">   50 </span><span class="spaces">  </span><span class="nottickedoff">show (BooleanLiteral s) = &quot;BOOLEANLITERAL &quot; ++ show s</span>
+<span class="lineno">   51 </span><span class="spaces">  </span><span class="nottickedoff">show (StringLiteral s) = &quot;STRINGLITERAL &quot; ++ show s</span>
+<span class="lineno">   52 </span><span class="spaces">  </span><span class="nottickedoff">show AssignOp = &quot;=&quot;</span>
+<span class="lineno">   53 </span><span class="spaces">  </span><span class="nottickedoff">show (IncrementOp s) = show s</span>
+<span class="lineno">   54 </span><span class="spaces">  </span><span class="nottickedoff">show (CompoundAssignOp s) = show s</span>
+<span class="lineno">   55 </span><span class="spaces">  </span><span class="nottickedoff">show (ArithmeticOp s) = show s</span>
+<span class="lineno">   56 </span><span class="spaces">  </span><span class="nottickedoff">show (RelationOp s) = show s</span>
+<span class="lineno">   57 </span><span class="spaces">  </span><span class="nottickedoff">show (EquationOp s) = show s</span>
+<span class="lineno">   58 </span><span class="spaces">  </span><span class="nottickedoff">show (ConditionOp s) = show s</span>
+<span class="lineno">   59 </span><span class="spaces">  </span><span class="nottickedoff">show LCurly = &quot;{&quot;</span>
+<span class="lineno">   60 </span><span class="spaces">  </span><span class="nottickedoff">show RCurly = &quot;}&quot;</span>
+<span class="lineno">   61 </span><span class="spaces">  </span><span class="nottickedoff">show LParen = &quot;(&quot;</span>
+<span class="lineno">   62 </span><span class="spaces">  </span><span class="nottickedoff">show RParen = &quot;)&quot;</span>
+<span class="lineno">   63 </span><span class="spaces">  </span><span class="nottickedoff">show LBrack = &quot;[&quot;</span>
+<span class="lineno">   64 </span><span class="spaces">  </span><span class="nottickedoff">show RBrack = &quot;]&quot;</span>
+<span class="lineno">   65 </span><span class="spaces">  </span><span class="nottickedoff">show Choice = &quot;?&quot;</span>
+<span class="lineno">   66 </span><span class="spaces">  </span><span class="nottickedoff">show Colon = &quot;:&quot;</span>
+<span class="lineno">   67 </span><span class="spaces">  </span><span class="nottickedoff">show Semicolon = &quot;;&quot;</span>
+<span class="lineno">   68 </span><span class="spaces">  </span><span class="nottickedoff">show Comma = &quot;,&quot;</span>
+<span class="lineno">   69 </span><span class="spaces">  </span><span class="nottickedoff">show Negate = &quot;!&quot;</span>
+<span class="lineno">   70 </span><span class="spaces">  </span><span class="nottickedoff">show EOF = &quot;EOF&quot;</span></span>
 
 </pre>
 </body>

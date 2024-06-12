@@ -10,19 +10,85 @@
 </span><span id="line-10"></span><span class="hs-comment">-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.</span><span>
 </span><span id="line-11"></span><span>
 </span><span id="line-12"></span><span class="hs-comment">-- Types -- Common types</span><span>
-</span><span id="line-13"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Types</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">Types</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#VID"><span class="hs-identifier">VID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier">Name</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#ScopeID"><span class="hs-identifier">ScopeID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier">CompileError</span></a></span><span class="hs-special">(</span><span class="hs-glyph">..</span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-14"></span><span>
 </span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
-</span><span id="line-16"></span><span>
-</span><span id="line-17"></span><span class="hs-comment">-- Variable ID</span><span>
-</span><span id="line-18"></span><span class="hs-keyword">type</span><span> </span><span id="VID"><span class="annot"><a href="Types.html#VID"><span class="hs-identifier hs-var">VID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
-</span><span id="line-19"></span><span>
-</span><span id="line-20"></span><span class="hs-comment">-- Var/Function name</span><span>
-</span><span id="line-21"></span><span class="hs-keyword">type</span><span> </span><span id="Name"><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-var">Name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
-</span><span id="line-22"></span><span>
-</span><span id="line-23"></span><span class="hs-comment">-- Scope of function, basic block, etc.</span><span>
-</span><span id="line-24"></span><span class="hs-keyword">type</span><span> </span><span id="ScopeID"><span class="annot"><a href="Types.html#ScopeID"><span class="hs-identifier hs-var">ScopeID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
-</span><span id="line-25"></span><span>
-</span><span id="line-26"></span><span class="hs-comment">-- Basic block ID</span><span>
-</span><span id="line-27"></span><span class="hs-keyword">type</span><span> </span><span id="BBID"><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-var">BBID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
-</span><span id="line-28"></span></pre></body></html>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.SourceLoc.html"><span class="hs-identifier">Util.SourceLoc</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SL</span></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Formatting</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">sformat</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">int</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">stext</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">formatToString</span></span><span class="hs-special">)</span><span>
+</span><span id="line-18"></span><span>
+</span><span id="line-19"></span><span class="hs-comment">-- Variable ID</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">type</span><span> </span><span id="VID"><span class="annot"><a href="Types.html#VID"><span class="hs-identifier hs-var">VID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-comment">-- Var/Function name</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">type</span><span> </span><span id="Name"><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-var">Name</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-24"></span><span>
+</span><span id="line-25"></span><span class="hs-comment">-- Scope of function, basic block, etc.</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">type</span><span> </span><span id="ScopeID"><span class="annot"><a href="Types.html#ScopeID"><span class="hs-identifier hs-var">ScopeID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-27"></span><span>
+</span><span id="line-28"></span><span class="hs-comment">-- Basic block ID</span><span>
+</span><span id="line-29"></span><span class="hs-keyword">type</span><span> </span><span id="BBID"><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-var">BBID</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Int</span></span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="CompileError"><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-var">CompileError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CompileError"><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-var">CompileError</span></a></span></span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Asl%3ACompileError"><span class="annot"><span class="annottext">CompileError -&gt; Maybe Range
+</span><a href="Types.html#%24sel%3Asl%3ACompileError"><span class="hs-identifier hs-var hs-var">sl</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Util.SourceLoc.html#Range"><span class="hs-identifier hs-type">SL.Range</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-special">,</span><span> </span><span id="%24sel%3Amsg%3ACompileError"><span class="annot"><span class="annottext">CompileError -&gt; Text
+</span><a href="Types.html#%24sel%3Amsg%3ACompileError"><span class="hs-identifier hs-var hs-var">msg</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-34"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-35"></span><span>
+</span><span id="line-36"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679202415"><span id="local-6989586621679202420"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-37"></span><span>  </span><span id="local-6989586621679202438"><span class="annot"><span class="annottext">show :: CompileError -&gt; String
+</span><a href="#local-6989586621679202438"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679202440"><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679202440"><span class="hs-identifier hs-var">sl</span></a></span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679202441"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679202441"><span class="hs-identifier hs-var">msg</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Int -&gt; Int -&gt; Text -&gt; String)
+-&gt; Int -&gt; Int -&gt; Text -&gt; String
+forall a. Format String a -&gt; a
+</span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Int -&gt; Text -&gt; String) (Int -&gt; Int -&gt; Text -&gt; String)
+forall a r. Integral a =&gt; Format r (a -&gt; r)
+</span><span class="hs-identifier hs-var">int</span></span><span> </span><span class="annot"><span class="annottext">Format (Int -&gt; Text -&gt; String) (Int -&gt; Int -&gt; Text -&gt; String)
+-&gt; Format String (Int -&gt; Text -&gt; String)
+-&gt; Format String (Int -&gt; Int -&gt; Text -&gt; String)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format (Int -&gt; Text -&gt; String) (Int -&gt; Text -&gt; String)
+</span><span class="hs-string">&quot;:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Int -&gt; Text -&gt; String) (Int -&gt; Text -&gt; String)
+-&gt; Format String (Int -&gt; Text -&gt; String)
+-&gt; Format String (Int -&gt; Text -&gt; String)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Int -&gt; Text -&gt; String)
+forall a r. Integral a =&gt; Format r (a -&gt; r)
+</span><span class="hs-identifier hs-var">int</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Int -&gt; Text -&gt; String)
+-&gt; Format String (Text -&gt; String)
+-&gt; Format String (Int -&gt; Text -&gt; String)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
+</span><span class="hs-string">&quot;: error: &quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
+-&gt; Format String (Text -&gt; String) -&gt; Format String (Text -&gt; String)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String)
+forall r. Format r (Text -&gt; r)
+</span><span class="hs-identifier hs-var">stext</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Posn -&gt; Int
+</span><a href="Util.SourceLoc.html#%24sel%3Arow%3APosn"><span class="hs-identifier hs-var">SL.row</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Posn
+</span><a href="Util.SourceLoc.html#%24sel%3Astart%3ARange"><span class="hs-identifier hs-var">SL.start</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679202440"><span class="hs-identifier hs-var">sl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Posn -&gt; Int
+</span><a href="Util.SourceLoc.html#%24sel%3Acol%3APosn"><span class="hs-identifier hs-var">SL.col</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Range -&gt; Posn
+</span><a href="Util.SourceLoc.html#%24sel%3Astart%3ARange"><span class="hs-identifier hs-var">SL.start</span></a></span><span> </span><span class="annot"><span class="annottext">Range
+</span><a href="#local-6989586621679202440"><span class="hs-identifier hs-var">sl</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Int -&gt; Int -&gt; Int
+forall a. Num a =&gt; a -&gt; a -&gt; a
+</span><span class="hs-operator hs-var">+</span></span><span> </span><span class="annot"><span class="annottext">Int
+</span><span class="hs-number">1</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679202441"><span class="hs-identifier hs-var">msg</span></a></span><span>
+</span><span id="line-38"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Range
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span id="local-6989586621679202446"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679202446"><span class="hs-identifier hs-var">msg</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String) -&gt; Text -&gt; String
+forall a. Format String a -&gt; a
+</span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
+</span><span class="hs-string">&quot;error: &quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
+-&gt; Format String (Text -&gt; String) -&gt; Format String (Text -&gt; String)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String)
+forall r. Format r (Text -&gt; r)
+</span><span class="hs-identifier hs-var">stext</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679202446"><span class="hs-identifier hs-var">msg</span></a></span><span>
+</span><span id="line-39"></span></pre></body></html>

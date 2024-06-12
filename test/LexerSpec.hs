@@ -16,6 +16,7 @@ import Data.Either (isLeft)
 import Lexer
 import qualified Util.SourceLoc as SL
 import Test.Hspec
+import Types
 
 spec :: Spec
 spec = do
@@ -26,23 +27,26 @@ spec = do
     scanFunction
     scannerLoc
 
-getTokens :: [Either String (SL.Located Token)] -> [Token]
-getTokens = fmap $ \(Right (SL.LocatedAt _ t)) -> t
+getTokens :: Either [CompileError] [SL.Located Token] -> [Token]
+getTokens (Left _) = [] 
+getTokens (Right toks) = fmap SL.unLoc toks
+
+scanTokens :: ByteString -> [Token]
+scanTokens inp = getTokens $ scan inp
 
 compareTokenStream :: ByteString -> [Token] -> Bool
-compareTokenStream inp toks =
-  let res = scan inp
-   in getTokens res == toks
+compareTokenStream inp toks = scanTokens inp == toks
 
 shouldErrorOut :: ByteString -> Bool
 shouldErrorOut inp =
-  let res = scan inp
-   in length res == 1 && isLeft (head res)
+  case scan inp of
+    Right _ -> False
+    Left errs -> not $ null errs
 
 checkLoc :: ByteString -> Int -> SL.Range -> Bool
 checkLoc inp idxEle range =
-  let res = scan inp
-      (Right (SL.LocatedAt pos _)) = res !! idxEle
+  let (Right res) = scan inp
+      (SL.LocatedAt pos _) = res !! idxEle
    in pos == range
 
 scanSingleElement :: SpecWith ()

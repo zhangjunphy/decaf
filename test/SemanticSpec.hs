@@ -39,7 +39,7 @@ typeCheckSpec = do
       in view #tpe expr
     pred program =
       let (Right p) = Parser.parse program
-          (Right (AST.ASTRoot imports vars methods, _, st)) = Semantic.runSemanticAnalysis p
+          (Right (AST.ASTRoot imports vars methods, st)) = Semantic.analyze p
           stmts = view #stmts $ view #block $ head methods
           AST.Statement (AST.AssignStmt (AST.Assignment _ _ (Just expr) _)) _ = head stmts
           tpe = view #tpe expr

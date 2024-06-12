@@ -32,6 +32,7 @@ module Util.Graph
   , build
   , strictlyDominate
   , strictlyPostDominate
+  , traverseM_
   ) where
 
 import Control.Lens ((%=))

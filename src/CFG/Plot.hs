@@ -89,10 +89,8 @@ prettyPrintEdge (CondEdge Complement) = "otherwise"
 generateDotPlot :: CFG -> Text
 generateDotPlot cfg = LT.toStrict $ GViz.printDotGraph $ cfgToDot cfg
 
-plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [String] String
-plot root si =
+plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
+plot root si = do
   let context = CFGContext si
-      res = buildCFG root context
-   in case res of
-        Left (CFGExcept msg) -> Left [Text.unpack msg]
-        Right cfgs -> Right $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot
+  cfgs <- buildCFG root context
+  return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot

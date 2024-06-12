@@ -18,10 +18,14 @@ module Lexer.Lex ( Alex(..)
                  , runAlex
                  , AlexState(..)
                  , AlexUserState(..)
+                 , getAlexState
+                 , alexError
+                 , addError
                  ) where
 
 import Lexer.Token
 import qualified Util.SourceLoc as SL
+import Types
 
 import Control.Monad.State
 import Data.ByteString.Lazy (ByteString)
@@ -171,7 +175,7 @@ data AlexUserState = AlexUserState { lexerCommentDepth :: Int
                                    , lexerStringState :: Bool
                                    , lexerCharState :: Bool
                                    , lexerStringValue :: ByteString
-                                   , inputLines :: [ByteString]
+                                   , errors :: [CompileError]
                                    }
 
 alexInitUserState :: AlexUserState
@@ -179,7 +183,7 @@ alexInitUserState = AlexUserState { lexerCommentDepth = 0
                                   , lexerStringState = False
                                   , lexerCharState = False
                                   , lexerStringValue = ""
-                                  , inputLines = []
+                                  , errors = []
                                   }
 
 posnFromAlex :: AlexPosn -> SL.Posn
@@ -187,6 +191,9 @@ posnFromAlex (AlexPn offset row col) = SL.Posn offset (row-1) (col-1)
 
 locatedAt :: AlexPosn -> AlexPosn -> a -> SL.Located a
 locatedAt start stop = SL.LocatedAt (SL.Range (posnFromAlex start) (posnFromAlex stop))
+
+getAlexState :: Alex AlexState
+getAlexState = Alex $ \s -> Right(s, s)
 
 alexEOF :: Alex (SL.Located Token)
 alexEOF = Alex $ \s@AlexState{alex_pos=pos} -> Right(s, locatedAt pos pos EOF)
@@ -214,6 +221,9 @@ getLexerCharState = Alex $ \s@AlexState{alex_ust=ust} -> Right (s, lexerCharStat
 
 setLexerCharState :: Bool -> Alex ()
 setLexerCharState state = Alex $ \s -> Right (s { alex_ust=(alex_ust s) {lexerCharState=state} }, ())
+
+addError :: CompileError -> Alex ()
+addError error = Alex $ \s@AlexState{alex_ust=(AlexUserState{errors=errors})} -> Right(s{alex_ust=(alex_ust s) {errors=errors++[error]}}, ())
 
 getTokenStop :: AlexPosn -> ByteString -> AlexPosn
 getTokenStop posn inp = Text.foldl' alexMove posn $ Enc.decodeUtf8 $ BS.toStrict inp
@@ -293,9 +303,9 @@ addCurrentToChar :: Action
 addCurrentToChar inp@(_, _, str, _) len = addToChar (C8.head str) inp len
 
 scannerError :: (ByteString -> ByteString) -> Action
-scannerError fn (start, _, inp, _) len =
-    let content = BS.take len inp
-        stop = getTokenStop start content
-    in return $ locatedAt start stop (Error $ Enc.decodeUtf8 $ BS.toStrict $ fn content)
-
+scannerError fn inp@(start, _, text, _) len = do
+    let content = BS.take len text
+    let stop = getTokenStop start content
+    addError $ CompileError (Just $ SL.Range (posnFromAlex start) (posnFromAlex stop)) (Enc.decodeUtf8 $ BS.toStrict $ fn content)
+    skip inp len
 }

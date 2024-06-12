@@ -11,7 +11,7 @@
 
 -- Semantic -- Decaf semantic checker
 module Semantic
-  ( runSemanticAnalysis,
+  ( analyze,
     SymbolTable (..),
     SemanticInfo (..),
     BlockType (..),
@@ -49,22 +49,6 @@ import Util.SourceLoc qualified as SL
 ---------------------------------------
 -- Semantic informations and errors
 ---------------------------------------
-
--- semantic errors
--- these errors are produced during semantic analysis,
--- we try to detect as many as we can in a single pass
-data SemanticError = SemanticError SL.Range Text
-
-instance Show SemanticError where
-  show (SemanticError range msg) = formatToString (shown % ": " % stext) range msg
-
--- exceptions during semantic analysis
--- difference from SemanticError:
--- whenever an exception is raised, the analysis procedure will be aborted.
-data SemanticException = SemanticException SL.Range Text
-
-instance Show SemanticException where
-  show (SemanticException range msg) = formatToString (shown % " " % stext) range msg
 
 data BlockType = RootBlock | IfBlock | ForBlock | WhileBlock | MethodBlock
   deriving (Show, Eq)
@@ -110,19 +94,20 @@ data SemanticInfo = SemanticInfo
 
 -- Monad used for semantic analysis
 -- Symbol tables are built for every scope, and stored in SemanticState.
--- Semantic errors encountered are recorded by the writer monad (WriterT [SemanticError]).
--- If a serious problem happened such that the analysis has to be aborted, a SemanticException
--- is thrown.
-newtype Semantic a = Semantic {runSemantic :: ExceptT SemanticException (WriterT [SemanticError] (State SemanticState)) a}
-  deriving (Functor, Applicative, Monad, MonadError SemanticException, MonadWriter [SemanticError], MonadState SemanticState)
+-- Semantic errors encountered are recorded by the writer monad (WriterT [CompileError]).
+-- If a serious problem happened such that the analysis has to be aborted, a CompileError 
+-- is thrown as an exception.
+newtype Semantic a = Semantic {runSemantic :: ExceptT CompileError (WriterT [CompileError] (State SemanticState)) a}
+  deriving (Functor, Applicative, Monad, MonadError CompileError, MonadWriter [CompileError], MonadState SemanticState)
 
-runSemanticAnalysis :: P.Program -> Either String (ASTRoot, [SemanticError], SemanticInfo)
-runSemanticAnalysis p =
+analyze :: P.Program -> Either [CompileError] (ASTRoot, SemanticInfo)
+analyze p =
   let ir = irgenRoot p
       ((except, errors), state) = (runState $ runWriterT $ runExceptT $ runSemantic ir) initialSemanticState
    in case except of
-        Left except -> Left $ show except
-        Right a -> Right (a, errors, SemanticInfo (state ^. #symbolTables) (state ^. #symbolWrites))
+        Left except -> Left [except]
+        _ | not $ null errors -> Left errors
+        Right a -> Right (a, SemanticInfo (state ^. #symbolTables) (state ^. #symbolWrites))
 
 initialSemanticState :: SemanticState
 initialSemanticState =
@@ -155,12 +140,12 @@ getCurrentRange = gets currentRange
 throwSemanticException :: Text -> Semantic a
 throwSemanticException msg = do
   range <- getCurrentRange
-  throwError $ SemanticException range msg
+  throwError $ CompileError (Just range) msg
 
 addSemanticError :: Text -> Semantic ()
 addSemanticError msg = do
   range <- getCurrentRange
-  tell [SemanticError range msg]
+  tell [CompileError (Just range) msg]
 
 -- find symbol table for global scope
 getGlobalSymbolTable' :: Semantic SymbolTable

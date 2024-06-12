@@ -12,9 +12,11 @@
 module Parser.Helper where
 
 import Data.Text (Text)
-import Lexer (Alex (..), Token (..), alexMonadScan)
+import Lexer (Alex (..), Token (..), alexMonadScan, alexError, addError)
 import Util.SourceLoc as SL
 import Text.Printf (printf)
+import Types (CompileError(CompileError))
+import Formatting (sformat, shown, (%))
 
 getID :: Token -> Text
 getID (Identifier id) = id
@@ -42,6 +44,6 @@ lexerwrap s = do
   token <- alexMonadScan
   s token
 
-parseError :: SL.Located Token -> Alex a
-parseError (SL.LocatedAt (SL.Range (SL.Posn _ row col) _) tok) = do
-  Alex $ \_ -> Left $ printf "%d:%d: Error handling token '%s'" row col (show tok)
+parseError (SL.LocatedAt sl@(SL.Range (SL.Posn _ row col) _) tok) = do
+  addError $ CompileError (Just sl) $ sformat ("Error handling token '" % shown % "'") tok
+  alexError "Parser failed."

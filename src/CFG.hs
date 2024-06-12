@@ -10,9 +10,11 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- CFG -- Control Flow Graph with SSA nodes
-module CFG (plot) where
+module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CFGNode (..), CFGEdge (..), CFG (..)) where
 
+import CFG.Build (CFGContext (..), buildCFG)
 import CFG.Plot (plot)
+import CFG.Types
 
 {-
 Refactor and clean up.
@@ -27,8 +29,8 @@ TODO:
 -- Generate a dot plot for cfg
 
 -- Remove empty seq node one by one
---removeEmptySeqNode :: CFGBuild ()
---removeEmptySeqNode = do
+-- removeEmptySeqNode :: CFGBuild ()
+-- removeEmptySeqNode = do
 --  g@G.Graph {nodes = nodes} <- gets cfg
 --  let emptySeqNode =
 --        List.find
@@ -52,4 +54,3 @@ TODO:
 --      forM_ inEdges (\(ni, ed) -> G.addEdge ni out ed)
 --    isSeqEdge SeqEdge = True
 --    isSeqEdge _ = False
-

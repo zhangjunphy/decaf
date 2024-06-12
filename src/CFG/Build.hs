@@ -22,6 +22,7 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Generics.Labels
+import GHC.Generics (Generic)
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
@@ -31,7 +32,6 @@ import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
 import Formatting
-import GHC.Generics (Generic)
 import SSA
 import Semantic qualified as SE
 import Types
@@ -95,20 +95,17 @@ updateCFG update = do
   g <- getGraph
   let g' = G.update update g
   case g' of
-    Left m -> throwError $ CFGExcept m
+    Left m -> throwError $ CompileError Nothing m
     Right g -> setGraph g
 
 data CFGContext = CFGContext
   {semantic :: SE.SemanticInfo}
   deriving (Generic)
 
-newtype CFGExcept = CFGExcept Text
-  deriving (Show)
-
 newtype CFGBuild a = CFGBuild
   { runCFGBuild ::
       ExceptT
-        CFGExcept
+        CompileError
         (ReaderT CFGContext (State CFGState))
         a
   }
@@ -116,7 +113,7 @@ newtype CFGBuild a = CFGBuild
     ( Functor,
       Applicative,
       Monad,
-      MonadError CFGExcept,
+      MonadError CompileError,
       MonadReader CFGContext,
       MonadState CFGState
     )
@@ -170,7 +167,7 @@ getBasicBlock' :: BBID -> CFGBuild BasicBlock
 getBasicBlock' bbid = do
   g <- getGraph
   case G.lookupNode bbid g of
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find basic block" %+ int) bbid
+    Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find basic block" %+ int) bbid
     Just node -> return $ node ^. #bb
 
 {-----------------------------------------------------------
@@ -180,7 +177,7 @@ addVarSym :: Name -> VID -> CFGBuild ()
 addVarSym name vid = do
   sid <-
     getSymScope name >>= \case
-      Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+      Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find symbol" %+ stext) name
       Just sid -> return sid
   -- update var->sym
   #var2sym %= Map.insert vid (sid, name)
@@ -188,7 +185,7 @@ addVarSym name vid = do
   sym2var <- use #sym2var
   let sym2varInScope = Map.lookup sid sym2var
   case sym2varInScope of
-    Nothing -> throwError $ CFGExcept "Unable to find scope in sym->var map"
+    Nothing -> throwError $ CompileError Nothing "Unable to find scope in sym->var map"
     Just s2v -> #sym2var %= Map.insert sid (s2v & #m %~ Map.insert name vid)
 
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
@@ -197,7 +194,7 @@ lookupVar vid = uses #var2sym $ Map.lookup vid
 lookupVar' :: VID -> CFGBuild (ScopeID, Name)
 lookupVar' vid =
   lookupVar vid >>= \case
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable" %+ int) vid
+    Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find variable" %+ int) vid
     Just res -> return res
 
 -- Look for symbol resursively
@@ -220,7 +217,7 @@ lookupSymInScope' :: Name -> ScopeID -> CFGBuild Var
 lookupSymInScope' name sid = do
   var' <- lookupSymInScope name sid
   case var' of
-    Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext %+ "in scope" %+ int) name sid
+    Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find symbol" %+ stext %+ "in scope" %+ int) name sid
     Just var -> return var
 
 lookupSym :: Name -> CFGBuild (Maybe Var)
@@ -239,7 +236,7 @@ getSymDecl name = do
   sts <- view $ #semantic . #symbolTables
   sig <- use #sig
   case Map.lookup sid sts of
-    Nothing -> throwError $ CFGExcept (sformat ("Unable to find scope " % int) sid)
+    Nothing -> throwError $ CompileError Nothing (sformat ("Unable to find scope " % int) sid)
     Just st -> return $ lookup name st
   where
     lookup name st' =
@@ -252,7 +249,7 @@ getSymScope name = do
   sts <- view $ #semantic . #symbolTables
   sig <- use #sig
   case Map.lookup sid sts of
-    Nothing -> throwError $ CFGExcept (sformat ("Unable to find scope " % int) sid)
+    Nothing -> throwError $ CompileError Nothing (sformat ("Unable to find scope " % int) sid)
     Just st -> return $ lookup name st
   where
     lookup name st' =
@@ -270,7 +267,7 @@ newVar (Just name) tpe sl locality = do
   vars <- use #vars
   let vid = length vars
   decl <- getSymDecl name
-  when (isNothing decl) $ throwError (CFGExcept $ sformat ("Unable to find decl of variable " % stext) name)
+  when (isNothing decl) $ throwError (CompileError (Just sl) $ sformat ("Unable to find decl of variable " % stext) name)
   let var = Var vid tpe decl sl locality
   #vars .= vars ++ [var]
   addVarSym name vid
@@ -327,7 +324,7 @@ finishCurrentBB = do
 checkStmts :: CFGBuild ()
 checkStmts = do
   stmts <- use #statements
-  unless (null stmts) $ throwError $ CFGExcept $ Text.pack $ "Dangling statements found: " ++ show stmts
+  unless (null stmts) $ throwError $ CompileError Nothing $ Text.pack $ "Dangling statements found: " ++ show stmts
 
 addSSA :: SSA -> CFGBuild ()
 addSSA ssa = do
@@ -391,7 +388,7 @@ addDummyPhiNode =
     getTypeAndSL sid name = do
       sts <- view $ #semantic . #symbolTables
       case Map.lookup sid sts >>= SE.lookupLocalVariableFromST name of
-        Nothing -> throwError $ CFGExcept $ sformat ("Unable to find variable" %+ stext %+ "in scope" %+ int) name sid
+        Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find variable" %+ stext %+ "in scope" %+ int) name sid
         Just def -> do
           let tpe = either (view #tpe) (view #tpe) def
           let sl = either (view #loc) (view #loc) def
@@ -412,7 +409,7 @@ patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID,
 patchPhiNode bb s1 varMap1 s2 varMap2 = do
   g <- getGraph
   case G.lookupNode bb g of
-    Nothing -> throwError $ CFGExcept $ sformat ("Basic block" %+ int %+ "not found.") bb
+    Nothing -> throwError $ CompileError Nothing $ sformat ("Basic block" %+ int %+ "not found.") bb
     Just node -> do
       let ssaList = node ^. (#bb . #statements)
       ssaList' <- mapM patch ssaList
@@ -425,10 +422,10 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
       let v1 = Map.lookup (sid, name) varMap1
       let v2 = Map.lookup (sid, name) varMap2
       case v1 of
-        Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+        Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find symbol" %+ stext) name
         Just v1' -> do
           case v2 of
-            Nothing -> throwError $ CFGExcept $ sformat ("Unable to find symbol" %+ stext) name
+            Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find symbol" %+ stext) name
             Just v2' -> return $ Phi dst [(v1', s1), (v2', s2)]
     patch ssa = return ssa
 
@@ -436,7 +433,7 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
 Build cfg from ast fragments
 -----------------------------------------}
 
-buildCFG :: AST.ASTRoot -> CFGContext -> Either CFGExcept (Map Name CFG)
+buildCFG :: AST.ASTRoot -> CFGContext -> Either [CompileError] (Map Name CFG)
 buildCFG root@(AST.ASTRoot _ _ methods) context =
   let build method =
         runState $
@@ -446,7 +443,7 @@ buildCFG root@(AST.ASTRoot _ _ methods) context =
       updateMap map m =
         let (r, _) = build m $ initialState (m ^. #sig)
          in case r of
-              Left e -> Left e
+              Left e -> Left [e]
               Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
    in foldM updateMap Map.empty methods
 
@@ -518,7 +515,7 @@ buildAssignOp prev AST.MinusMinus Nothing = do
   dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Minus (Variable prev) (IntImm 1))
   return dst'
-buildAssignOp _ _ _ = throwError $ CFGExcept "Malformed assignment."
+buildAssignOp _ _ _ = throwError $ CompileError Nothing "Malformed assignment."
 
 buildStatement :: AST.Statement -> CFGBuild BBTransition
 buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location op expr _)) _) = do
@@ -614,7 +611,7 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   bbid <- finishCurrentBB
   funcTail <- getFunctionExit
   case funcTail of
-    0 -> throwError $ CFGExcept "Return not in a function context."
+    0 -> throwError $ CompileError (Just loc) "Return not in a function context."
     tail -> updateCFG $ G.addEdge bbid tail SeqEdge
   -- Create an unreachable bb in case there are still statements after
   -- this point.
@@ -625,7 +622,7 @@ buildStatement (AST.Statement AST.ContinueStmt loc) = do
   bbid <- finishCurrentBB
   controlH' <- getControlEntry
   case controlH' of
-    Nothing -> throwError $ CFGExcept "Continue not in a loop context."
+    Nothing -> throwError $ CompileError (Just loc) "Continue not in a loop context."
     Just controlH -> updateCFG $ G.addEdge bbid controlH SeqEdge
   createEmptyBB
   return Deadend
@@ -633,7 +630,7 @@ buildStatement (AST.Statement AST.BreakStmt loc) = do
   bbid <- finishCurrentBB
   controlT' <- getControlExit
   case controlT' of
-    Nothing -> throwError $ CFGExcept "Break not in a loop context."
+    Nothing -> throwError $ CompileError (Just loc) "Break not in a loop context."
     Just controlT -> updateCFG $ G.addEdge bbid controlT SeqEdge
   createEmptyBB
   return Deadend
@@ -736,7 +733,7 @@ buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
 buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
   array <- lookupSym' name
   arrType <- case astDecl array of
-    Nothing -> throwError $ CFGExcept "Unable to find array def"
+    Nothing -> throwError $ CompileError (Just loc) "Unable to find array def"
     Just (Left (AST.Argument _ arrTpe _)) -> return arrTpe
     Just (Right (AST.FieldDecl _ arrTpe _)) -> return arrTpe
   case arrType of
@@ -746,7 +743,7 @@ buildExpr (AST.Expr (AST.LengthExpr name) tpe loc) = do
       return dst
     _ ->
       throwError $
-        CFGExcept (sformat ("Variable is not an array: " % stext) name)
+        CompileError (Just loc) (sformat ("Variable is not an array: " % stext) name)
 
 buildReadFromLocation :: AST.Location -> CFGBuild Var
 buildReadFromLocation (AST.Location name idx def tpe loc) = do
@@ -756,12 +753,12 @@ buildReadFromLocation (AST.Location name idx def tpe loc) = do
   case var ^. #tpe of
     AST.ArrayType eleType size -> do
       case idx of
-        Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
+        Nothing -> throwError $ CompileError (Just loc) "Accessing array as a scalar."
         Just idxExpr -> do
           idxVar <- buildExpr idxExpr
           arrayPtr <- lookupSym' name
           eleSize <- case AST.dataSize eleType of
-            Nothing -> throwError $ CFGExcept "Array with void type element."
+            Nothing -> throwError $ CompileError (Just loc) "Array with void type element."
             Just sz -> return sz
           offset <- newLocal Nothing AST.IntType loc
           ptr <- newLocal Nothing AST.IntType loc
@@ -782,12 +779,12 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
   case var ^. #tpe of
     AST.ArrayType eleType size ->
       case idx of
-        Nothing -> throwError $ CFGExcept "Accessing array as a scalar."
+        Nothing -> throwError $ CompileError (Just loc) "Accessing array as a scalar."
         Just idxExpr -> do
           idx <- buildExpr idxExpr
           arrayPtr <- lookupSym' name
           eleSize <- case AST.dataSize eleType of
-            Nothing -> throwError $ CFGExcept "Array with void type element."
+            Nothing -> throwError $ CompileError (Just loc) "Array with void type element."
             Just sz -> return sz
           offset <- newLocal Nothing AST.IntType loc
           ptr <- newLocal Nothing AST.IntType loc

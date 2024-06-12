@@ -31,10 +31,20 @@ module Parser
 where
 
 import Data.ByteString.Lazy (ByteString)
-import Lexer (Alex (..), Token, runAlex)
+import Lexer (Alex (..), Token, runAlex, getAlexState, AlexUserState(..), AlexState(..))
 import Parser.Grammar
 import Parser.Tree
 import Util.SourceLoc as SL
+import Data.Text qualified as Text
+import Types
 
-parse :: ByteString -> Either String Program
-parse input = runAlex input parseInternal
+parse :: ByteString -> Either [CompileError] Program
+parse input = case runAlex input parseAndHandleError of
+        Left m -> Left [CompileError Nothing $ Text.pack m]
+        Right (errs, _) | not $ null errs -> Left errs
+        Right (_, program) -> Right program
+  where
+    parseAndHandleError = parseInternal >>= \program -> do
+      state <- getAlexState
+      let AlexUserState{errors = errors} = alex_ust state 
+      return (errors, program)

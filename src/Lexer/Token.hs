@@ -40,7 +40,6 @@ data Token = Keyword !Text
            | Comma
            | Negate
            | EOF
-           | Error !Text
            deriving (Eq)
 
 instance Show Token where
@@ -69,4 +68,3 @@ instance Show Token where
   show Comma = ","
   show Negate = "!"
   show EOF = "EOF"
-  show (Error s) = show s

@@ -97,7 +97,7 @@ options =
 longDescription :: String
 longDescription =
   unlines
-    [ "  -t <stage>          <stage> is one of \"scan\", \"parse\", \"inter\", or \"assembly\".",
+    [ "  -t <stage>          <stage> is one of \"scan\", \"parse\", \"cfg\", \"inter\", or \"assembly\".",
       "  --target=<stage>    Compilation will proceed to the given stage and halt there.",
       "  ",
       "  -d                  Print debugging information.  If this option is not given,",

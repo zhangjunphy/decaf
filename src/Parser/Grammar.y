@@ -103,6 +103,7 @@ parseError :: Token -> Alex a
 Program : ImportDecls FieldDecls MethodDecls                { Program (reverse $1) (reverse $2) $3 }
 
 ImportDecls : {- empty -}                                   { [] }
+
             | ImportDecls ImportDecl                        { $2 : $1 }
 ImportDecl : import id ';'                                  { SL.LocatedAt (unionOf $1 $3) $ ImportDecl $ getID (unLoc $2) }
 

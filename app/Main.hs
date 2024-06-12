@@ -13,35 +13,31 @@ PARTICULAR PURPOSE.  See the X11 license for more details. -}
 
 module Main where
 
-import qualified Util.CLI as CLI
+import CFG qualified
 import Configuration (CompilerStage (..), Configuration)
-import qualified Configuration
+import Configuration qualified
 import Control.Exception (bracket)
 import Control.Monad (forM_)
 import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Except (ExceptT (..), runExceptT)
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as B
+import Data.ByteString.Lazy qualified as B
 import Data.Functor ((<&>))
 import Data.List
 import Data.Text (Text)
-import qualified Data.Text as Text
+import Data.Text qualified as Text
+import Formatting (sformat, shown, (%), (%+))
 import GHC.IO.Handle (hDuplicate)
-import qualified Parser
-import qualified Lexer
-import qualified Semantic
-import qualified CFG
+import Lexer qualified
+import Parser qualified
+import Semantic qualified
 import System.Environment (getProgName)
-import qualified System.Exit
-import System.IO
-  ( IOMode (..),
-    hClose,
-    hPutStrLn,
-    openFile,
-    stderr,
-    stdout,
-  )
+import System.Exit qualified
+import System.IO (IOMode (..), hClose, hPutStrLn, openFile, stderr, stdout)
 import Text.Printf (printf)
+import Types
+import Util.CLI qualified as CLI
+import Util.SourceLoc qualified as SL
 import Prelude hiding (readFile)
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
@@ -84,35 +80,34 @@ change--one can see the lexer and parser as acting in a reader monad.)  The
 big problem with this is that error messages generated in the lexer and
 parser won't contain the file name--the file name has to get added in this
 function. -}
-mungeErrorMessage :: Configuration -> Either String a -> Either String a
-mungeErrorMessage configuration =
-  ifLeft $ \msg -> Configuration.input configuration ++ ":" ++ msg
-  where
-    ifLeft f (Left v) = Left $ f v
-    ifLeft _ (Right a) = Right a
+mungeErrorMessage :: Configuration -> CompileError -> String
+mungeErrorMessage configuration error =
+  Configuration.input configuration ++ ":" ++ show error
 
 {- The pure guts of the compiler convert input to output.  Exactly what output
 they produce, though, depends on the configuration. -}
 process :: Configuration -> ByteString -> Either String [IO ()]
 process configuration input =
   -- Dispatch on the configuration, modifying error messages appropriately.
-  case Configuration.target configuration of
-    Scan -> scan configuration input
-    Parse -> parse configuration input
-    Cfg -> cfg configuration input
-    -- Inter -> irgen configuration input
-    phase -> Left $ show phase <> " not implemented\n"
+  let stageResult =
+        case Configuration.target configuration of
+          Scan -> scan input
+          Parse -> parse input
+          Cfg -> cfg input
+          -- Inter -> irgen configuration input
+          phase -> Left [CompileError Nothing $ sformat (shown %+ "not implemented") phase]
+   in outputStageResult configuration stageResult
 
 {- We have to interleave output to standard error (for errors) and standard
 output or a file (for output), so we need to actually build an appropriate
 set of IO actions. -}
-outputStageResult :: Configuration -> Either [String] String -> Either String [IO ()]
+outputStageResult :: Configuration -> Either [CompileError] String -> Either String [IO ()]
 outputStageResult configuration resultOrErrors =
   Right
     [ case resultOrErrors of
         Left errors ->
           bracket openOutputHandle hClose $ \hOutput ->
-            forM_ errors (hPutStrLn hOutput)
+            forM_ errors (hPutStrLn hOutput . mungeErrorMessage configuration)
         Right result ->
           bracket openOutputHandle hClose $ \hOutput ->
             hPutStrLn hOutput result
@@ -122,39 +117,20 @@ outputStageResult configuration resultOrErrors =
       maybe (hDuplicate stdout) (`openFile` WriteMode) $
         Configuration.outputFileName configuration
 
-scan :: Configuration -> ByteString -> Either String [IO ()]
-scan configuration input =
-  let tokensAndErrors =
-        Lexer.scan input
-          <&> mungeErrorMessage configuration
-          <&> Lexer.formatTokenOrError
-      tokens = intercalate "\n" $ tokensAndErrors >>= either (const []) return
-      errors = tokensAndErrors >>= either return (const [])
-      result = case errors of
-        [] -> Right tokens
-        _ -> Left errors
-   in outputStageResult configuration result
+scan :: ByteString -> Either [CompileError] String
+scan input = Lexer.scan input <&> intercalate "\n" . fmap formatToken
+  where
+    formatToken (SL.LocatedAt (SL.Range (SL.Posn _ line _) _) tok) =
+      unwords [show line, show tok]
 
-parse :: Configuration -> ByteString -> Either String [IO ()]
-parse configuration input =
-  let irAndError = do
-        tree <- Parser.parse input
-        Semantic.runSemanticAnalysis tree
-      result = case irAndError of
-        Left exception -> Left [exception]
-        Right (_, err, _) | not (null err) -> Left $ show <$> err
-        Right (root, _, _) -> Right $ show root
-  in outputStageResult configuration result
+parse :: ByteString -> Either [CompileError] String
+parse input = do
+  tree <- Parser.parse input
+  (program, _) <- Semantic.analyze tree
+  return $ show program
 
-cfg :: Configuration -> ByteString -> Either String [IO ()]
-cfg configuration input =
-  let irAndError = do
-        tree <- Parser.parse input
-        Semantic.runSemanticAnalysis tree
-      ast = case irAndError of
-        Left exception -> Left [exception]
-        Right (_, err, _) | not (null err) -> Left $ show <$> err
-        Right (root, _, st) -> Right (root, st)
-      cfg = ast >>= uncurry CFG.plot
-      --dot = result >>= \(root, st) -> PartialCFG.plot root st
-  in outputStageResult configuration cfg
+cfg :: ByteString -> Either [CompileError] String
+cfg input = do
+  tree <- Parser.parse input
+  (program, semantic) <- Semantic.analyze tree
+  CFG.plot program semantic

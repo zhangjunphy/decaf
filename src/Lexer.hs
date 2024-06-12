@@ -13,10 +13,14 @@
 module Lexer
   ( Token (..),
     Alex (..),
+    AlexState (..),
+    AlexUserState(..),
     scan,
-    formatTokenOrError,
     alexMonadScan,
     runAlex,
+    addError,
+    alexError,
+    getAlexState
   )
 where
 
@@ -24,45 +28,40 @@ import Data.ByteString.Lazy (ByteString)
 import Lexer.Lex
 import Lexer.Token
 import Util.SourceLoc qualified as SL
+import Types (CompileError(..))
+import Data.Text qualified as Text
 
 -- Produce error tokens for later use
-catchErrors :: Alex (SL.Located Token) -> Alex (SL.Located Token)
-catchErrors (Alex al) =
-  Alex
-    ( \s -> case al s of
-        Right (s'@AlexState {alex_ust = ust}, t@(SL.LocatedAt _ EOF)) -> eofCheck s' t
-        Right (s', x) -> Right (s', x)
-        Left message -> Left message
-    )
+catchErrors :: SL.Located Token -> Alex ()
+catchErrors tok = do
+  s <- getAlexState
+  case tok of 
+    t@(SL.LocatedAt _ EOF) -> eofCheck s t
+    t -> return ()
   where
     eofCheck s@AlexState {alex_ust = ust} tok@(SL.LocatedAt loc _) =
       case ust of
         val
-          | lexerStringState ust -> Right (s, SL.LocatedAt loc $ Error "string not closed at EOF")
-          | lexerCharState ust -> Right (s, SL.LocatedAt loc $ Error "char not closed at EOF")
-          | lexerCommentDepth ust > 0 -> Right (s, SL.LocatedAt loc $ Error "comment not closed at EOF")
-          | otherwise -> Right (s, tok)
+          | lexerStringState ust -> addError $ CompileError (Just loc) "String not closed at EOF"
+          | lexerCharState ust -> addError $ CompileError (Just loc) "Char not closed at EOF"
+          | lexerCommentDepth ust > 0 -> addError $ CompileError (Just loc) "Comment not closed at EOF"
+          | otherwise -> return ()
 
-scan :: ByteString -> [Either String (SL.Located Token)]
+scan :: ByteString -> Either [CompileError] [SL.Located Token]
 scan str =
   let loop = do
-        tokOrError <- catchErrors alexMonadScan
-        case tokOrError of
-          t@(SL.LocatedAt _ (Error m)) ->
-            do
-              toks <- loop
-              return (Right t : toks)
-          t@(SL.LocatedAt _ tok) ->
-            if tok == EOF
-              then return []
-              else do
-                toks <- loop
-                return (Right t : toks)
-   in case runAlex str loop of
-        Left m -> [Left m]
-        Right toks -> toks
-
-formatTokenOrError :: Either String (SL.Located Token) -> Either String String
-formatTokenOrError (Left err) = Left err
-formatTokenOrError (Right (SL.LocatedAt (SL.Range (SL.Posn _ line _) _) tok)) =
-  Right $ unwords [show line, show tok]
+        tok'@(SL.LocatedAt _ tok) <- alexMonadScan
+        catchErrors tok'
+        if tok == EOF
+          then return []
+          else do
+            toks <- loop
+            return (tok' : toks)
+      tokenAndErrors = loop >>= \tokens -> do
+        state <- getAlexState
+        let errs = errors $ alex_ust state
+        return (errs, tokens)
+   in case runAlex str tokenAndErrors of
+        Left m -> Left [CompileError Nothing $ Text.pack m]
+        Right (errs, _) | not $ null errs -> Left errs
+        Right (_, toks) -> Right toks

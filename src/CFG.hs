@@ -10,21 +10,21 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- CFG -- Control Flow Graph with SSA nodes
-module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CFGNode (..), CFGEdge (..), CFG (..)) where
+module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CFGEdge (..), CFG (..)) where
 
+import AST qualified
 import CFG.Build (CFGContext (..), buildCFG)
+import CFG.Optimizations.RemoveNoOp (removeNoOp)
+import CFG.Optimizations.Types (CFGOptimizer, runOptimizerOnCFG)
 import CFG.Plot (generateDotPlot)
 import CFG.Types
-import qualified AST
-import qualified Semantic as SE
-import Types 
+import Control.Monad (mapM_)
+import Data.Functor ((<&>))
 import Data.Map (Map)
 import Data.Map qualified as Map
-import CFG.Optimizations.Types (CFGOptimizer, runOptimizerOnCFG)
-import CFG.Optimizations.RemoveNoOp (removeNoOp)
-import Data.Functor ((<&>))
 import Data.Text qualified as Text
-import Control.Monad (mapM_)
+import Semantic qualified as SE
+import Types
 
 {-
 Refactor and clean up.
@@ -32,7 +32,7 @@ TODO:
 1. Find better ways to add phi nodes. [DROP]
 2. Refactor control start/exit related code. [DONE]
 3. Produce dot plot with some proper library. [DONE]
-4. Add unit tests. 
+4. Add unit tests.
 5. Other chores.
 -}
 

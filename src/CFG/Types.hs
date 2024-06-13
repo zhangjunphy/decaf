@@ -28,11 +28,6 @@ data BasicBlock = BasicBlock
   }
   deriving (Generic, Show)
 
-newtype CFGNode = CFGNode
-  { bb :: BasicBlock
-  }
-  deriving (Generic, Show)
-
 data CFGEdge
   = SeqEdge
   | CondEdge !Condition
@@ -41,9 +36,10 @@ data CFGEdge
 -- type CFG = G.Graph BBID CFGNode CFGEdge
 
 data CFG = CFG
-  { graph :: !(G.Graph BBID CFGNode CFGEdge)
-  , entry :: !BBID
-  , exit :: !BBID
-  } deriving (Generic)
+  { graph :: !(G.Graph BBID BasicBlock CFGEdge),
+    entry :: !BBID,
+    exit :: !BBID
+  }
+  deriving (Generic)
 
-type CFGBuilder = G.GraphBuilder BBID CFGNode CFGEdge
+type CFGBuilder = G.GraphBuilder BBID BasicBlock CFGEdge

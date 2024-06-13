@@ -37,7 +37,7 @@ edges (CFG graph _ _) = fmap (\((src, dst), d) -> (src, dst, d)) $ Map.toList $ 
 backEdges :: CFG -> Set (BBID, BBID)
 backEdges cfg@(CFG _ _ exit) = Set.fromList $ filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $ fmap (\(b1, b2, _) -> (b1, b2)) (edges cfg)
 
-gvizParams :: CFG -> GViz.GraphvizParams BBID CFGNode CFGEdge () CFGNode
+gvizParams :: CFG -> GViz.GraphvizParams BBID BasicBlock CFGEdge () BasicBlock
 gvizParams cfg@(CFG _ entry exit) =
   GViz.nonClusteredParams
     { GViz.globalAttributes = globalAttrs,
@@ -70,8 +70,8 @@ cfgToDot cfg@(CFG graph entry exit) =
             then (b2, b1, e)
             else (b1, b2, e)
 
-prettyPrintNode :: BBID -> CFGNode -> CFG -> LT.Text
-prettyPrintNode bbid CFGNode {bb = BasicBlock {bbid = id, statements = stmts}} (CFG _ entry exit) =
+prettyPrintNode :: BBID -> BasicBlock -> CFG -> LT.Text
+prettyPrintNode bbid BasicBlock {bbid = id, statements = stmts} (CFG _ entry exit) =
   let idText = [format ("<id:" %+ int %+ stext % ">") id entryExit]
       segments = stmts <&> format shown
    in LT.intercalate "\n" $ idText ++ segments

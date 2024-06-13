@@ -43,7 +43,7 @@ getCFG = gets cfg
 getOptState :: CFGOptimizer s s
 getOptState = gets optState
 
-updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGOptimizer s ()
+updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer s ()
 updateCFG update = do
   (CFG g _ _) <- getCFG
   let g' = G.update update g

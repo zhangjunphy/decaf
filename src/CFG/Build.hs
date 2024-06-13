@@ -22,7 +22,6 @@ import Control.Monad.State
 import Control.Monad.Writer
 import Data.Functor ((<&>))
 import Data.Generics.Labels
-import GHC.Generics (Generic)
 import Data.List qualified as List
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
@@ -31,13 +30,14 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Debug.Trace (traceShow)
 import Formatting
+import GHC.Generics (Generic)
 import SSA
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
-import Debug.Trace (traceShow)
 
 {------------------------------------------------
 Data types
@@ -85,13 +85,13 @@ initialState sig =
 {------------------------------------------------
 Helps for CFGBuild monad
 ------------------------------------------------}
-getGraph :: CFGBuild (G.Graph BBID CFGNode CFGEdge)
+getGraph :: CFGBuild (G.Graph BBID BasicBlock CFGEdge)
 getGraph = use $ #cfg . #graph
 
-setGraph :: G.Graph BBID CFGNode CFGEdge -> CFGBuild ()
+setGraph :: G.Graph BBID BasicBlock CFGEdge -> CFGBuild ()
 setGraph g = #cfg . #graph .= g
 
-updateCFG :: G.GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
+updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGBuild ()
 updateCFG update = do
   g <- getGraph
   let g' = G.update update g
@@ -169,7 +169,7 @@ getBasicBlock' bbid = do
   g <- getGraph
   case G.lookupNode bbid g of
     Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find basic block" %+ int) bbid
-    Just node -> return $ node ^. #bb
+    Just node -> return node
 
 {-----------------------------------------------------------
 Add/lookup symbols or variables
@@ -308,7 +308,7 @@ createEmptyBB = do
   bbid <- use #currentBBID
   sid <- use #astScope
   let bb = BasicBlock bbid sid []
-  updateCFG (G.addNode bbid (CFGNode bb))
+  updateCFG (G.addNode bbid bb)
   return bbid
 
 finishCurrentBB :: CFGBuild BBID
@@ -318,7 +318,7 @@ finishCurrentBB = do
   sid <- use #astScope
   #statements .= []
   let bb = BasicBlock bbid sid stmts
-  updateCFG (G.addNode bbid (CFGNode bb))
+  updateCFG (G.addNode bbid bb)
   #currentBBID += 1
   return bbid
 
@@ -412,9 +412,9 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
   case G.lookupNode bb g of
     Nothing -> throwError $ CompileError Nothing $ sformat ("Basic block" %+ int %+ "not found.") bb
     Just node -> do
-      let ssaList = node ^. (#bb . #statements)
+      let ssaList = node ^. #statements
       ssaList' <- mapM patch ssaList
-      updateCFG $ G.adjustNode bb ((#bb . #statements) .~ ssaList')
+      updateCFG $ G.adjustNode bb (#statements .~ ssaList')
   where
     patch :: SSA -> CFGBuild SSA
     patch (Phi dst []) = do

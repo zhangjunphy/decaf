@@ -17,10 +17,10 @@ import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _
 import Control.Monad.Except
 import Data.List (find)
 import Data.Map.Strict qualified as Map
+import SSA (SSA)
+import SSA qualified
 import Types
 import Util.Graph qualified as G
-import SSA qualified
-import SSA (SSA)
 
 removeNoOp :: CFGOptimizer () ()
 removeNoOp = do
@@ -39,7 +39,7 @@ findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
     noOpPred bbid node
       | bbid == entry = False
       | bbid == exit = False
-      | otherwise = null $ node ^. (#bb . #statements)
+      | otherwise = null $ node ^. #statements
     inboundPred bbid _ = length (G.inBound bbid g) == 1
     outboundPred bbid _ = length (G.outBound bbid g) == 1
     outEdgePred bbid _ =
@@ -68,7 +68,7 @@ removeNodeAndPatchPhi bbid = do
     G.addEdge bbidIn bbidOut edgeIn
   -- patch Phi in successor nodes
   updateCFG $ do
-    G.adjustNode bbidOut (patchCFGNode bbidIn)
+    G.adjustNode bbidOut (patchBasicBlock bbidIn)
     G.deleteNode bbid
   where
     isSeqEdge SeqEdge = True
@@ -76,8 +76,7 @@ removeNodeAndPatchPhi bbid = do
     patchPhi :: BBID -> SSA.SSA -> SSA.SSA
     patchPhi bbidIn (SSA.Phi dst predecessors) =
       let replace (var, bbid') = if bbid' == bbid then (var, bbidIn) else (var, bbid')
-      in SSA.Phi dst $ replace <$> predecessors
+       in SSA.Phi dst $ replace <$> predecessors
     patchPhi _ ssa = ssa
-    patchCFGNode :: BBID -> CFGNode -> CFGNode
-    patchCFGNode bbidIn node = node & #bb . #statements %~ fmap (patchPhi bbidIn)
-
+    patchBasicBlock :: BBID -> BasicBlock -> BasicBlock
+    patchBasicBlock bbidIn node = node & #statements %~ fmap (patchPhi bbidIn)

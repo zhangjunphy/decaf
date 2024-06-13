@@ -111,8 +111,8 @@ Graph :: !Map ni nd -> !Map (ni, ni) ed -> Graph ni nd ed
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ni, ed)]
 inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ni, ed)]
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
-updateNodeWith :: (Eq ni, Ord ni) => ni -> (Maybe nd -> nd) -> GraphBuilder ni nd ed ()
-updateNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ()
+alterNode :: (Eq ni, Ord ni) => ni -> (Maybe nd -> Maybe nd) -> GraphBuilder ni nd ed ()
+adjustNode :: (Eq ni, Ord ni) => ni -> (nd -> nd) -> GraphBuilder ni nd ed ()
 union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
 newtype GraphBuilder ni nd ed a
 GraphBuilder :: ExceptT GraphException (State (Graph ni nd ed)) a -> GraphBuilder ni nd ed a
@@ -1146,23 +1146,18 @@ BasicBlock :: !BBID -> !ScopeID -> ![SSA] -> BasicBlock
 [$sel:bbid:BasicBlock] :: BasicBlock -> !BBID
 [$sel:sid:BasicBlock] :: BasicBlock -> !ScopeID
 [$sel:statements:BasicBlock] :: BasicBlock -> ![SSA]
-newtype CFGNode
-CFGNode :: BasicBlock -> CFGNode
-[$sel:bb:CFGNode] :: CFGNode -> BasicBlock
 data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID CFGNode CFGEdge -> !BBID -> !BBID -> CFG
-[$sel:graph:CFG] :: CFG -> !Graph BBID CFGNode CFGEdge
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> CFG
+[$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID
-type CFGBuilder = GraphBuilder BBID CFGNode CFGEdge
+type CFGBuilder = GraphBuilder BBID BasicBlock CFGEdge
 instance GHC.Show.Show CFG.Types.Condition
 instance GHC.Show.Show CFG.Types.BasicBlock
 instance GHC.Generics.Generic CFG.Types.BasicBlock
-instance GHC.Show.Show CFG.Types.CFGNode
-instance GHC.Generics.Generic CFG.Types.CFGNode
 instance GHC.Show.Show CFG.Types.CFGEdge
 instance GHC.Generics.Generic CFG.Types.CFG
 
@@ -1174,10 +1169,10 @@ CFGOptimizerState :: CFG -> s -> CFGOptimizerState s
 newtype CFGOptimizer s a
 CFGOptmizer :: StateT (CFGOptimizerState s) (Except CompileError) a -> CFGOptimizer s a
 [$sel:runOptimizer:CFGOptmizer] :: CFGOptimizer s a -> StateT (CFGOptimizerState s) (Except CompileError) a
-runOptimizerOnCFG :: s -> CFG -> CFGOptimizer s CFG -> Either [CompileError] CFG
+runOptimizerOnCFG :: s -> CFGOptimizer s () -> CFG -> Either [CompileError] CFG
 getCFG :: CFGOptimizer s CFG
 getOptState :: CFGOptimizer s s
-updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGOptimizer s ()
+updateCFG :: GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer s ()
 instance GHC.Generics.Generic (CFG.Optimizations.Types.CFGOptimizerState s)
 instance Control.Monad.State.Class.MonadState (CFG.Optimizations.Types.CFGOptimizerState s) (CFG.Optimizations.Types.CFGOptimizer s)
 instance Control.Monad.Error.Class.MonadError Types.CompileError (CFG.Optimizations.Types.CFGOptimizer s)
@@ -1186,7 +1181,7 @@ instance GHC.Base.Applicative (CFG.Optimizations.Types.CFGOptimizer s)
 instance GHC.Base.Functor (CFG.Optimizations.Types.CFGOptimizer s)
 
 module CFG.Optimizations.RemoveNoOp
-removeNoOp :: CFGOptimizer () CFG
+removeNoOp :: CFGOptimizer () ()
 findNoOpNode :: CFG -> Maybe BBID
 removeNodeAndPatchPhi :: BBID -> CFGOptimizer () ()
 
@@ -1212,9 +1207,9 @@ StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
 Deadend :: BBTransition
 initialState :: MethodSig -> CFGState
-getGraph :: CFGBuild (Graph BBID CFGNode CFGEdge)
-setGraph :: Graph BBID CFGNode CFGEdge -> CFGBuild ()
-updateCFG :: GraphBuilder BBID CFGNode CFGEdge a -> CFGBuild ()
+getGraph :: CFGBuild (Graph BBID BasicBlock CFGEdge)
+setGraph :: Graph BBID BasicBlock CFGEdge -> CFGBuild ()
+updateCFG :: GraphBuilder BBID BasicBlock CFGEdge a -> CFGBuild ()
 data CFGContext
 CFGContext :: SemanticInfo -> CFGContext
 [$sel:semantic:CFGContext] :: CFGContext -> SemanticInfo
@@ -1274,7 +1269,7 @@ instance GHC.Base.Applicative CFG.Build.CFGBuild
 instance GHC.Base.Functor CFG.Build.CFGBuild
 
 module CFG.Plot
-plot :: ASTRoot -> SemanticInfo -> Either [CompileError] String
+generateDotPlot :: CFG -> Text
 
 module CFG
 plot :: ASTRoot -> SemanticInfo -> Either [CompileError] String
@@ -1291,14 +1286,11 @@ BasicBlock :: !BBID -> !ScopeID -> ![SSA] -> BasicBlock
 [$sel:bbid:BasicBlock] :: BasicBlock -> !BBID
 [$sel:sid:BasicBlock] :: BasicBlock -> !ScopeID
 [$sel:statements:BasicBlock] :: BasicBlock -> ![SSA]
-newtype CFGNode
-CFGNode :: BasicBlock -> CFGNode
-[$sel:bb:CFGNode] :: CFGNode -> BasicBlock
 data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID CFGNode CFGEdge -> !BBID -> !BBID -> CFG
-[$sel:graph:CFG] :: CFG -> !Graph BBID CFGNode CFGEdge
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> CFG
+[$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID

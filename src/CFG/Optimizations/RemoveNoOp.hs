@@ -40,8 +40,8 @@ findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
       | bbid == entry = False
       | bbid == exit = False
       | otherwise = null $ node ^. (#bb . #statements)
-    inboundPred bbid _ = length (G.inBound bbid g) /= 1
-    outboundPred bbid _ = length (G.outBound bbid g) /= 1
+    inboundPred bbid _ = length (G.inBound bbid g) == 1
+    outboundPred bbid _ = length (G.outBound bbid g) == 1
     outEdgePred bbid _ =
       let (_, bbidOut, edgeOut) = head (G.outBound bbid g)
        in case edgeOut of
@@ -69,6 +69,7 @@ removeNodeAndPatchPhi bbid = do
   -- patch Phi in successor nodes
   updateCFG $ do
     G.adjustNode bbidOut (patchCFGNode bbidIn)
+    G.deleteNode bbid
   where
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False

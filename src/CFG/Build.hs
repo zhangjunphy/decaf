@@ -37,6 +37,7 @@ import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
+import Debug.Trace (traceShow)
 
 {------------------------------------------------
 Data types
@@ -591,12 +592,12 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
             Just update -> void $ buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
           updateTail <- finishCurrentBB
           updateBBPhiList <- recordPhiVar phiList
-          updateCFG $ do
+          traceShow updateHead $ updateCFG $ do
             G.addEdge predTail blockHead $ CondEdge $ Pred $ Variable predVar
-            G.addEdge blockTail updateHead SeqEdge
-            G.addEdge updateTail dummyUpdateBB SeqEdge
-            G.addEdge dummyUpdateBB predHead SeqEdge
             G.addEdge predTail tail $ CondEdge Complement
+            G.addEdge blockTail dummyUpdateBB SeqEdge
+            G.addEdge dummyUpdateBB updateHead SeqEdge
+            G.addEdge updateTail predHead SeqEdge
           return updateBBPhiList
       )
   patchPhiNode predHead prevBB prevBBPhiList dummyUpdateBB updateBBPhiList

@@ -65,7 +65,7 @@ data CFGState = CFGState
 data BBTransition
   = StayIn !BBID
   | TailAt !BBID
-  | Deadend
+  | Deadend !BBID
 
 initialState :: AST.MethodSig -> CFGState
 initialState sig =
@@ -483,7 +483,9 @@ buildBlock block@AST.Block {stmts = stmts} = do
   stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
   -- connect last basic block with dangling statements if necessary
   tail <- case stmtT of
-    Deadend -> createEmptyBB
+    Deadend bbid -> do
+      checkStmts
+      return bbid
     StayIn bbid ->
       -- collect dangling statements, possibly left by some previous basic block.
       finishCurrentBB
@@ -616,24 +618,21 @@ buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   -- Create an unreachable bb in case there are still statements after
   -- this point.
   -- We could optimize unreachable blocks away in later passes.
-  createEmptyBB
-  return Deadend
+  createEmptyBB <&> Deadend
 buildStatement (AST.Statement AST.ContinueStmt loc) = do
   bbid <- finishCurrentBB
   controlH' <- getControlEntry
   case controlH' of
     Nothing -> throwError $ CompileError (Just loc) "Continue not in a loop context."
     Just controlH -> updateCFG $ G.addEdge bbid controlH SeqEdge
-  createEmptyBB
-  return Deadend
+  createEmptyBB <&> Deadend
 buildStatement (AST.Statement AST.BreakStmt loc) = do
   bbid <- finishCurrentBB
   controlT' <- getControlExit
   case controlT' of
     Nothing -> throwError $ CompileError (Just loc) "Break not in a loop context."
     Just controlT -> updateCFG $ G.addEdge bbid controlT SeqEdge
-  createEmptyBB
-  return Deadend
+  createEmptyBB <&> Deadend
 
 buildExpr :: AST.Expr -> CFGBuild Var
 buildExpr (AST.Expr (AST.LocationExpr location) tpe _) = buildReadFromLocation location

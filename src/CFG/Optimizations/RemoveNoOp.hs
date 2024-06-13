@@ -1,4 +1,4 @@
--- Copyright (C) 2018 Jun Zhang <zhangjunphy[at]gmail[dot]com>
+-- Copyright (C) 2018-2024 Jun Zhang <zhangjunphy[at]gmail[dot]com>
 --
 -- This file is a part of decafc.
 --
@@ -22,7 +22,7 @@ import SSA qualified
 import Types
 import Util.Graph qualified as G
 
-removeNoOp :: CFGOptimizer () ()
+removeNoOp :: CFGOptimizer ()
 removeNoOp = do
   cfg <- getCFG
   case findNoOpNode cfg of
@@ -53,7 +53,7 @@ findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
         && outboundPred bbid node
         && outEdgePred bbid node
 
-removeNodeAndPatchPhi :: BBID -> CFGOptimizer () ()
+removeNodeAndPatchPhi :: BBID -> CFGOptimizer ()
 removeNodeAndPatchPhi bbid = do
   -- no-op should have only 1 inbound and 1 outbound
   (CFG g _ _) <- getCFG

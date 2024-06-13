@@ -30,7 +30,6 @@ import Data.Set (Set)
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as Text
-import Debug.Trace (traceShow)
 import Formatting
 import GHC.Generics (Generic)
 import SSA
@@ -594,7 +593,7 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
             Just update -> void $ buildStatement $ AST.Statement (AST.AssignStmt update) (update ^. #loc)
           updateTail <- finishCurrentBB
           updateBBPhiList <- recordPhiVar phiList
-          traceShow updateHead $ updateCFG $ do
+          updateCFG $ do
             G.addEdge predTail blockHead $ CondEdge $ Pred $ Variable predVar
             G.addEdge predTail tail $ CondEdge Complement
             G.addEdge blockTail dummyUpdateBB SeqEdge

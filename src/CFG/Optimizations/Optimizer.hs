@@ -20,30 +20,26 @@ import Types
 import Util.Graph qualified as G
 import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 
-data CFGOptimizerState s = CFGOptimizerState
+data CFGOptimizerState = CFGOptimizerState
   { cfg :: CFG
-  , optState :: s
   } deriving (Generic)
 
-newtype CFGOptimizer s a = CFGOptmizer
-  { runOptimizer :: StateT (CFGOptimizerState s) (Except CompileError) a
-  } deriving (Functor, Applicative, Monad, MonadError CompileError, MonadState (CFGOptimizerState s))
+newtype CFGOptimizer a = CFGOptmizer
+  { runOptimizer :: StateT CFGOptimizerState (Except CompileError) a
+  } deriving (Functor, Applicative, Monad, MonadError CompileError, MonadState CFGOptimizerState)
 
-runOptimizerOnCFG :: s -> CFGOptimizer s () -> CFG -> Either [CompileError] CFG
-runOptimizerOnCFG initOptState opt cfg =
-  let initState = CFGOptimizerState cfg initOptState
+runOptimizerOnCFG :: CFGOptimizer () -> CFG -> Either [CompileError] CFG
+runOptimizerOnCFG opt cfg =
+  let initState = CFGOptimizerState cfg
       result = runExcept $ runStateT (runOptimizer opt) initState
   in case result of
     Left err -> Left [err]
-    Right (_, CFGOptimizerState cfg _) -> Right cfg
+    Right (_, CFGOptimizerState cfg) -> Right cfg
 
-getCFG :: CFGOptimizer s CFG
+getCFG :: CFGOptimizer CFG
 getCFG = gets cfg
 
-getOptState :: CFGOptimizer s s
-getOptState = gets optState
-
-updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer s ()
+updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer ()
 updateCFG update = do
   (CFG g _ _) <- getCFG
   let g' = G.update update g

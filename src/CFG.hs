@@ -14,8 +14,9 @@ module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CF
 
 import AST qualified
 import CFG.Build (CFGContext (..), buildCFG)
-import CFG.Optimizations.RemoveNoOp (removeNoOp)
 import CFG.Optimizations.Optimizer (CFGOptimizer, runOptimizerOnCFG)
+import CFG.Optimizations.RemoveDeadBlock (removeDeadBlock)
+import CFG.Optimizations.RemoveNoOp (removeNoOp)
 import CFG.Plot (generateDotPlot)
 import CFG.Types
 import Control.Monad (mapM_)
@@ -36,14 +37,14 @@ TODO:
 5. Other chores.
 -}
 
-optimizations :: [CFGOptimizer () ()]
-optimizations = [removeNoOp]
+optimizations :: [CFGOptimizer ()]
+optimizations = [removeDeadBlock, removeNoOp]
 
 generateCFG :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] (Map Name CFG)
 generateCFG root si = do
   let context = CFGContext si
   cfgs <- buildCFG root context
-  mapM (runOptimizerOnCFG () (sequence_ optimizations)) cfgs
+  mapM (runOptimizerOnCFG (sequence_ optimizations)) cfgs
 
 plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
 plot root si = do

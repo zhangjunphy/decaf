@@ -338,7 +338,7 @@ We do this in 4 steps:
 1. Decide which symbols are required to be handled by phi nodes with inferPhiList.
    This relies on symbol modification information gathered in semantic analysis
    pass. Due to backward edges introduced by loops this information is
-   not very convinient to get in this module unless we add another pass.
+   not very convinient to get in the current module unless we add another pass.
 2. Add dummy phi nodes at the start of control flow merging points.
 3. For each symbol gathered in step 1, record which SSA var corresponds to it
    at the end each diverging control flow. The order of step 2 and 3 depends on
@@ -413,8 +413,7 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
     Just node -> do
       let ssaList = node ^. (#bb . #statements)
       ssaList' <- mapM patch ssaList
-      let node' = node & (#bb . #statements) .~ ssaList'
-      updateCFG $ G.updateNode bb node'
+      updateCFG $ G.adjustNode bb ((#bb . #statements) .~ ssaList')
   where
     patch :: SSA -> CFGBuild SSA
     patch (Phi dst []) = do

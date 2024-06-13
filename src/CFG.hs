@@ -13,8 +13,18 @@
 module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CFGNode (..), CFGEdge (..), CFG (..)) where
 
 import CFG.Build (CFGContext (..), buildCFG)
-import CFG.Plot (plot)
+import CFG.Plot (generateDotPlot)
 import CFG.Types
+import qualified AST
+import qualified Semantic as SE
+import Types 
+import Data.Map (Map)
+import Data.Map qualified as Map
+import CFG.Optimizations.Types (CFGOptimizer, runOptimizerOnCFG)
+import CFG.Optimizations.RemoveNoOp (removeNoOp)
+import Data.Functor ((<&>))
+import Data.Text qualified as Text
+import Control.Monad (mapM_)
 
 {-
 Refactor and clean up.
@@ -25,3 +35,17 @@ TODO:
 4. Add unit tests. 
 5. Other chores.
 -}
+
+optimizations :: [CFGOptimizer () ()]
+optimizations = [removeNoOp]
+
+generateCFG :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] (Map Name CFG)
+generateCFG root si = do
+  let context = CFGContext si
+  cfgs <- buildCFG root context
+  mapM (runOptimizerOnCFG () (sequence_ optimizations)) cfgs
+
+plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
+plot root si = do
+  cfgs <- generateCFG root si
+  return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot

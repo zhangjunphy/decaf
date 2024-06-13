@@ -19,15 +19,17 @@ import Data.List (find)
 import Data.Map.Strict qualified as Map
 import Types
 import Util.Graph qualified as G
+import SSA qualified
+import SSA (SSA)
 
-removeNoOp :: CFGOptimizer () CFG
+removeNoOp :: CFGOptimizer () ()
 removeNoOp = do
   cfg <- getCFG
   case findNoOpNode cfg of
     Nothing -> return ()
     Just bbid -> do
       removeNodeAndPatchPhi bbid
-  use #cfg
+      removeNoOp
 
 -- find the first no-op node
 findNoOpNode :: CFG -> Maybe BBID
@@ -59,7 +61,22 @@ removeNodeAndPatchPhi bbid = do
   let outbound = G.outBound bbid g
   let (bbidIn, _, edgeIn) = head inbound
   let (_, bbidOut, edgeOut) = head outbound
-  return ()
+  -- udpate destination inbound edge
+  updateCFG $ do
+    G.deleteEdge bbidIn bbid
+    G.deleteEdge bbid bbidOut
+    G.addEdge bbidIn bbidOut edgeIn
+  -- patch Phi in successor nodes
+  updateCFG $ do
+    G.adjustNode bbidOut (patchCFGNode bbidIn)
   where
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False
+    patchPhi :: BBID -> SSA.SSA -> SSA.SSA
+    patchPhi bbidIn (SSA.Phi dst predecessors) =
+      let replace (var, bbid') = if bbid' == bbid then (var, bbidIn) else (var, bbid')
+      in SSA.Phi dst $ replace <$> predecessors
+    patchPhi _ ssa = ssa
+    patchCFGNode :: BBID -> CFGNode -> CFGNode
+    patchCFGNode bbidIn node = node & #bb . #statements %~ fmap (patchPhi bbidIn)
+

@@ -9,7 +9,7 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-module CFG.Plot (plot) where
+module CFG.Plot (generateDotPlot) where
 
 import AST qualified
 import CFG.Build
@@ -88,9 +88,3 @@ prettyPrintEdge (CondEdge Complement) = "otherwise"
 
 generateDotPlot :: CFG -> Text
 generateDotPlot cfg = LT.toStrict $ GViz.printDotGraph $ cfgToDot cfg
-
-plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
-plot root si = do
-  let context = CFGContext si
-  cfgs <- buildCFG root context
-  return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot

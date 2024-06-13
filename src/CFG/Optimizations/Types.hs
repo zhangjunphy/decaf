@@ -29,13 +29,13 @@ newtype CFGOptimizer s a = CFGOptmizer
   { runOptimizer :: StateT (CFGOptimizerState s) (Except CompileError) a
   } deriving (Functor, Applicative, Monad, MonadError CompileError, MonadState (CFGOptimizerState s))
 
-runOptimizerOnCFG :: s -> CFG -> CFGOptimizer s CFG -> Either [CompileError] CFG
-runOptimizerOnCFG initOptState cfg opt =
+runOptimizerOnCFG :: s -> CFGOptimizer s () -> CFG -> Either [CompileError] CFG
+runOptimizerOnCFG initOptState opt cfg =
   let initState = CFGOptimizerState cfg initOptState
       result = runExcept $ runStateT (runOptimizer opt) initState
   in case result of
     Left err -> Left [err]
-    Right (g, _) -> Right g
+    Right (_, CFGOptimizerState cfg _) -> Right cfg
 
 getCFG :: CFGOptimizer s CFG
 getCFG = gets cfg

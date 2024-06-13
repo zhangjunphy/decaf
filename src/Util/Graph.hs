@@ -20,8 +20,8 @@ module Util.Graph
   , outBound
   , inBound
   , lookupNode
-  , updateNodeWith
-  , updateNode
+  , alterNode
+  , adjustNode
   , union
   , GraphBuilder(..)
   , addNode
@@ -115,20 +115,17 @@ deleteEdge src dst = do
   let edges' = Map.delete (src, dst) (edges g)
   modify $ \g -> g {edges = edges'}
 
-updateNodeWith :: (Eq ni, Ord ni) => ni -> (Maybe nd -> nd) -> GraphBuilder ni nd ed ()
-updateNodeWith nid f = do
+alterNode :: (Eq ni, Ord ni) => ni -> (Maybe nd -> Maybe nd) -> GraphBuilder ni nd ed ()
+alterNode nid f = do
   g <- get
   let nds = nodes g
-  let nd = lookupNode nid g
-  let nds' = Map.alter (const $ Just $ f nd) nid nds
-  modify $ \g -> g {nodes = nds'}
+  modify $ \g -> g {nodes = Map.alter f nid nds}
 
-updateNode :: (Eq ni, Ord ni) => ni -> nd -> GraphBuilder ni nd ed ()
-updateNode nid d = do
-  g <- get
-  let nds = nodes g
-  let nds' = Map.alter (const $ Just d) nid nds
-  modify $ \g -> g {nodes = nds'}
+adjustNode :: (Eq ni, Ord ni) => ni -> (nd -> nd) -> GraphBuilder ni nd ed ()
+adjustNode nid f = alterNode nid f'
+  where
+    f' Nothing = Nothing
+    f' (Just d) = Just $ f d
 
 updateEdge :: (Eq ni, Ord ni) => ni -> ni -> ed -> GraphBuilder ni nd ed ()
 updateEdge src dst d = do

@@ -52,5 +52,5 @@ plot root si = do
   cfgs <- generateCFG root si
   return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot
 
-linearize :: CFG -> [SSA]
-linearize cfg = _
+-- linearize :: CFG -> [SSA]
+-- linearize cfg = _

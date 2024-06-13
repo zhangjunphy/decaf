@@ -1,0 +1,15 @@
+import printf;
+
+int f(int b) {
+int a;
+a = 3;
+return a + b;
+}
+
+void main() {
+int a;
+int b;
+a = 3;
+b = f(a);
+printf("%d\n", b);
+}

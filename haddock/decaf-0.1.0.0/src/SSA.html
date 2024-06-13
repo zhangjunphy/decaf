@@ -41,7 +41,7 @@
 </span><span id="line-37"></span><span>    </span><span id="%24sel%3Alocality%3AVar"><span class="annot"><span class="annottext">Var -&gt; Locality
 </span><a href="SSA.html#%24sel%3Alocality%3AVar"><span class="hs-identifier hs-var hs-var">locality</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="SSA.html#Locality"><span class="hs-identifier hs-type">Locality</span></a></span><span>
 </span><span id="line-38"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679215540"><span id="local-6989586621679215542"><span class="annot"><span class="annottext">(forall x. Var -&gt; Rep Var x)
+</span><span id="line-39"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217658"><span id="local-6989586621679217660"><span class="annot"><span class="annottext">(forall x. Var -&gt; Rep Var x)
 -&gt; (forall x. Rep Var x -&gt; Var) -&gt; Generic Var
 forall x. Rep Var x -&gt; Var
 forall x. Var -&gt; Rep Var x
@@ -57,12 +57,12 @@ to :: forall x. Rep Var x -&gt; Var
 </span><span id="line-42"></span><span>
 </span><span id="line-43"></span><span class="hs-keyword">type</span><span> </span><span id="Label"><span class="annot"><a href="SSA.html#Label"><span class="hs-identifier hs-var">Label</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
 </span><span id="line-44"></span><span>
-</span><span id="line-45"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679215546"><span id="local-6989586621679215551"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-46"></span><span>  </span><span id="local-6989586621679215559"><span class="annot"><span class="annottext">show :: Var -&gt; String
-</span><a href="#local-6989586621679215559"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span id="local-6989586621679215561"><span class="annot"><span class="annottext">var :: Var
-</span><a href="#local-6989586621679215561"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:id:Var :: Var -&gt; VID
-</span><a href="SSA.html#%24sel%3Aid%3AVar"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679215562"><span class="annot"><span class="annottext">VID
-</span><a href="#local-6989586621679215562"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String) -&gt; VID -&gt; String
+</span><span id="line-45"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679217664"><span id="local-6989586621679217669"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-46"></span><span>  </span><span id="local-6989586621679217677"><span class="annot"><span class="annottext">show :: Var -&gt; String
+</span><a href="#local-6989586621679217677"><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></a></span></span><span> </span><span id="local-6989586621679217679"><span class="annot"><span class="annottext">var :: Var
+</span><a href="#local-6989586621679217679"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-glyph">@</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:id:Var :: Var -&gt; VID
+</span><a href="SSA.html#%24sel%3Aid%3AVar"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679217680"><span class="annot"><span class="annottext">VID
+</span><a href="#local-6989586621679217680"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String) -&gt; VID -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (VID -&gt; String) (VID -&gt; String)
 </span><span class="hs-string">&quot;v&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (VID -&gt; String) (VID -&gt; String)
@@ -71,7 +71,7 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String)
 forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">int</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VID
-</span><a href="#local-6989586621679215562"><span class="hs-identifier hs-var">id</span></a></span><span>
+</span><a href="#local-6989586621679217680"><span class="hs-identifier hs-var">id</span></a></span><span>
 </span><span id="line-47"></span><span>
 </span><span id="line-48"></span><span class="hs-keyword">data</span><span> </span><span id="VarOrImm"><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-var">VarOrImm</span></a></span></span><span>
 </span><span id="line-49"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="BoolImm"><span class="annot"><a href="SSA.html#BoolImm"><span class="hs-identifier hs-var">BoolImm</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><span class="hs-identifier hs-type">Bool</span></span><span>
@@ -89,10 +89,10 @@ forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><span id="line-58"></span><span>  </span><span class="annot"><span class="annottext">Char
 </span><span class="hs-char">'&quot;'</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;\\\&quot;&quot;</span></span><span>
-</span><span id="line-59"></span><span>  </span><span id="local-6989586621679215572"><span class="annot"><span class="annottext">Char
-</span><a href="#local-6989586621679215572"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Text
+</span><span id="line-59"></span><span>  </span><span id="local-6989586621679217690"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679217690"><span class="hs-identifier hs-var">c</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Char -&gt; Text
 </span><span class="hs-identifier hs-var">Text.singleton</span></span><span> </span><span class="annot"><span class="annottext">Char
-</span><a href="#local-6989586621679215572"><span class="hs-identifier hs-var">c</span></a></span><span>
+</span><a href="#local-6989586621679217690"><span class="hs-identifier hs-var">c</span></a></span><span>
 </span><span id="line-60"></span><span>
 </span><span id="line-61"></span><span class="annot"><a href="SSA.html#escape"><span class="hs-identifier hs-type">escape</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
 </span><span id="line-62"></span><span id="escape"><span class="annot"><span class="annottext">escape :: Text -&gt; Text
@@ -100,23 +100,23 @@ forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">Text.concatMap</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Text
 </span><a href="SSA.html#escapeChar"><span class="hs-identifier hs-var">escapeChar</span></a></span><span>
 </span><span id="line-63"></span><span>
-</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679215577"><span id="local-6989586621679215582"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-65"></span><span>  </span><span id="local-6989586621679215596"><span class="annot"><span class="annottext">show :: VarOrImm -&gt; String
+</span><span id="line-64"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679217695"><span id="local-6989586621679217700"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-65"></span><span>  </span><span id="local-6989586621679217714"><span class="annot"><span class="annottext">show :: VarOrImm -&gt; String
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#BoolImm"><span class="hs-identifier hs-type">BoolImm</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;true&quot;</span></span><span>
 </span><span id="line-66"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#BoolImm"><span class="hs-identifier hs-type">BoolImm</span></a></span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">String
 </span><span class="hs-string">&quot;false&quot;</span></span><span>
-</span><span id="line-67"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#IntImm"><span class="hs-identifier hs-type">IntImm</span></a></span><span> </span><span id="local-6989586621679215597"><span class="annot"><span class="annottext">Int64
-</span><a href="#local-6989586621679215597"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Int64 -&gt; String) -&gt; Int64 -&gt; String
+</span><span id="line-67"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#IntImm"><span class="hs-identifier hs-type">IntImm</span></a></span><span> </span><span id="local-6989586621679217715"><span class="annot"><span class="annottext">Int64
+</span><a href="#local-6989586621679217715"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Int64 -&gt; String) -&gt; Int64 -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="annot"><span class="annottext">Format String (Int64 -&gt; String)
 forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">int</span></span><span> </span><span class="annot"><span class="annottext">Int64
-</span><a href="#local-6989586621679215597"><span class="hs-identifier hs-var">val</span></a></span><span>
-</span><span id="line-68"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#CharImm"><span class="hs-identifier hs-type">CharImm</span></a></span><span> </span><span id="local-6989586621679215598"><span class="annot"><span class="annottext">Char
-</span><a href="#local-6989586621679215598"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String) -&gt; Text -&gt; String
+</span><a href="#local-6989586621679217715"><span class="hs-identifier hs-var">val</span></a></span><span>
+</span><span id="line-68"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#CharImm"><span class="hs-identifier hs-type">CharImm</span></a></span><span> </span><span id="local-6989586621679217716"><span class="annot"><span class="annottext">Char
+</span><a href="#local-6989586621679217716"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String) -&gt; Text -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
 </span><span class="hs-string">&quot;'&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
@@ -132,9 +132,9 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Char -&gt; Text
 </span><a href="SSA.html#escapeChar"><span class="hs-identifier hs-var">escapeChar</span></a></span><span> </span><span class="annot"><span class="annottext">Char
-</span><a href="#local-6989586621679215598"><span class="hs-identifier hs-var">val</span></a></span><span>
-</span><span id="line-69"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#StringImm"><span class="hs-identifier hs-type">StringImm</span></a></span><span> </span><span id="local-6989586621679215600"><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679215600"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String) -&gt; Text -&gt; String
+</span><a href="#local-6989586621679217716"><span class="hs-identifier hs-var">val</span></a></span><span>
+</span><span id="line-69"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#StringImm"><span class="hs-identifier hs-type">StringImm</span></a></span><span> </span><span id="local-6989586621679217718"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679217718"><span class="hs-identifier hs-var">val</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Text -&gt; String) -&gt; Text -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
 </span><span class="hs-string">&quot;\&quot;&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; String) (Text -&gt; String)
@@ -150,10 +150,10 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
 </span><a href="SSA.html#escape"><span class="hs-identifier hs-var">escape</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679215600"><span class="hs-identifier hs-var">val</span></a></span><span>
+</span><a href="#local-6989586621679217718"><span class="hs-identifier hs-var">val</span></a></span><span>
 </span><span id="line-70"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Variable"><span class="hs-identifier hs-type">Variable</span></a></span><span> </span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:id:Var :: Var -&gt; VID
-</span><a href="SSA.html#%24sel%3Aid%3AVar"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679215601"><span class="annot"><span class="annottext">VID
-</span><a href="#local-6989586621679215601"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String) -&gt; VID -&gt; String
+</span><a href="SSA.html#%24sel%3Aid%3AVar"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679217719"><span class="annot"><span class="annottext">VID
+</span><a href="#local-6989586621679217719"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">}</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String) -&gt; VID -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (VID -&gt; String) (VID -&gt; String)
 </span><span class="hs-string">&quot;v&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (VID -&gt; String) (VID -&gt; String)
@@ -162,7 +162,7 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (VID -&gt; String)
 forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">int</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VID
-</span><a href="#local-6989586621679215601"><span class="hs-identifier hs-var">id</span></a></span><span>
+</span><a href="#local-6989586621679217719"><span class="hs-identifier hs-var">id</span></a></span><span>
 </span><span id="line-71"></span><span>
 </span><span id="line-72"></span><span class="hs-keyword">data</span><span> </span><span id="SSA"><span class="annot"><a href="SSA.html#SSA"><span class="hs-identifier hs-var">SSA</span></a></span></span><span>
 </span><span id="line-73"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Assignment"><span class="annot"><a href="SSA.html#Assignment"><span class="hs-identifier hs-var">Assignment</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Adst%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Var
@@ -201,7 +201,7 @@ forall a r. Integral a =&gt; Format r (a -&gt; r)
 </span><a href="SSA.html#%24sel%3Apred%3AAssignment"><span class="hs-identifier hs-var hs-var">pred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AtargetT%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Text
 </span><a href="SSA.html#%24sel%3AtargetT%3AAssignment"><span class="hs-identifier hs-var hs-var">targetT</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="SSA.html#Label"><span class="hs-identifier hs-type">Label</span></a></span><span class="hs-special">,</span><span> </span><span id="%24sel%3AtargetF%3AAssignment"><span class="annot"><span class="annottext">SSA -&gt; Text
 </span><a href="SSA.html#%24sel%3AtargetF%3AAssignment"><span class="hs-identifier hs-var hs-var">targetF</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="SSA.html#Label"><span class="hs-identifier hs-type">Label</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-88"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679215641"><span id="local-6989586621679215643"><span class="annot"><span class="annottext">(forall x. SSA -&gt; Rep SSA x)
+</span><span id="line-88"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217759"><span id="local-6989586621679217761"><span class="annot"><span class="annottext">(forall x. SSA -&gt; Rep SSA x)
 -&gt; (forall x. Rep SSA x -&gt; SSA) -&gt; Generic SSA
 forall x. Rep SSA x -&gt; SSA
 forall x. SSA -&gt; Rep SSA x
@@ -213,7 +213,7 @@ $cto :: forall x. Rep SSA x -&gt; SSA
 to :: forall x. Rep SSA x -&gt; SSA
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
 </span><span id="line-89"></span><span>
-</span><span id="line-90"></span><span id="local-6989586621679215376"><span class="annot"><a href="SSA.html#ppVarWithType"><span class="hs-identifier hs-type">ppVarWithType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679215376"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679215376"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-90"></span><span id="local-6989586621679217494"><span class="annot"><a href="SSA.html#ppVarWithType"><span class="hs-identifier hs-type">ppVarWithType</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679217494"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679217494"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
 </span><span id="line-91"></span><span id="ppVarWithType"><span class="annot"><span class="annottext">ppVarWithType :: forall r. Format r (Var -&gt; r)
 </span><a href="SSA.html#ppVarWithType"><span class="hs-identifier hs-var hs-var">ppVarWithType</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">((Type -&gt; Const Type Type) -&gt; Var -&gt; Const Type Var)
 -&gt; Format r (Type -&gt; r) -&gt; Format r (Var -&gt; r)
@@ -230,7 +230,7 @@ Format r (a -&gt; r) -&gt; Format r (a -&gt; r) -&gt; Format r (a -&gt; r)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span>
 </span><span id="line-92"></span><span>
-</span><span id="line-93"></span><span id="local-6989586621679215481"><span class="annot"><a href="SSA.html#ppVars"><span class="hs-identifier hs-type">ppVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679215481"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679215481"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-93"></span><span id="local-6989586621679217599"><span class="annot"><a href="SSA.html#ppVars"><span class="hs-identifier hs-type">ppVars</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679217599"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679217599"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
 </span><span id="line-94"></span><span id="ppVars"><span class="annot"><span class="annottext">ppVars :: forall r. Format r ([Var] -&gt; r)
 </span><a href="SSA.html#ppVars"><span class="hs-identifier hs-var hs-var">ppVars</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Format Builder (Var -&gt; Builder) -&gt; Format r ([Var] -&gt; r)
 forall (t :: * -&gt; *) a r.
@@ -241,7 +241,7 @@ Text -&gt; Format Builder (a -&gt; Builder) -&gt; Format r (t a -&gt; r)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span>
 </span><span id="line-95"></span><span>
-</span><span id="line-96"></span><span id="local-6989586621679215488"><span class="annot"><a href="SSA.html#ppPhiPreds"><span class="hs-identifier hs-type">ppPhiPreds</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679215488"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679215488"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-96"></span><span id="local-6989586621679217606"><span class="annot"><a href="SSA.html#ppPhiPreds"><span class="hs-identifier hs-type">ppPhiPreds</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679217606"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679217606"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
 </span><span id="line-97"></span><span id="ppPhiPreds"><span class="annot"><span class="annottext">ppPhiPreds :: forall r. Format r ([(Var, VID)] -&gt; r)
 </span><a href="SSA.html#ppPhiPreds"><span class="hs-identifier hs-var hs-var">ppPhiPreds</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 -&gt; Format Builder ((Var, VID) -&gt; Builder)
@@ -252,11 +252,11 @@ Text -&gt; Format Builder (a -&gt; Builder) -&gt; Format r (t a -&gt; r)
 </span><span class="hs-identifier hs-var">intercalated</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;, &quot;</span></span><span> </span><span class="annot"><span class="annottext">Format Builder ((Var, VID) -&gt; Builder)
 forall r. Format r ((Var, VID) -&gt; r)
-</span><a href="#local-6989586621679215711"><span class="hs-identifier hs-var">showPredPair</span></a></span><span>
+</span><a href="#local-6989586621679217829"><span class="hs-identifier hs-var">showPredPair</span></a></span><span>
 </span><span id="line-98"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-99"></span><span>    </span><span id="local-6989586621679215490"><span class="annot"><a href="#local-6989586621679215711"><span class="hs-identifier hs-type">showPredPair</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679215490"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679215490"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
-</span><span id="line-100"></span><span>    </span><span id="local-6989586621679215711"><span class="annot"><span class="annottext">showPredPair :: forall r. Format r ((Var, VID) -&gt; r)
-</span><a href="#local-6989586621679215711"><span class="hs-identifier hs-var hs-var">showPredPair</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format ((Var, VID) -&gt; r) ((Var, VID) -&gt; r)
+</span><span id="line-99"></span><span>    </span><span id="local-6989586621679217608"><span class="annot"><a href="#local-6989586621679217829"><span class="hs-identifier hs-type">showPredPair</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Format</span></span><span> </span><span class="annot"><a href="#local-6989586621679217608"><span class="hs-identifier hs-type">r</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Var"><span class="hs-identifier hs-type">Var</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="#local-6989586621679217608"><span class="hs-identifier hs-type">r</span></a></span><span class="hs-special">)</span></span><span>
+</span><span id="line-100"></span><span>    </span><span id="local-6989586621679217829"><span class="annot"><span class="annottext">showPredPair :: forall r. Format r ((Var, VID) -&gt; r)
+</span><a href="#local-6989586621679217829"><span class="hs-identifier hs-var hs-var">showPredPair</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format ((Var, VID) -&gt; r) ((Var, VID) -&gt; r)
 </span><span class="hs-string">&quot;[&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format ((Var, VID) -&gt; r) ((Var, VID) -&gt; r)
 -&gt; Format r ((Var, VID) -&gt; r) -&gt; Format r ((Var, VID) -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
@@ -293,11 +293,11 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format r r
 </span><span class="hs-string">&quot;]&quot;</span></span><span>
 </span><span id="line-101"></span><span>
-</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679215728"><span id="local-6989586621679215733"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#SSA"><span class="hs-identifier hs-type">SSA</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
-</span><span id="line-103"></span><span>  </span><span id="local-6989586621679215794"><span class="annot"><span class="annottext">show :: SSA -&gt; String
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Assignment"><span class="hs-identifier hs-type">Assignment</span></a></span><span> </span><span id="local-6989586621679215795"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215795"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215796"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215796"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; String)
+</span><span id="line-102"></span><span class="hs-keyword">instance</span><span> </span><span id="local-6989586621679217846"><span id="local-6989586621679217851"><span class="annot"><span class="hs-identifier hs-type">Show</span></span><span> </span><span class="annot"><a href="SSA.html#SSA"><span class="hs-identifier hs-type">SSA</span></a></span></span></span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-103"></span><span>  </span><span id="local-6989586621679217912"><span class="annot"><span class="annottext">show :: SSA -&gt; String
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var">show</span></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Assignment"><span class="hs-identifier hs-type">Assignment</span></a></span><span> </span><span id="local-6989586621679217913"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217913"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217914"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217914"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (VarOrImm -&gt; String) (Var -&gt; VarOrImm -&gt; String)
@@ -314,12 +314,12 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215795"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215796"><span class="hs-identifier hs-var">src</span></a></span><span>
-</span><span id="line-104"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#MethodCall"><span class="hs-identifier hs-type">MethodCall</span></a></span><span> </span><span id="local-6989586621679215798"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215798"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215799"><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679215799"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679215800"><span class="annot"><span class="annottext">[Var]
-</span><a href="#local-6989586621679215800"><span class="hs-identifier hs-var">arguments</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; Text -&gt; [Var] -&gt; String)
+</span><a href="#local-6989586621679217913"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217914"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-104"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#MethodCall"><span class="hs-identifier hs-type">MethodCall</span></a></span><span> </span><span id="local-6989586621679217916"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217916"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217917"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679217917"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span id="local-6989586621679217918"><span class="annot"><span class="annottext">[Var]
+</span><a href="#local-6989586621679217918"><span class="hs-identifier hs-var">arguments</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; Text -&gt; [Var] -&gt; String)
 -&gt; Var -&gt; Text -&gt; [Var] -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Text -&gt; [Var] -&gt; String) (Var -&gt; Text -&gt; [Var] -&gt; String)
@@ -351,11 +351,11 @@ forall r. Format r ([Var] -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String String
 </span><span class="hs-string">&quot;)&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215798"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679215799"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">[Var]
-</span><a href="#local-6989586621679215800"><span class="hs-identifier hs-var">arguments</span></a></span><span>
-</span><span id="line-105"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Return"><span class="hs-identifier hs-type">Return</span></a></span><span> </span><span id="local-6989586621679215801"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215801"><span class="hs-identifier hs-var">ret</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; String) -&gt; Var -&gt; String
+</span><a href="#local-6989586621679217916"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679217917"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="annot"><span class="annottext">[Var]
+</span><a href="#local-6989586621679217918"><span class="hs-identifier hs-var">arguments</span></a></span><span>
+</span><span id="line-105"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Return"><span class="hs-identifier hs-type">Return</span></a></span><span> </span><span id="local-6989586621679217919"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217919"><span class="hs-identifier hs-var">ret</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; String) -&gt; Var -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Var -&gt; String) (Var -&gt; String)
 </span><span class="hs-string">&quot;return&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Var -&gt; String) (Var -&gt; String)
@@ -364,10 +364,10 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; String)
 forall r. Format r (Var -&gt; r)
 </span><a href="SSA.html#ppVarWithType"><span class="hs-identifier hs-var">ppVarWithType</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215801"><span class="hs-identifier hs-var">ret</span></a></span><span>
-</span><span id="line-106"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Load"><span class="hs-identifier hs-type">Load</span></a></span><span> </span><span id="local-6989586621679215802"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215802"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215803"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215803"><span class="hs-identifier hs-var">ptr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217919"><span class="hs-identifier hs-var">ret</span></a></span><span>
+</span><span id="line-106"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Load"><span class="hs-identifier hs-type">Load</span></a></span><span> </span><span id="local-6989586621679217920"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217920"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217921"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217921"><span class="hs-identifier hs-var">ptr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (VarOrImm -&gt; String) (Var -&gt; VarOrImm -&gt; String)
@@ -384,11 +384,11 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215802"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215803"><span class="hs-identifier hs-var">ptr</span></a></span><span>
-</span><span id="line-107"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Store"><span class="hs-identifier hs-type">Store</span></a></span><span> </span><span id="local-6989586621679215804"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215804"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span id="local-6989586621679215805"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215805"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217920"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217921"><span class="hs-identifier hs-var">ptr</span></a></span><span>
+</span><span id="line-107"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Store"><span class="hs-identifier hs-type">Store</span></a></span><span> </span><span id="local-6989586621679217922"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217922"><span class="hs-identifier hs-var">ptr</span></a></span></span><span> </span><span id="local-6989586621679217923"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217923"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; VarOrImm -&gt; String)
 -&gt; VarOrImm -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -412,11 +412,11 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215804"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215805"><span class="hs-identifier hs-var">src</span></a></span><span>
-</span><span id="line-108"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Alloca"><span class="hs-identifier hs-type">Alloca</span></a></span><span> </span><span id="local-6989586621679215806"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215806"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215807"><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679215807"><span class="hs-identifier hs-var">tpe</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; Type -&gt; String) -&gt; Var -&gt; Type -&gt; String
+</span><a href="#local-6989586621679217922"><span class="hs-identifier hs-var">ptr</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217923"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-108"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Alloca"><span class="hs-identifier hs-type">Alloca</span></a></span><span> </span><span id="local-6989586621679217924"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217924"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217925"><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679217925"><span class="hs-identifier hs-var">tpe</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; Type -&gt; String) -&gt; Var -&gt; Type -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Type -&gt; String) (Var -&gt; Type -&gt; String)
 forall r. Format r (Var -&gt; r)
@@ -431,13 +431,13 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (Type -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215806"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">Type
-</span><a href="#local-6989586621679215807"><span class="hs-identifier hs-var">tpe</span></a></span><span>
-</span><span id="line-109"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Arith"><span class="hs-identifier hs-type">Arith</span></a></span><span> </span><span id="local-6989586621679215808"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215808"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215809"><span class="annot"><span class="annottext">ArithOp
-</span><a href="#local-6989586621679215809"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215810"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215810"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679215811"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215811"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; ArithOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217924"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">Type
+</span><a href="#local-6989586621679217925"><span class="hs-identifier hs-var">tpe</span></a></span><span>
+</span><span id="line-109"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Arith"><span class="hs-identifier hs-type">Arith</span></a></span><span> </span><span id="local-6989586621679217926"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217926"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217927"><span class="annot"><span class="annottext">ArithOp
+</span><a href="#local-6989586621679217927"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217928"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217928"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679217929"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217929"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; ArithOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; ArithOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -478,15 +478,15 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215808"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215810"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">ArithOp
-</span><a href="#local-6989586621679215809"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215811"><span class="hs-identifier hs-var">opr</span></a></span><span>
-</span><span id="line-110"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Rel"><span class="hs-identifier hs-type">Rel</span></a></span><span> </span><span id="local-6989586621679215812"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215812"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215813"><span class="annot"><span class="annottext">RelOp
-</span><a href="#local-6989586621679215813"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215814"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215814"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679215815"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215815"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; RelOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217926"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217928"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">ArithOp
+</span><a href="#local-6989586621679217927"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217929"><span class="hs-identifier hs-var">opr</span></a></span><span>
+</span><span id="line-110"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Rel"><span class="hs-identifier hs-type">Rel</span></a></span><span> </span><span id="local-6989586621679217930"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217930"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217931"><span class="annot"><span class="annottext">RelOp
+</span><a href="#local-6989586621679217931"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217932"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217932"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679217933"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217933"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; RelOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; RelOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -527,15 +527,15 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215812"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215814"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">RelOp
-</span><a href="#local-6989586621679215813"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215815"><span class="hs-identifier hs-var">opr</span></a></span><span>
-</span><span id="line-111"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Cond"><span class="hs-identifier hs-type">Cond</span></a></span><span> </span><span id="local-6989586621679215816"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215816"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215817"><span class="annot"><span class="annottext">CondOp
-</span><a href="#local-6989586621679215817"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215818"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215818"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679215819"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215819"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; CondOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217930"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217932"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">RelOp
+</span><a href="#local-6989586621679217931"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217933"><span class="hs-identifier hs-var">opr</span></a></span><span>
+</span><span id="line-111"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Cond"><span class="hs-identifier hs-type">Cond</span></a></span><span> </span><span id="local-6989586621679217934"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217934"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217935"><span class="annot"><span class="annottext">CondOp
+</span><a href="#local-6989586621679217935"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217936"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217936"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679217937"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217937"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; CondOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; CondOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -576,15 +576,15 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215816"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215818"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">CondOp
-</span><a href="#local-6989586621679215817"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215819"><span class="hs-identifier hs-var">opr</span></a></span><span>
-</span><span id="line-112"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Eq"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span id="local-6989586621679215820"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215820"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215821"><span class="annot"><span class="annottext">EqOp
-</span><a href="#local-6989586621679215821"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215822"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215822"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679215823"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215823"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; EqOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217934"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217936"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">CondOp
+</span><a href="#local-6989586621679217935"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217937"><span class="hs-identifier hs-var">opr</span></a></span><span>
+</span><span id="line-112"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Eq"><span class="hs-identifier hs-type">Eq</span></a></span><span> </span><span id="local-6989586621679217938"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217938"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217939"><span class="annot"><span class="annottext">EqOp
+</span><a href="#local-6989586621679217939"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217940"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217940"><span class="hs-identifier hs-var">opl</span></a></span></span><span> </span><span id="local-6989586621679217941"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217941"><span class="hs-identifier hs-var">opr</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; VarOrImm -&gt; EqOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; VarOrImm -&gt; EqOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -625,14 +625,14 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215820"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215822"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">EqOp
-</span><a href="#local-6989586621679215821"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215823"><span class="hs-identifier hs-var">opr</span></a></span><span>
-</span><span id="line-113"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Neg"><span class="hs-identifier hs-type">Neg</span></a></span><span> </span><span id="local-6989586621679215824"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215824"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215825"><span class="annot"><span class="annottext">NegOp
-</span><a href="#local-6989586621679215825"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215826"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215826"><span class="hs-identifier hs-var">opd</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; NegOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217938"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217940"><span class="hs-identifier hs-var">opl</span></a></span><span> </span><span class="annot"><span class="annottext">EqOp
+</span><a href="#local-6989586621679217939"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217941"><span class="hs-identifier hs-var">opr</span></a></span><span>
+</span><span id="line-113"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Neg"><span class="hs-identifier hs-type">Neg</span></a></span><span> </span><span id="local-6989586621679217942"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217942"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217943"><span class="annot"><span class="annottext">NegOp
+</span><a href="#local-6989586621679217943"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217944"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217944"><span class="hs-identifier hs-var">opd</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; NegOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; NegOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -657,13 +657,13 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215824"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">NegOp
-</span><a href="#local-6989586621679215825"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215826"><span class="hs-identifier hs-var">opd</span></a></span><span>
-</span><span id="line-114"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Not"><span class="hs-identifier hs-type">Not</span></a></span><span> </span><span id="local-6989586621679215827"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215827"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215828"><span class="annot"><span class="annottext">NotOp
-</span><a href="#local-6989586621679215828"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679215829"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215829"><span class="hs-identifier hs-var">opd</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; NotOp -&gt; VarOrImm -&gt; String)
+</span><a href="#local-6989586621679217942"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">NegOp
+</span><a href="#local-6989586621679217943"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217944"><span class="hs-identifier hs-var">opd</span></a></span><span>
+</span><span id="line-114"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Not"><span class="hs-identifier hs-type">Not</span></a></span><span> </span><span id="local-6989586621679217945"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217945"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217946"><span class="annot"><span class="annottext">NotOp
+</span><a href="#local-6989586621679217946"><span class="hs-identifier hs-var">op</span></a></span></span><span> </span><span id="local-6989586621679217947"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217947"><span class="hs-identifier hs-var">opd</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; NotOp -&gt; VarOrImm -&gt; String)
 -&gt; Var -&gt; NotOp -&gt; VarOrImm -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format
@@ -688,12 +688,12 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format String (VarOrImm -&gt; String)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215827"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">NotOp
-</span><a href="#local-6989586621679215828"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679215829"><span class="hs-identifier hs-var">opd</span></a></span><span>
-</span><span id="line-115"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Phi"><span class="hs-identifier hs-type">Phi</span></a></span><span> </span><span id="local-6989586621679215830"><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215830"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679215831"><span class="annot"><span class="annottext">[(Var, VID)]
-</span><a href="#local-6989586621679215831"><span class="hs-identifier hs-var">preds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; [(Var, VID)] -&gt; String)
+</span><a href="#local-6989586621679217945"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">NotOp
+</span><a href="#local-6989586621679217946"><span class="hs-identifier hs-var">op</span></a></span><span> </span><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679217947"><span class="hs-identifier hs-var">opd</span></a></span><span>
+</span><span id="line-115"></span><span>  </span><span class="annot"><span class="hs-identifier hs-var">show</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="SSA.html#Phi"><span class="hs-identifier hs-type">Phi</span></a></span><span> </span><span id="local-6989586621679217948"><span class="annot"><span class="annottext">Var
+</span><a href="#local-6989586621679217948"><span class="hs-identifier hs-var">dst</span></a></span></span><span> </span><span id="local-6989586621679217949"><span class="annot"><span class="annottext">[(Var, VID)]
+</span><a href="#local-6989586621679217949"><span class="hs-identifier hs-var">preds</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format String (Var -&gt; [(Var, VID)] -&gt; String)
 -&gt; Var -&gt; [(Var, VID)] -&gt; String
 forall a. Format String a -&gt; a
 </span><span class="hs-identifier hs-var">formatToString</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format ([(Var, VID)] -&gt; String) (Var -&gt; [(Var, VID)] -&gt; String)
@@ -710,6 +710,6 @@ forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format String ([(Var, VID)] -&gt; String)
 forall r. Format r ([(Var, VID)] -&gt; r)
 </span><a href="SSA.html#ppPhiPreds"><span class="hs-identifier hs-var">ppPhiPreds</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Var
-</span><a href="#local-6989586621679215830"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">[(Var, VID)]
-</span><a href="#local-6989586621679215831"><span class="hs-identifier hs-var">preds</span></a></span><span>
+</span><a href="#local-6989586621679217948"><span class="hs-identifier hs-var">dst</span></a></span><span> </span><span class="annot"><span class="annottext">[(Var, VID)]
+</span><a href="#local-6989586621679217949"><span class="hs-identifier hs-var">preds</span></a></span><span>
 </span><span id="line-116"></span></pre></body></html>

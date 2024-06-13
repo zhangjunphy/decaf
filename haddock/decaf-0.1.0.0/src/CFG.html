@@ -21,37 +21,8 @@ Refactor and clean up.
 TODO:
 1. Find better ways to add phi nodes. [DROP]
 2. Refactor control start/exit related code. [DONE]
-3. Produce dot plot with some proper library.
-4. Add unit tests.
+3. Produce dot plot with some proper library. [DONE]
+4. Add unit tests. 
 5. Other chores.
 -}</span><span>
-</span><span id="line-28"></span><span>
-</span><span id="line-29"></span><span class="hs-comment">-- Generate a dot plot for cfg</span><span>
-</span><span id="line-30"></span><span>
-</span><span id="line-31"></span><span class="hs-comment">-- Remove empty seq node one by one</span><span>
-</span><span id="line-32"></span><span class="hs-comment">-- removeEmptySeqNode :: CFGBuild ()</span><span>
-</span><span id="line-33"></span><span class="hs-comment">-- removeEmptySeqNode = do</span><span>
-</span><span id="line-34"></span><span class="hs-comment">--  g@G.Graph {nodes = nodes} &lt;- gets cfg</span><span>
-</span><span id="line-35"></span><span class="hs-comment">--  let emptySeqNode =</span><span>
-</span><span id="line-36"></span><span class="hs-comment">--        List.find</span><span>
-</span><span id="line-37"></span><span class="hs-comment">--          (\(ni, nd) -&gt; isEmptyNode nd &amp;&amp; isSeqOut ni g)</span><span>
-</span><span id="line-38"></span><span class="hs-comment">--          $ Map.assocs nodes</span><span>
-</span><span id="line-39"></span><span class="hs-comment">--  case emptySeqNode of</span><span>
-</span><span id="line-40"></span><span class="hs-comment">--    Nothing -&gt; return ()</span><span>
-</span><span id="line-41"></span><span class="hs-comment">--    Just (ni, _) -&gt; do</span><span>
-</span><span id="line-42"></span><span class="hs-comment">--      updateCFG $</span><span>
-</span><span id="line-43"></span><span class="hs-comment">--        let inEdges = G.inBound ni g</span><span>
-</span><span id="line-44"></span><span class="hs-comment">--            outEdge = head $ G.outBound ni g</span><span>
-</span><span id="line-45"></span><span class="hs-comment">--         in bridgeEdges ni inEdges outEdge</span><span>
-</span><span id="line-46"></span><span class="hs-comment">--      removeEmptySeqNode</span><span>
-</span><span id="line-47"></span><span class="hs-comment">--  where</span><span>
-</span><span id="line-48"></span><span class="hs-comment">--    isEmptyNode CFGNode {bb = BasicBlock {statements = stmts}} = null stmts</span><span>
-</span><span id="line-49"></span><span class="hs-comment">--    isSeqOut ni g =</span><span>
-</span><span id="line-50"></span><span class="hs-comment">--      let outEdges = G.outBound ni g</span><span>
-</span><span id="line-51"></span><span class="hs-comment">--       in length outEdges == 1 &amp;&amp; isSeqEdge (snd $ head outEdges)</span><span>
-</span><span id="line-52"></span><span class="hs-comment">--    bridgeEdges mid inEdges (out, _) = do</span><span>
-</span><span id="line-53"></span><span class="hs-comment">--      G.deleteNode mid</span><span>
-</span><span id="line-54"></span><span class="hs-comment">--      forM_ inEdges (\(ni, ed) -&gt; G.addEdge ni out ed)</span><span>
-</span><span id="line-55"></span><span class="hs-comment">--    isSeqEdge SeqEdge = True</span><span>
-</span><span id="line-56"></span><span class="hs-comment">--    isSeqEdge _ = False</span><span>
-</span><span id="line-57"></span></pre></body></html>
+</span><span id="line-28"></span></pre></body></html>

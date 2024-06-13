@@ -44,25 +44,25 @@ specTrivialGraph = do
      in Map.size (Graph.nodes trivialGraph) == 2
   where
     constructTrivialGraph = do
-      Graph.addNode "1" "d1"
-      Graph.addNode "2" "d2"
-      Graph.addEdge "1" "2" "1-2"
+      Graph.addNode 1 "d1"
+      Graph.addNode 2 "d2"
+      Graph.addEdge 1 2 "1-2"
 
 specCyclicGraph :: SpecWith ()
 specCyclicGraph = do
   it "construct a cyclic graph" $
     let constructG = do
-          Graph.addNode "1" "d1"
-          Graph.addNode "2" "d2"
-          Graph.addNode "3" "d3"
-          Graph.addEdge "1" "2" "1-2"
-          Graph.addEdge "2" "3" "2-3"
-          Graph.addEdge "3" "1" "3-1"
+          Graph.addNode 1 "d1"
+          Graph.addNode 2 "d2"
+          Graph.addNode 3 "d3"
+          Graph.addEdge 1 2 "1-2"
+          Graph.addEdge 2 3 "2-3"
+          Graph.addEdge 3 1 "3-1"
         (Right cyclicGraph) = Graph.build constructG
      in Map.size (Graph.nodes cyclicGraph) == 3
           && Map.size (Graph.edges cyclicGraph) == 3
-          && ( let inEdges = Graph.inBound "3" cyclicGraph
-                   outEdges = Graph.outBound "3" cyclicGraph
+          && ( let inEdges = Graph.inBound 3 cyclicGraph
+                   outEdges = Graph.outBound 3 cyclicGraph
                 in length inEdges == 1
                      && getNodeData ((\(src, _, _) -> src) (head inEdges) ) cyclicGraph == Just "d2"
                      && length outEdges == 1
@@ -71,32 +71,21 @@ specCyclicGraph = do
   where
     getNodeData n g = Map.lookup n (Graph.nodes g)
 
-newtype TraverseMonad ni a = TraverseMonad
-  {runTraverse :: State [ni] a}
-  deriving
-    ( Functor,
-      Applicative,
-      Monad,
-      MonadState [ni]
-    )
-
-sortedList :: (Ord ni) => Graph ni nd ed -> [ni]
-sortedList g =
-  let (_, s) = (runState $ runTraverse (Graph.traverseM_ (\ni _ -> modify' (\l -> l ++ [ni])) g)) []
-   in s
+topologicalSort :: (Ord ni) => Graph ni nd ed -> [ni]
+topologicalSort = Graph.topologicalTraverse (\ni _ -> [ni]) 
 
 traverseGraph :: SpecWith ()
 traverseGraph = do
   it "traverse graph in topological order" $
     let constructG = do
-          Graph.addNode "1" "d1"
-          Graph.addNode "2" "d2"
-          Graph.addNode "3" "d3"
-          Graph.addNode "4" "d4"
-          Graph.addEdge "4" "2" "4-2"
-          Graph.addEdge "4" "3" "4-3"
-          Graph.addEdge "2" "1" "2-1"
-          Graph.addEdge "3" "1" "3-1"
+          Graph.addNode 1 "d1"
+          Graph.addNode 2 "d2"
+          Graph.addNode 3 "d3"
+          Graph.addNode 4 "d4"
+          Graph.addEdge 4 2 "4-2"
+          Graph.addEdge 4 3 "4-3"
+          Graph.addEdge 2 1 "2-1"
+          Graph.addEdge 3 1 "3-1"
         (Right graph) = Graph.build constructG
-        lst = sortedList graph
-     in head lst == "4" && last lst == "1"
+        lst = topologicalSort graph
+     in head lst == 4 && last lst == 1

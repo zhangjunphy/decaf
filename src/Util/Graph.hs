@@ -32,13 +32,14 @@ module Util.Graph
   , build
   , strictlyDominate
   , strictlyPostDominate
-  , traverseM_
+  , topologicalTraverse
   ) where
 
 import Control.Lens ((%=))
 import Control.Monad
 import Control.Monad.Except
 import Control.Monad.State
+import Data.Monoid
 import Data.Functor
 import Data.Generics.Labels
 import Data.List qualified as List
@@ -144,8 +145,8 @@ update bd init =
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 build bd = update bd empty
 
-traverseM_ :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m ()
-traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g
+topologicalTraverse :: (Eq ni, Ord ni, Monoid (f a)) => (ni -> nd -> f a) -> Graph ni nd ed -> f a
+topologicalTraverse f g@Graph {nodes = nodes} = recurse initIndegree g
   where
     initIndegree = Map.mapWithKey (\i d -> length $ inBound i g) nodes
     findZeroIndegree :: Map ni Int -> [ni]
@@ -154,14 +155,14 @@ traverseM_ f g@Graph {nodes = nodes} = recurse initIndegree g
       let m' = List.foldl' (\m (_, ni, _) -> Map.adjust (\x -> x - 1) ni m) m $ outBound i g
           m'' = Map.delete i m'
        in m''
-    recurse indegree g = do
+    recurse indegree g =
       let zeroIndegree = findZeroIndegree indegree
-      case zeroIndegree of
-        [] -> return ()
-        (n : ns) -> do
-          f n (Maybe.fromJust $ lookupNode n g)
-          let indegree' = updateIndegree n indegree g
-          recurse indegree' g
+      in case zeroIndegree of
+        [] -> mempty
+        (n : ns) ->
+          let ele = f n (Maybe.fromJust $ lookupNode n g)
+              indegree' = updateIndegree n indegree g
+          in ele <> recurse indegree' g
 
 newtype Memoize ni m a = Memoize
   { unmem :: State m a

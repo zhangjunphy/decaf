@@ -41,7 +41,7 @@ findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
     inboundPred bbid _ = length (G.inBound bbid g) /= 1
     outboundPred bbid _ = length (G.outBound bbid g) /= 1
     outEdgePred bbid _ =
-      let (bbidOut, edgeOut) = head (G.outBound bbid g)
+      let (_, bbidOut, edgeOut) = head (G.outBound bbid g)
        in case edgeOut of
             SeqEdge -> True
             _ -> False
@@ -57,9 +57,9 @@ removeNodeAndPatchPhi bbid = do
   (CFG g _ _) <- getCFG
   let inbound = G.inBound bbid g
   let outbound = G.outBound bbid g
-  let (bbidIn, edgeIn) = head inbound
-  let (bbidOut, edgeOut) = head outbound
-
+  let (bbidIn, _, edgeIn) = head inbound
+  let (_, bbidOut, edgeOut) = head outbound
+  return ()
   where
     isSeqEdge SeqEdge = True
     isSeqEdge _ = False

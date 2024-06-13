@@ -30,7 +30,7 @@ import Types
 import Util.Graph qualified as G
 
 edges :: CFG -> [(BBID, BBID, CFGEdge)]
-edges (CFG graph _ _) = concatMap (\(f, t') -> t' <&> \(t, el) -> (f, t, el)) $ Map.toList $ graph ^. #edges
+edges (CFG graph _ _) = fmap (\((src, dst), d) -> (src, dst, d)) $ Map.toList $ graph ^. #edges
 
 -- Reorder some backward edges introduced by loops so graphviz could find a
 -- clear ordering of the nodes.

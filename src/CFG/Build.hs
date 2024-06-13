@@ -414,7 +414,7 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
       let ssaList = node ^. (#bb . #statements)
       ssaList' <- mapM patch ssaList
       let node' = node & (#bb . #statements) .~ ssaList'
-      #cfg . #graph %= G.updateNode bb node'
+      updateCFG $ G.updateNode bb node'
   where
     patch :: SSA -> CFGBuild SSA
     patch (Phi dst []) = do

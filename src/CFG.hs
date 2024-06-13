@@ -26,6 +26,7 @@ import Data.Map qualified as Map
 import Data.Text qualified as Text
 import Semantic qualified as SE
 import Types
+import SSA
 
 {-
 Refactor and clean up.
@@ -50,3 +51,6 @@ plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
 plot root si = do
   cfgs <- generateCFG root si
   return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot
+
+linearize :: CFG -> [SSA]
+linearize cfg = _

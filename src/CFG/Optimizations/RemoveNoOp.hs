@@ -11,7 +11,7 @@
 
 module CFG.Optimizations.RemoveNoOp where
 
-import CFG.Optimizations.Types
+import CFG.Optimizations.Optimizer
 import CFG.Types
 import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
 import Control.Monad.Except

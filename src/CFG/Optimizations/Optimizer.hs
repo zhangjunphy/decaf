@@ -9,7 +9,7 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-module CFG.Optimizations.Types where
+module CFG.Optimizations.Optimizer where
 
 import Data.Generics.Labels
 import GHC.Generics (Generic)

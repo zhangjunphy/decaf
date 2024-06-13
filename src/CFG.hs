@@ -15,7 +15,7 @@ module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CF
 import AST qualified
 import CFG.Build (CFGContext (..), buildCFG)
 import CFG.Optimizations.RemoveNoOp (removeNoOp)
-import CFG.Optimizations.Types (CFGOptimizer, runOptimizerOnCFG)
+import CFG.Optimizations.Optimizer (CFGOptimizer, runOptimizerOnCFG)
 import CFG.Plot (generateDotPlot)
 import CFG.Types
 import Control.Monad (mapM_)

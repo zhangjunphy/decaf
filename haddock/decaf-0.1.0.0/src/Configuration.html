@@ -42,18 +42,18 @@
 </span><span id="line-42"></span><span>
 </span><span id="line-43"></span><span class="annot"><a href="Configuration.html#target"><span class="hs-identifier hs-type">target</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Configuration.Types.html#Configuration"><span class="hs-identifier hs-type">Configuration</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Configuration.Types.html#CompilerStage"><span class="hs-identifier hs-type">CompilerStage</span></a></span><span>
 </span><span id="line-44"></span><span id="target"><span class="annot"><span class="annottext">target :: Configuration -&gt; CompilerStage
-</span><a href="Configuration.html#target"><span class="hs-identifier hs-var hs-var">target</span></a></span></span><span> </span><span id="local-6989586621679202568"><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679202568"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage -&gt; CompilerStage
+</span><a href="Configuration.html#target"><span class="hs-identifier hs-var hs-var">target</span></a></span></span><span> </span><span id="local-6989586621679204183"><span class="annot"><span class="annottext">Configuration
+</span><a href="#local-6989586621679204183"><span class="hs-identifier hs-var">conf</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage -&gt; Maybe CompilerStage -&gt; CompilerStage
 forall a. a -&gt; Maybe a -&gt; a
 </span><span class="hs-identifier hs-var">fromMaybe</span></span><span> </span><span class="annot"><span class="annottext">CompilerStage
-</span><a href="#local-6989586621679202569"><span class="hs-identifier hs-var">defaultTarget</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe CompilerStage -&gt; CompilerStage)
+</span><a href="#local-6989586621679204184"><span class="hs-identifier hs-var">defaultTarget</span></a></span><span> </span><span class="annot"><span class="annottext">(Maybe CompilerStage -&gt; CompilerStage)
 -&gt; Maybe CompilerStage -&gt; CompilerStage
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Configuration -&gt; Maybe CompilerStage
 </span><a href="Configuration.Types.html#%24sel%3AexplicitTarget%3AConfiguration"><span class="hs-identifier hs-var">explicitTarget</span></a></span><span> </span><span class="annot"><span class="annottext">Configuration
-</span><a href="#local-6989586621679202568"><span class="hs-identifier hs-var">conf</span></a></span><span>
+</span><a href="#local-6989586621679204183"><span class="hs-identifier hs-var">conf</span></a></span><span>
 </span><span id="line-45"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-46"></span><span>    </span><span id="local-6989586621679202569"><span class="annot"><span class="annottext">defaultTarget :: CompilerStage
-</span><a href="#local-6989586621679202569"><span class="hs-identifier hs-var hs-var">defaultTarget</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage
+</span><span id="line-46"></span><span>    </span><span id="local-6989586621679204184"><span class="annot"><span class="annottext">defaultTarget :: CompilerStage
+</span><a href="#local-6989586621679204184"><span class="hs-identifier hs-var hs-var">defaultTarget</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CompilerStage
 </span><a href="Configuration.Types.html#Parse"><span class="hs-identifier hs-var">Parse</span></a></span><span> </span><span class="hs-comment">-- this will change as the course proceeds</span><span>
 </span><span id="line-47"></span></pre></body></html>

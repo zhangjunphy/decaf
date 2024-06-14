@@ -1,0 +1,231 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"><html xmlns="http://www.w3.org/1999/xhtml"><head><link rel="stylesheet" type="text/css" href="style.css" /><script type="text/javascript" src="highlight.js"></script></head><body><pre><span class="hs-comment">-- Copyright (C) 2018 Jun Zhang &lt;zhangjunphy[at]gmail[dot]com&gt;</span><span>
+</span><span id="line-2"></span><span class="hs-comment">--</span><span>
+</span><span id="line-3"></span><span class="hs-comment">-- This file is a part of decafc.</span><span>
+</span><span id="line-4"></span><span class="hs-comment">--</span><span>
+</span><span id="line-5"></span><span class="hs-comment">-- decafc is free software: you can redistribute it and/or modify it under the</span><span>
+</span><span id="line-6"></span><span class="hs-comment">-- terms of the MIT (X11) License as described in the LICENSE file.</span><span>
+</span><span id="line-7"></span><span class="hs-comment">--</span><span>
+</span><span id="line-8"></span><span class="hs-comment">-- decafc is distributed in the hope that it will be useful, but WITHOUT ANY</span><span>
+</span><span id="line-9"></span><span class="hs-comment">-- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS</span><span>
+</span><span id="line-10"></span><span class="hs-comment">-- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.</span><span>
+</span><span id="line-11"></span><span>
+</span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CFG.Optimizations.Optimizer</span><span> </span><span class="hs-keyword">where</span><span>
+</span><span id="line-13"></span><span>
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Generics.Labels</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="CFG.Types.html"><span class="hs-identifier">CFG.Types</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.Except</span></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Monad.State</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.Graph.html"><span class="hs-identifier">Util.Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">use</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uses</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">view</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(+=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(^.)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_3</span></span><span class="hs-special">)</span><span>
+</span><span id="line-22"></span><span>
+</span><span id="line-23"></span><span class="hs-keyword">data</span><span> </span><span id="CFGOptimizerState"><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-var">CFGOptimizerState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGOptimizerState"><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-var">CFGOptimizerState</span></a></span></span><span>
+</span><span id="line-24"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Acfg%3ACFGOptimizerState"><span class="annot"><span class="annottext">CFGOptimizerState -&gt; CFG
+</span><a href="CFG.Optimizations.Optimizer.html#%24sel%3Acfg%3ACFGOptimizerState"><span class="hs-identifier hs-var hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219705"><span id="local-6989586621679219707"><span class="annot"><span class="annottext">(forall x. CFGOptimizerState -&gt; Rep CFGOptimizerState x)
+-&gt; (forall x. Rep CFGOptimizerState x -&gt; CFGOptimizerState)
+-&gt; Generic CFGOptimizerState
+forall x. Rep CFGOptimizerState x -&gt; CFGOptimizerState
+forall x. CFGOptimizerState -&gt; Rep CFGOptimizerState x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. CFGOptimizerState -&gt; Rep CFGOptimizerState x
+from :: forall x. CFGOptimizerState -&gt; Rep CFGOptimizerState x
+$cto :: forall x. Rep CFGOptimizerState x -&gt; CFGOptimizerState
+to :: forall x. Rep CFGOptimizerState x -&gt; CFGOptimizerState
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">newtype</span><span> </span><span id="CFGOptimizer"><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizer"><span class="hs-identifier hs-var">CFGOptimizer</span></a></span></span><span> </span><span id="local-6989586621679219489"><span class="annot"><a href="#local-6989586621679219489"><span class="hs-identifier hs-type">a</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFGOptmizer"><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptmizer"><span class="hs-identifier hs-var">CFGOptmizer</span></a></span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3ArunOptimizer%3ACFGOptmizer"><span class="annot"><span class="annottext">forall a.
+CFGOptimizer a -&gt; StateT CFGOptimizerState (Except CompileError) a
+</span><a href="CFG.Optimizations.Optimizer.html#%24sel%3ArunOptimizer%3ACFGOptmizer"><span class="hs-identifier hs-var hs-var">runOptimizer</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">StateT</span></span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-type">CFGOptimizerState</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Except</span></span><span> </span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><a href="#local-6989586621679219489"><span class="hs-identifier hs-type">a</span></a></span><span>
+</span><span id="line-29"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219713"><span id="local-6989586621679219719"><span class="annot"><span class="annottext">(forall a b. (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b)
+-&gt; (forall a b. a -&gt; CFGOptimizer b -&gt; CFGOptimizer a)
+-&gt; Functor CFGOptimizer
+forall a b. a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+forall a b. (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+forall (f :: * -&gt; *).
+(forall a b. (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b. a -&gt; f b -&gt; f a) -&gt; Functor f
+$cfmap :: forall a b. (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+fmap :: forall a b. (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+$c&lt;$ :: forall a b. a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+&lt;$ :: forall a b. a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Functor</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219732"><span id="local-6989586621679219739"><span id="local-6989586621679219745"><span id="local-6989586621679219751"><span id="local-6989586621679219757"><span class="annot"><span class="annottext">Functor CFGOptimizer
+Functor CFGOptimizer
+-&gt; (forall a. a -&gt; CFGOptimizer a)
+-&gt; (forall a b.
+    CFGOptimizer (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b)
+-&gt; (forall a b c.
+    (a -&gt; b -&gt; c)
+    -&gt; CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer c)
+-&gt; (forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b)
+-&gt; (forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer a)
+-&gt; Applicative CFGOptimizer
+forall a. a -&gt; CFGOptimizer a
+forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+forall a b.
+CFGOptimizer (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+forall a b c.
+(a -&gt; b -&gt; c) -&gt; CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer c
+forall (f :: * -&gt; *).
+Functor f
+-&gt; (forall a. a -&gt; f a)
+-&gt; (forall a b. f (a -&gt; b) -&gt; f a -&gt; f b)
+-&gt; (forall a b c. (a -&gt; b -&gt; c) -&gt; f a -&gt; f b -&gt; f c)
+-&gt; (forall a b. f a -&gt; f b -&gt; f b)
+-&gt; (forall a b. f a -&gt; f b -&gt; f a)
+-&gt; Applicative f
+$cpure :: forall a. a -&gt; CFGOptimizer a
+pure :: forall a. a -&gt; CFGOptimizer a
+$c&lt;*&gt; :: forall a b.
+CFGOptimizer (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+&lt;*&gt; :: forall a b.
+CFGOptimizer (a -&gt; b) -&gt; CFGOptimizer a -&gt; CFGOptimizer b
+$cliftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer c
+liftA2 :: forall a b c.
+(a -&gt; b -&gt; c) -&gt; CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer c
+$c*&gt; :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+*&gt; :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+$c&lt;* :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+&lt;* :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Applicative</span></span></span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219779"><span id="local-6989586621679219785"><span id="local-6989586621679219790"><span class="annot"><span class="annottext">Applicative CFGOptimizer
+Applicative CFGOptimizer
+-&gt; (forall a b.
+    CFGOptimizer a -&gt; (a -&gt; CFGOptimizer b) -&gt; CFGOptimizer b)
+-&gt; (forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b)
+-&gt; (forall a. a -&gt; CFGOptimizer a)
+-&gt; Monad CFGOptimizer
+forall a. a -&gt; CFGOptimizer a
+forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+forall a b.
+CFGOptimizer a -&gt; (a -&gt; CFGOptimizer b) -&gt; CFGOptimizer b
+forall (m :: * -&gt; *).
+Applicative m
+-&gt; (forall a b. m a -&gt; (a -&gt; m b) -&gt; m b)
+-&gt; (forall a b. m a -&gt; m b -&gt; m b)
+-&gt; (forall a. a -&gt; m a)
+-&gt; Monad m
+$c&gt;&gt;= :: forall a b.
+CFGOptimizer a -&gt; (a -&gt; CFGOptimizer b) -&gt; CFGOptimizer b
+&gt;&gt;= :: forall a b.
+CFGOptimizer a -&gt; (a -&gt; CFGOptimizer b) -&gt; CFGOptimizer b
+$c&gt;&gt; :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+&gt;&gt; :: forall a b. CFGOptimizer a -&gt; CFGOptimizer b -&gt; CFGOptimizer b
+$creturn :: forall a. a -&gt; CFGOptimizer a
+return :: forall a. a -&gt; CFGOptimizer a
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Monad</span></span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219802"><span id="local-6989586621679219808"><span class="annot"><span class="hs-identifier hs-type">MonadError</span></span><span> </span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219820"><span id="local-6989586621679219826"><span id="local-6989586621679219831"><span class="annot"><span class="hs-identifier hs-type">MonadState</span></span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-type">CFGOptimizerState</span></a></span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-30"></span><span>
+</span><span id="line-31"></span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#runOptimizerOnCFG"><span class="hs-identifier hs-type">runOptimizerOnCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizer"><span class="hs-identifier hs-type">CFGOptimizer</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span>
+</span><span id="line-32"></span><span id="runOptimizerOnCFG"><span class="annot"><span class="annottext">runOptimizerOnCFG :: CFGOptimizer () -&gt; CFG -&gt; Either [CompileError] CFG
+</span><a href="CFG.Optimizations.Optimizer.html#runOptimizerOnCFG"><span class="hs-identifier hs-var hs-var">runOptimizerOnCFG</span></a></span></span><span> </span><span id="local-6989586621679219840"><span class="annot"><span class="annottext">CFGOptimizer ()
+</span><a href="#local-6989586621679219840"><span class="hs-identifier hs-var">opt</span></a></span></span><span> </span><span id="local-6989586621679219841"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679219841"><span class="hs-identifier hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-33"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679219842"><span class="annot"><span class="annottext">initState :: CFGOptimizerState
+</span><a href="#local-6989586621679219842"><span class="hs-identifier hs-var hs-var">initState</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CFG -&gt; CFGOptimizerState
+</span><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-var">CFGOptimizerState</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679219841"><span class="hs-identifier hs-var">cfg</span></a></span><span>
+</span><span id="line-34"></span><span>      </span><span id="local-6989586621679219843"><span class="annot"><span class="annottext">result :: Either CompileError ((), CFGOptimizerState)
+</span><a href="#local-6989586621679219843"><span class="hs-identifier hs-var hs-var">result</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Except CompileError ((), CFGOptimizerState)
+-&gt; Either CompileError ((), CFGOptimizerState)
+forall e a. Except e a -&gt; Either e a
+</span><span class="hs-identifier hs-var">runExcept</span></span><span> </span><span class="annot"><span class="annottext">(Except CompileError ((), CFGOptimizerState)
+ -&gt; Either CompileError ((), CFGOptimizerState))
+-&gt; Except CompileError ((), CFGOptimizerState)
+-&gt; Either CompileError ((), CFGOptimizerState)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">StateT CFGOptimizerState (Except CompileError) ()
+-&gt; CFGOptimizerState -&gt; Except CompileError ((), CFGOptimizerState)
+forall s (m :: * -&gt; *) a. StateT s m a -&gt; s -&gt; m (a, s)
+</span><span class="hs-identifier hs-var">runStateT</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFGOptimizer ()
+-&gt; StateT CFGOptimizerState (Except CompileError) ()
+forall a.
+CFGOptimizer a -&gt; StateT CFGOptimizerState (Except CompileError) a
+</span><a href="CFG.Optimizations.Optimizer.html#%24sel%3ArunOptimizer%3ACFGOptmizer"><span class="hs-identifier hs-var">runOptimizer</span></a></span><span> </span><span class="annot"><span class="annottext">CFGOptimizer ()
+</span><a href="#local-6989586621679219840"><span class="hs-identifier hs-var">opt</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">CFGOptimizerState
+</span><a href="#local-6989586621679219842"><span class="hs-identifier hs-var">initState</span></a></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-keyword">in</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either CompileError ((), CFGOptimizerState)
+</span><a href="#local-6989586621679219843"><span class="hs-identifier hs-var">result</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-36"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679219846"><span class="annot"><span class="annottext">CompileError
+</span><a href="#local-6989586621679219846"><span class="hs-identifier hs-var">err</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[CompileError] -&gt; Either [CompileError] CFG
+forall a b. a -&gt; Either a b
+</span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">CompileError
+</span><a href="#local-6989586621679219846"><span class="hs-identifier hs-var">err</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-37"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">()
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizerState"><span class="hs-identifier hs-type">CFGOptimizerState</span></a></span><span> </span><span id="local-6989586621679219847"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679219847"><span class="hs-identifier hs-var">cfg</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CFG -&gt; Either [CompileError] CFG
+forall a b. b -&gt; Either a b
+</span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679219847"><span class="hs-identifier hs-var">cfg</span></a></span><span>
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#getCFG"><span class="hs-identifier hs-type">getCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizer"><span class="hs-identifier hs-type">CFGOptimizer</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span>
+</span><span id="line-40"></span><span id="getCFG"><span class="annot"><span class="annottext">getCFG :: CFGOptimizer CFG
+</span><a href="CFG.Optimizations.Optimizer.html#getCFG"><span class="hs-identifier hs-var hs-var">getCFG</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(CFGOptimizerState -&gt; CFG) -&gt; CFGOptimizer CFG
+forall s (m :: * -&gt; *) a. MonadState s m =&gt; (s -&gt; a) -&gt; m a
+</span><span class="hs-identifier hs-var">gets</span></span><span> </span><span class="annot"><span class="annottext">CFGOptimizerState -&gt; CFG
+</span><a href="CFG.Optimizations.Optimizer.html#%24sel%3Acfg%3ACFGOptimizerState"><span class="hs-identifier hs-var">cfg</span></a></span><span>
+</span><span id="line-41"></span><span>
+</span><span id="line-42"></span><span id="local-6989586621679219581"><span class="annot"><a href="CFG.Optimizations.Optimizer.html#updateCFG"><span class="hs-identifier hs-type">updateCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Util.Graph.html#GraphBuilder"><span class="hs-identifier hs-type">G.GraphBuilder</span></a></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span> </span><span class="annot"><a href="#local-6989586621679219581"><span class="hs-identifier hs-type">a</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizer"><span class="hs-identifier hs-type">CFGOptimizer</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span></span><span>
+</span><span id="line-43"></span><span id="updateCFG"><span class="annot"><span class="annottext">updateCFG :: forall a. GraphBuilder BBID BasicBlock CFGEdge a -&gt; CFGOptimizer ()
+</span><a href="CFG.Optimizations.Optimizer.html#updateCFG"><span class="hs-identifier hs-var hs-var">updateCFG</span></a></span></span><span> </span><span id="local-6989586621679219938"><span class="annot"><span class="annottext">GraphBuilder BBID BasicBlock CFGEdge a
+</span><a href="#local-6989586621679219938"><span class="hs-identifier hs-var">update</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-44"></span><span>  </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679219940"><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679219940"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MethodSig
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CFGOptimizer CFG
+</span><a href="CFG.Optimizations.Optimizer.html#getCFG"><span class="hs-identifier hs-var">getCFG</span></a></span><span>
+</span><span id="line-45"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679219941"><span class="annot"><span class="annottext">g' :: Either Text (Graph BBID BasicBlock CFGEdge)
+</span><a href="#local-6989586621679219941"><span class="hs-identifier hs-var hs-var">g'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">GraphBuilder BBID BasicBlock CFGEdge a
+-&gt; Graph BBID BasicBlock CFGEdge
+-&gt; Either Text (Graph BBID BasicBlock CFGEdge)
+forall ni nd ed a.
+(Eq ni, Ord ni) =&gt;
+GraphBuilder ni nd ed a
+-&gt; Graph ni nd ed -&gt; Either Text (Graph ni nd ed)
+</span><a href="Util.Graph.html#update"><span class="hs-identifier hs-var">G.update</span></a></span><span> </span><span class="annot"><span class="annottext">GraphBuilder BBID BasicBlock CFGEdge a
+</span><a href="#local-6989586621679219938"><span class="hs-identifier hs-var">update</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679219940"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Either Text (Graph BBID BasicBlock CFGEdge)
+</span><a href="#local-6989586621679219941"><span class="hs-identifier hs-var">g'</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-47"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679219943"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679219943"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">CompileError -&gt; CFGOptimizer ()
+forall a. CompileError -&gt; CFGOptimizer a
+forall e (m :: * -&gt; *) a. MonadError e m =&gt; e -&gt; m a
+</span><span class="hs-identifier hs-var">throwError</span></span><span> </span><span class="annot"><span class="annottext">(CompileError -&gt; CFGOptimizer ())
+-&gt; CompileError -&gt; CFGOptimizer ()
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Maybe Range -&gt; Text -&gt; CompileError
+</span><a href="Types.html#CompileError"><span class="hs-identifier hs-var">CompileError</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Range
+forall a. Maybe a
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679219943"><span class="hs-identifier hs-var">m</span></a></span><span>
+</span><span id="line-48"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span id="local-6989586621679219946"><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679219946"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(CFG -&gt; Identity CFG)
+-&gt; CFGOptimizerState -&gt; Identity CFGOptimizerState
+</span><span class="">#cfg</span></span><span> </span><span class="annot"><span class="annottext">((CFG -&gt; Identity CFG)
+ -&gt; CFGOptimizerState -&gt; Identity CFGOptimizerState)
+-&gt; ((Graph BBID BasicBlock CFGEdge
+     -&gt; Identity (Graph BBID BasicBlock CFGEdge))
+    -&gt; CFG -&gt; Identity CFG)
+-&gt; (Graph BBID BasicBlock CFGEdge
+    -&gt; Identity (Graph BBID BasicBlock CFGEdge))
+-&gt; CFGOptimizerState
+-&gt; Identity CFGOptimizerState
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Graph BBID BasicBlock CFGEdge
+ -&gt; Identity (Graph BBID BasicBlock CFGEdge))
+-&gt; CFG -&gt; Identity CFG
+</span><span class="">#graph</span></span><span> </span><span class="annot"><span class="annottext">((Graph BBID BasicBlock CFGEdge
+  -&gt; Identity (Graph BBID BasicBlock CFGEdge))
+ -&gt; CFGOptimizerState -&gt; Identity CFGOptimizerState)
+-&gt; Graph BBID BasicBlock CFGEdge -&gt; CFGOptimizer ()
+forall s (m :: * -&gt; *) a b.
+MonadState s m =&gt;
+ASetter s s a b -&gt; b -&gt; m ()
+</span><span class="hs-operator hs-var">.=</span></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679219946"><span class="hs-identifier hs-var">g</span></a></span><span>
+</span><span id="line-49"></span></pre></body></html>

@@ -111,6 +111,8 @@ Graph :: !Map ni nd -> !Map (ni, ni) ed -> Graph ni nd ed
 outBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ni, ed)]
 inBound :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> [(ni, ni, ed)]
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
+nodeToList :: (Eq ni, Ord ni) => Graph ni nd ed -> [(ni, nd)]
+edgeToList :: (Eq ni, Ord ni) => Graph ni nd ed -> [(ni, ni, ed)]
 alterNode :: (Eq ni, Ord ni) => ni -> (Maybe nd -> Maybe nd) -> GraphBuilder ni nd ed ()
 adjustNode :: (Eq ni, Ord ni) => ni -> (nd -> nd) -> GraphBuilder ni nd ed ()
 union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
@@ -879,6 +881,7 @@ MethodSig :: !Name -> !Maybe Type -> ![Argument] -> MethodSig
 [$sel:name:MethodSig] :: MethodSig -> !Name
 [$sel:tpe:MethodSig] :: MethodSig -> !Maybe Type
 [$sel:args:MethodSig] :: MethodSig -> ![Argument]
+mangle :: MethodSig -> Text
 data MethodDecl
 MethodDecl :: !MethodSig -> !Block -> !Range -> MethodDecl
 [$sel:sig:MethodDecl] :: MethodDecl -> !MethodSig
@@ -900,8 +903,6 @@ ForStmt :: !Maybe Assignment -> !Expr -> !Maybe Assignment -> !Block -> Statemen
 [$sel:pred:AssignStmt] :: Statement_ -> !Expr
 [$sel:update:AssignStmt] :: Statement_ -> !Maybe Assignment
 [$sel:block:AssignStmt] :: Statement_ -> !Block
-
--- | WhileStmt {pred :: !Expr, block :: !Block}
 ReturnStmt :: !Maybe Expr -> Statement_
 [$sel:expr:AssignStmt] :: Statement_ -> !Maybe Expr
 MethodCallStmt :: !MethodCall -> Statement_
@@ -1150,40 +1151,48 @@ data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> CFG
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> !MethodSig -> CFG
 [$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID
+[$sel:sig:CFG] :: CFG -> !MethodSig
 type CFGBuilder = GraphBuilder BBID BasicBlock CFGEdge
+data SingleFileCFG
+SingleFileCFG :: !BasicBlock -> !Map Name CFG -> SingleFileCFG
+[$sel:global:SingleFileCFG] :: SingleFileCFG -> !BasicBlock
+[$sel:cfgs:SingleFileCFG] :: SingleFileCFG -> !Map Name CFG
 instance GHC.Show.Show CFG.Types.Condition
 instance GHC.Show.Show CFG.Types.BasicBlock
 instance GHC.Generics.Generic CFG.Types.BasicBlock
 instance GHC.Show.Show CFG.Types.CFGEdge
 instance GHC.Generics.Generic CFG.Types.CFG
+instance GHC.Generics.Generic CFG.Types.SingleFileCFG
 
-module CFG.Optimizations.Types
-data CFGOptimizerState s
-CFGOptimizerState :: CFG -> s -> CFGOptimizerState s
-[$sel:cfg:CFGOptimizerState] :: CFGOptimizerState s -> CFG
-[$sel:optState:CFGOptimizerState] :: CFGOptimizerState s -> s
-newtype CFGOptimizer s a
-CFGOptmizer :: StateT (CFGOptimizerState s) (Except CompileError) a -> CFGOptimizer s a
-[$sel:runOptimizer:CFGOptmizer] :: CFGOptimizer s a -> StateT (CFGOptimizerState s) (Except CompileError) a
-runOptimizerOnCFG :: s -> CFGOptimizer s () -> CFG -> Either [CompileError] CFG
-getCFG :: CFGOptimizer s CFG
-getOptState :: CFGOptimizer s s
-updateCFG :: GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer s ()
-instance GHC.Generics.Generic (CFG.Optimizations.Types.CFGOptimizerState s)
-instance Control.Monad.State.Class.MonadState (CFG.Optimizations.Types.CFGOptimizerState s) (CFG.Optimizations.Types.CFGOptimizer s)
-instance Control.Monad.Error.Class.MonadError Types.CompileError (CFG.Optimizations.Types.CFGOptimizer s)
-instance GHC.Base.Monad (CFG.Optimizations.Types.CFGOptimizer s)
-instance GHC.Base.Applicative (CFG.Optimizations.Types.CFGOptimizer s)
-instance GHC.Base.Functor (CFG.Optimizations.Types.CFGOptimizer s)
+module CFG.Optimizations.Optimizer
+data CFGOptimizerState
+CFGOptimizerState :: CFG -> CFGOptimizerState
+[$sel:cfg:CFGOptimizerState] :: CFGOptimizerState -> CFG
+newtype CFGOptimizer a
+CFGOptmizer :: StateT CFGOptimizerState (Except CompileError) a -> CFGOptimizer a
+[$sel:runOptimizer:CFGOptmizer] :: CFGOptimizer a -> StateT CFGOptimizerState (Except CompileError) a
+runOptimizerOnCFG :: CFGOptimizer () -> CFG -> Either [CompileError] CFG
+getCFG :: CFGOptimizer CFG
+updateCFG :: GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer ()
+instance GHC.Generics.Generic CFG.Optimizations.Optimizer.CFGOptimizerState
+instance Control.Monad.State.Class.MonadState CFG.Optimizations.Optimizer.CFGOptimizerState CFG.Optimizations.Optimizer.CFGOptimizer
+instance Control.Monad.Error.Class.MonadError Types.CompileError CFG.Optimizations.Optimizer.CFGOptimizer
+instance GHC.Base.Monad CFG.Optimizations.Optimizer.CFGOptimizer
+instance GHC.Base.Applicative CFG.Optimizations.Optimizer.CFGOptimizer
+instance GHC.Base.Functor CFG.Optimizations.Optimizer.CFGOptimizer
 
 module CFG.Optimizations.RemoveNoOp
-removeNoOp :: CFGOptimizer () ()
+removeNoOp :: CFGOptimizer ()
 findNoOpNode :: CFG -> Maybe BBID
-removeNodeAndPatchPhi :: BBID -> CFGOptimizer () ()
+removeNodeAndPatchPhi :: BBID -> CFGOptimizer ()
+
+module CFG.Optimizations.RemoveDeadBlock
+removeDeadBlock :: CFGOptimizer ()
+findDeadNode :: CFG -> Maybe BBID
 
 module CFG.Build
 data SymVarMap
@@ -1191,10 +1200,9 @@ SymVarMap :: !Map Name VID -> !Maybe ScopeID -> SymVarMap
 [$sel:m:SymVarMap] :: SymVarMap -> !Map Name VID
 [$sel:parent:SymVarMap] :: SymVarMap -> !Maybe ScopeID
 data CFGState
-CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> CFGState
-[$sel:cfg:CFGState] :: CFGState -> !CFG
+CFGState :: !Maybe CFG -> !ScopeID -> !BBID -> !VarList -> !Map ScopeID SymVarMap -> !Map VID (ScopeID, Name) -> ![SSA] -> !Maybe (BBID, BBID) -> !Maybe BBID -> !Maybe BasicBlock -> CFGState
+[$sel:cfg:CFGState] :: CFGState -> !Maybe CFG
 [$sel:astScope:CFGState] :: CFGState -> !ScopeID
-[$sel:sig:CFGState] :: CFGState -> !MethodSig
 [$sel:currentBBID:CFGState] :: CFGState -> !BBID
 [$sel:vars:CFGState] :: CFGState -> !VarList
 [$sel:sym2var:CFGState] :: CFGState -> !Map ScopeID SymVarMap
@@ -1202,11 +1210,14 @@ CFGState :: !CFG -> !ScopeID -> !MethodSig -> !BBID -> !VarList -> !Map ScopeID 
 [$sel:statements:CFGState] :: CFGState -> ![SSA]
 [$sel:currentControlBlock:CFGState] :: CFGState -> !Maybe (BBID, BBID)
 [$sel:currentFunctionExit:CFGState] :: CFGState -> !Maybe BBID
+[$sel:globalBB:CFGState] :: CFGState -> !Maybe BasicBlock
 data BBTransition
 StayIn :: !BBID -> BBTransition
 TailAt :: !BBID -> BBTransition
-Deadend :: BBTransition
-initialState :: MethodSig -> CFGState
+Deadend :: !BBID -> BBTransition
+initialState :: CFGState
+getCFG :: CFGBuild CFG
+setCFG :: CFG -> CFGBuild ()
 getGraph :: CFGBuild (Graph BBID BasicBlock CFGEdge)
 setGraph :: Graph BBID BasicBlock CFGEdge -> CFGBuild ()
 updateCFG :: GraphBuilder BBID BasicBlock CFGEdge a -> CFGBuild ()
@@ -1247,10 +1258,10 @@ inferPhiList :: [ScopeID] -> CFGBuild [(ScopeID, Name)]
 addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
 recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
 patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
-buildCFG :: ASTRoot -> CFGContext -> Either [CompileError] (Map Name CFG)
-populateGlobals :: ASTRoot -> CFGBuild ()
+buildCFGs :: ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
+populateGlobals :: ASTRoot -> CFGBuild BasicBlock
 buildMethod :: MethodDecl -> CFGBuild CFG
-buildBlock :: Block -> CFGBuild (BBID, BBID)
+buildBlock :: [Argument] -> Block -> CFGBuild (BBID, BBID)
 buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
@@ -1269,14 +1280,13 @@ instance GHC.Base.Applicative CFG.Build.CFGBuild
 instance GHC.Base.Functor CFG.Build.CFGBuild
 
 module CFG.Plot
-generateDotPlot :: CFG -> Text
+generateDotPlot :: SingleFileCFG -> Text
 
 module CFG
 plot :: ASTRoot -> SemanticInfo -> Either [CompileError] String
 data CFGContext
 CFGContext :: SemanticInfo -> CFGContext
 [$sel:semantic:CFGContext] :: CFGContext -> SemanticInfo
-buildCFG :: ASTRoot -> CFGContext -> Either [CompileError] (Map Name CFG)
 data Condition
 Pred :: !VarOrImm -> Condition
 [$sel:pred:Pred] :: Condition -> !VarOrImm
@@ -1290,7 +1300,8 @@ data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> CFG
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> !MethodSig -> CFG
 [$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID
+[$sel:sig:CFG] :: CFG -> !MethodSig

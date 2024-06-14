@@ -14,149 +14,202 @@
 </span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span> </span><span class="hs-keyword">qualified</span><span>
 </span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="CFG.Build.html"><span class="hs-identifier">CFG.Build</span></a></span><span>
 </span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="CFG.Types.html"><span class="hs-identifier">CFG.Types</span></a></span><span>
-</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">use</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uses</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">view</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(+=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(^.)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_3</span></span><span class="hs-special">)</span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Control.Lens</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">use</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">uses</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">view</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(%~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(&amp;)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(+=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.=)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(.~)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-operator">(^.)</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_1</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_2</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_3</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="hs-identifier">_Just</span></span><span class="hs-special">)</span><span>
 </span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Functor</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-operator">(&lt;&amp;&gt;)</span></span><span class="hs-special">)</span><span>
-</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.GraphViz</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">GViz</span></span><span>
-</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.GraphViz.Attributes.Complete</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">GViz</span></span><span>
-</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
-</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
-</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
-</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
-</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span>
-</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">LT</span></span><span>
-</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Formatting</span></span><span>
-</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Semantic.html"><span class="hs-identifier">Semantic</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SE</span></span><span>
-</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
-</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.Graph.html"><span class="hs-identifier">Util.Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
-</span><span id="line-31"></span><span>
-</span><span id="line-32"></span><span class="annot"><a href="CFG.Plot.html#edges"><span class="hs-identifier hs-type">edges</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span class="hs-special">)</span><span class="hs-special">]</span><span>
-</span><span id="line-33"></span><span id="edges"><span class="annot"><span class="annottext">edges :: CFG -&gt; [(BBID, BBID, CFGEdge)]
-</span><a href="CFG.Plot.html#edges"><span class="hs-identifier hs-var hs-var">edges</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679222109"><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679222109"><span class="hs-identifier hs-var">graph</span></a></span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(((BBID, BBID), CFGEdge) -&gt; (BBID, BBID, CFGEdge))
--&gt; [((BBID, BBID), CFGEdge)] -&gt; [(BBID, BBID, CFGEdge)]
-forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
-forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span class="hs-special">(</span><span id="local-6989586621679222110"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222110"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222111"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222111"><span class="hs-identifier hs-var">dst</span></a></span></span><span class="hs-special">)</span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222112"><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222112"><span class="hs-identifier hs-var">d</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222110"><span class="hs-identifier hs-var">src</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222111"><span class="hs-identifier hs-var">dst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222112"><span class="hs-identifier hs-var">d</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([((BBID, BBID), CFGEdge)] -&gt; [(BBID, BBID, CFGEdge)])
--&gt; [((BBID, BBID), CFGEdge)] -&gt; [(BBID, BBID, CFGEdge)]
-forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Map (BBID, BBID) CFGEdge -&gt; [((BBID, BBID), CFGEdge)]
-forall k a. Map k a -&gt; [(k, a)]
-</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">(Map (BBID, BBID) CFGEdge -&gt; [((BBID, BBID), CFGEdge)])
--&gt; Map (BBID, BBID) CFGEdge -&gt; [((BBID, BBID), CFGEdge)]
-forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679222109"><span class="hs-identifier hs-var">graph</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
--&gt; Getting
-     (Map (BBID, BBID) CFGEdge)
-     (Graph BBID BasicBlock CFGEdge)
-     (Map (BBID, BBID) CFGEdge)
--&gt; Map (BBID, BBID) CFGEdge
-forall s a. s -&gt; Getting a s a -&gt; a
-</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting
-  (Map (BBID, BBID) CFGEdge)
-  (Graph BBID BasicBlock CFGEdge)
-  (Map (BBID, BBID) CFGEdge)
-</span><span class="">#edges</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.GraphViz</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">GraphvizParams</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">isDotCluster</span></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.GraphViz</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">GViz</span></span><span>
+</span><span id="line-21"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.GraphViz.Attributes.Complete</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">GViz</span></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-23"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Map</span></span><span>
+</span><span id="line-24"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Maybe</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">fromJust</span></span><span class="hs-special">)</span><span>
+</span><span id="line-25"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Set</span></span><span class="hs-special">)</span><span>
+</span><span id="line-26"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Set</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Set</span></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Text</span></span><span class="hs-special">)</span><span>
+</span><span id="line-28"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">Text</span></span><span>
+</span><span id="line-29"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Text.Lazy</span></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">LT</span></span><span>
+</span><span id="line-30"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Formatting</span></span><span>
+</span><span id="line-31"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Semantic.html"><span class="hs-identifier">Semantic</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">SE</span></span><span>
+</span><span id="line-32"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
+</span><span id="line-33"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.Graph.html"><span class="hs-identifier">Util.Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
 </span><span id="line-34"></span><span>
 </span><span id="line-35"></span><span class="hs-comment">-- Reorder some backward edges introduced by loops so graphviz could find a</span><span>
 </span><span id="line-36"></span><span class="hs-comment">-- clear ordering of the nodes.</span><span>
-</span><span id="line-37"></span><span class="annot"><a href="CFG.Plot.html#backEdges"><span class="hs-identifier hs-type">backEdges</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-38"></span><span id="backEdges"><span class="annot"><span class="annottext">backEdges :: CFG -&gt; Set (BBID, BBID)
-</span><a href="CFG.Plot.html#backEdges"><span class="hs-identifier hs-var hs-var">backEdges</span></a></span></span><span> </span><span id="local-6989586621679222115"><span class="annot"><span class="annottext">cfg :: CFG
-</span><a href="#local-6989586621679222115"><span class="hs-identifier hs-var">cfg</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679222116"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222116"><span class="hs-identifier hs-var">exit</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[(BBID, BBID)] -&gt; Set (BBID, BBID)
+</span><span id="line-37"></span><span class="annot"><a href="CFG.Plot.html#findBackEdges"><span class="hs-identifier hs-type">findBackEdges</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Set</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-38"></span><span id="findBackEdges"><span class="annot"><span class="annottext">findBackEdges :: SingleFileCFG -&gt; Set (BBID, BBID)
+</span><a href="CFG.Plot.html#findBackEdges"><span class="hs-identifier hs-var hs-var">findBackEdges</span></a></span></span><span> </span><span id="local-6989586621679224186"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224186"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-39"></span><span>  </span><span class="annot"><span class="annottext">[Set (BBID, BBID)] -&gt; Set (BBID, BBID)
+forall (f :: * -&gt; *) a. (Foldable f, Ord a) =&gt; f (Set a) -&gt; Set a
+</span><span class="hs-identifier hs-var">Set.unions</span></span><span> </span><span class="annot"><span class="annottext">([Set (BBID, BBID)] -&gt; Set (BBID, BBID))
+-&gt; [Set (BBID, BBID)] -&gt; Set (BBID, BBID)
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((Text, CFG) -&gt; Set (BBID, BBID))
+-&gt; [(Text, CFG)] -&gt; [Set (BBID, BBID)]
+forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFG -&gt; Set (BBID, BBID)
+</span><a href="#local-6989586621679224188"><span class="hs-identifier hs-var">findBackEdgesInCFG</span></a></span><span> </span><span class="annot"><span class="annottext">(CFG -&gt; Set (BBID, BBID))
+-&gt; ((Text, CFG) -&gt; CFG) -&gt; (Text, CFG) -&gt; Set (BBID, BBID)
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Text, CFG) -&gt; CFG
+forall a b. (a, b) -&gt; b
+</span><span class="hs-identifier hs-var">snd</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map Text CFG -&gt; [(Text, CFG)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">(Map Text CFG -&gt; [(Text, CFG)]) -&gt; Map Text CFG -&gt; [(Text, CFG)]
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224186"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+-&gt; Map Text CFG
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+</span><span class="">#cfgs</span></span><span class="hs-special">)</span><span>
+</span><span id="line-40"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-41"></span><span>    </span><span id="local-6989586621679224188"><span class="annot"><span class="annottext">findBackEdgesInCFG :: CFG -&gt; Set (BBID, BBID)
+</span><a href="#local-6989586621679224188"><span class="hs-identifier hs-var hs-var">findBackEdgesInCFG</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679224201"><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679224201"><span class="hs-identifier hs-var">g</span></a></span></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679224202"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224202"><span class="hs-identifier hs-var">exit</span></a></span></span><span> </span><span class="annot"><span class="annottext">MethodSig
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-42"></span><span>      </span><span class="annot"><span class="annottext">[(BBID, BBID)] -&gt; Set (BBID, BBID)
 forall a. Ord a =&gt; [a] -&gt; Set a
 </span><span class="hs-identifier hs-var">Set.fromList</span></span><span> </span><span class="annot"><span class="annottext">([(BBID, BBID)] -&gt; Set (BBID, BBID))
 -&gt; [(BBID, BBID)] -&gt; Set (BBID, BBID)
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((BBID, BBID) -&gt; Bool) -&gt; [(BBID, BBID)] -&gt; [(BBID, BBID)]
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-43"></span><span>        </span><span class="annot"><span class="annottext">((BBID, BBID) -&gt; Bool) -&gt; [(BBID, BBID)] -&gt; [(BBID, BBID)]
 forall a. (a -&gt; Bool) -&gt; [a] -&gt; [a]
-</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679222118"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222118"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222119"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222119"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222118"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
+</span><span class="hs-identifier hs-var">filter</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679224204"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224204"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224205"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224205"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224204"><span class="hs-identifier hs-var">b1</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
 forall a. Ord a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">&gt;</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222119"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="#local-6989586621679224205"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
 </span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222119"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
+</span><a href="#local-6989586621679224205"><span class="hs-identifier hs-var">b2</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222116"><span class="hs-identifier hs-var">exit</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(BBID, BBID)] -&gt; [(BBID, BBID)])
+</span><a href="#local-6989586621679224202"><span class="hs-identifier hs-var">exit</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">([(BBID, BBID)] -&gt; [(BBID, BBID)])
 -&gt; [(BBID, BBID)] -&gt; [(BBID, BBID)]
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">((BBID, BBID, CFGEdge) -&gt; (BBID, BBID))
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-44"></span><span>          </span><span class="annot"><span class="annottext">((BBID, BBID, CFGEdge) -&gt; (BBID, BBID))
 -&gt; [(BBID, BBID, CFGEdge)] -&gt; [(BBID, BBID)]
 forall a b. (a -&gt; b) -&gt; [a] -&gt; [b]
 forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
-</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679222123"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222123"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222124"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222124"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
+</span><span class="hs-identifier hs-var">fmap</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679224209"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224209"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224210"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224210"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
 </span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222123"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222124"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFG -&gt; [(BBID, BBID, CFGEdge)]
-</span><a href="CFG.Plot.html#edges"><span class="hs-identifier hs-var">edges</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222115"><span class="hs-identifier hs-var">cfg</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-39"></span><span>
-</span><span id="line-40"></span><span class="annot"><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-type">gvizParams</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GViz.GraphvizParams</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span>
-</span><span id="line-41"></span><span id="gvizParams"><span class="annot"><span class="annottext">gvizParams :: CFG -&gt; GraphvizParams BBID BasicBlock CFGEdge () BasicBlock
-</span><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-var hs-var">gvizParams</span></a></span></span><span> </span><span id="local-6989586621679222126"><span class="annot"><span class="annottext">cfg :: CFG
-</span><a href="#local-6989586621679222126"><span class="hs-identifier hs-var">cfg</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679222127"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222127"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span id="local-6989586621679222128"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222128"><span class="hs-identifier hs-var">exit</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-42"></span><span>  </span><span class="annot"><span class="annottext">GraphvizParams BBID BasicBlock Any () BasicBlock
-forall n nl el. GraphvizParams n nl el () nl
-</span><span class="hs-identifier hs-var">GViz.nonClusteredParams</span></span><span>
-</span><span id="line-43"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">globalAttributes :: [GlobalAttributes]
-</span><span class="hs-identifier hs-var">GViz.globalAttributes</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[GlobalAttributes]
-</span><a href="#local-6989586621679222131"><span class="hs-identifier hs-var">globalAttrs</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-44"></span><span>      </span><span class="annot"><span class="annottext">fmtNode :: (BBID, BasicBlock) -&gt; Attributes
-</span><span class="hs-identifier hs-var">GViz.fmtNode</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(BBID, BasicBlock) -&gt; Attributes
-</span><a href="#local-6989586621679222133"><span class="hs-identifier hs-var">fmtNode</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-45"></span><span>      </span><span class="annot"><span class="annottext">fmtEdge :: (BBID, BBID, CFGEdge) -&gt; Attributes
-</span><span class="hs-identifier hs-var">GViz.fmtEdge</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(BBID, BBID, CFGEdge) -&gt; Attributes
-</span><a href="#local-6989586621679222135"><span class="hs-identifier hs-var">fmtEdge</span></a></span><span>
-</span><span id="line-46"></span><span>    </span><span class="hs-special">}</span><span>
-</span><span id="line-47"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-48"></span><span>    </span><span id="local-6989586621679222136"><span class="annot"><span class="annottext">backEdges' :: Set (BBID, BBID)
-</span><a href="#local-6989586621679222136"><span class="hs-identifier hs-var hs-var">backEdges'</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">CFG -&gt; Set (BBID, BBID)
-</span><a href="CFG.Plot.html#backEdges"><span class="hs-identifier hs-var">backEdges</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222126"><span class="hs-identifier hs-var">cfg</span></a></span><span>
-</span><span id="line-49"></span><span>    </span><span id="local-6989586621679222131"><span class="annot"><span class="annottext">globalAttrs :: [GlobalAttributes]
-</span><a href="#local-6989586621679222131"><span class="hs-identifier hs-var hs-var">globalAttrs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Attributes -&gt; GlobalAttributes
-</span><span class="hs-identifier hs-var">GViz.NodeAttrs</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Shape -&gt; Attribute
-</span><span class="hs-identifier hs-var">GViz.Shape</span></span><span> </span><span class="annot"><span class="annottext">Shape
-</span><span class="hs-identifier hs-var">GViz.BoxShape</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
-</span><span id="line-50"></span><span>    </span><span id="local-6989586621679222133"><span class="annot"><span class="annottext">fmtNode :: (BBID, BasicBlock) -&gt; Attributes
-</span><a href="#local-6989586621679222133"><span class="hs-identifier hs-var hs-var">fmtNode</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679222140"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222140"><span class="hs-identifier hs-var">bbid</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222141"><span class="annot"><span class="annottext">BasicBlock
-</span><a href="#local-6989586621679222141"><span class="hs-identifier hs-var">node</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Label -&gt; Attribute
+</span><a href="#local-6989586621679224209"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224210"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BBID, CFGEdge)]
+forall ni nd ed.
+(Eq ni, Ord ni) =&gt;
+Graph ni nd ed -&gt; [(ni, ni, ed)]
+</span><a href="Util.Graph.html#edgeToList"><span class="hs-identifier hs-var">G.edgeToList</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679224201"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-45"></span><span>
+</span><span id="line-46"></span><span class="annot"><a href="CFG.Plot.html#nodeToCFG"><span class="hs-identifier hs-type">nodeToCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span>
+</span><span id="line-47"></span><span id="nodeToCFG"><span class="annot"><span class="annottext">nodeToCFG :: SingleFileCFG -&gt; Map BBID Text
+</span><a href="CFG.Plot.html#nodeToCFG"><span class="hs-identifier hs-var hs-var">nodeToCFG</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679224215"><span class="annot"><span class="annottext">Map Text CFG
+</span><a href="#local-6989586621679224215"><span class="hs-identifier hs-var">cfgs</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-48"></span><span>  </span><span class="annot"><span class="annottext">[(BBID, Text)] -&gt; Map BBID Text
+forall k a. Ord k =&gt; [(k, a)] -&gt; Map k a
+</span><span class="hs-identifier hs-var">Map.fromList</span></span><span> </span><span class="annot"><span class="annottext">([(BBID, Text)] -&gt; Map BBID Text)
+-&gt; [(BBID, Text)] -&gt; Map BBID Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span>
+</span><span id="line-49"></span><span>    </span><span class="annot"><span class="annottext">((Text, CFG) -&gt; [(BBID, Text)]) -&gt; [(Text, CFG)] -&gt; [(BBID, Text)]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span>
+</span><span id="line-50"></span><span>      </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679224218"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224218"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224219"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679224219"><span class="hs-identifier hs-var">cfg</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BasicBlock)]
+forall ni nd ed. (Eq ni, Ord ni) =&gt; Graph ni nd ed -&gt; [(ni, nd)]
+</span><a href="Util.Graph.html#nodeToList"><span class="hs-identifier hs-var">G.nodeToList</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679224219"><span class="hs-identifier hs-var">cfg</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
+-&gt; Getting
+     (Graph BBID BasicBlock CFGEdge) CFG (Graph BBID BasicBlock CFGEdge)
+-&gt; Graph BBID BasicBlock CFGEdge
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting
+  (Graph BBID BasicBlock CFGEdge) CFG (Graph BBID BasicBlock CFGEdge)
+</span><span class="">#graph</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(BBID, BasicBlock)]
+-&gt; ((BBID, BasicBlock) -&gt; (BBID, Text)) -&gt; [(BBID, Text)]
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679224221"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224221"><span class="hs-identifier hs-var">bbid</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224221"><span class="hs-identifier hs-var">bbid</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224218"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span>
+</span><span id="line-51"></span><span>      </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map Text CFG -&gt; [(Text, CFG)]
+forall k a. Map k a -&gt; [(k, a)]
+</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map Text CFG
+</span><a href="#local-6989586621679224215"><span class="hs-identifier hs-var">cfgs</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-52"></span><span>
+</span><span id="line-53"></span><span class="annot"><a href="CFG.Plot.html#findCFG"><span class="hs-identifier hs-type">findCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span>
+</span><span id="line-54"></span><span id="findCFG"><span class="annot"><span class="annottext">findCFG :: SingleFileCFG -&gt; Map BBID Text -&gt; BBID -&gt; Maybe CFG
+</span><a href="CFG.Plot.html#findCFG"><span class="hs-identifier hs-var hs-var">findCFG</span></a></span></span><span> </span><span id="local-6989586621679224223"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224223"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621679224224"><span class="annot"><span class="annottext">Map BBID Text
+</span><a href="#local-6989586621679224224"><span class="hs-identifier hs-var">nodeMap</span></a></span></span><span> </span><span id="local-6989586621679224225"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224225"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-55"></span><span>    </span><span class="annot"><span class="annottext">BBID -&gt; Map BBID Text -&gt; Maybe Text
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224225"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">Map BBID Text
+</span><a href="#local-6989586621679224224"><span class="hs-identifier hs-var">nodeMap</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Text -&gt; (Text -&gt; Maybe CFG) -&gt; Maybe CFG
+forall a b. Maybe a -&gt; (a -&gt; Maybe b) -&gt; Maybe b
+forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679224227"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224227"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Map Text CFG -&gt; Maybe CFG
+forall k a. Ord k =&gt; k -&gt; Map k a -&gt; Maybe a
+</span><span class="hs-identifier hs-var">Map.lookup</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224227"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224223"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+-&gt; Map Text CFG
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+</span><span class="">#cfgs</span></span><span class="hs-special">)</span><span>
+</span><span id="line-56"></span><span>
+</span><span id="line-57"></span><span class="annot"><a href="CFG.Plot.html#fmtNode"><span class="hs-identifier hs-type">fmtNode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">GViz.Attribute</span></span><span class="hs-special">]</span><span>
+</span><span id="line-58"></span><span id="fmtNode"><span class="annot"><span class="annottext">fmtNode :: SingleFileCFG -&gt; (BBID, BasicBlock) -&gt; [Attribute]
+</span><a href="CFG.Plot.html#fmtNode"><span class="hs-identifier hs-var hs-var">fmtNode</span></a></span></span><span> </span><span id="local-6989586621679224229"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224229"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679224230"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224230"><span class="hs-identifier hs-var">bbid</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224231"><span class="annot"><span class="annottext">BasicBlock
+</span><a href="#local-6989586621679224231"><span class="hs-identifier hs-var">bb</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-59"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679224232"><span class="annot"><span class="annottext">nodeMap :: Map BBID Text
+</span><a href="#local-6989586621679224232"><span class="hs-identifier hs-var hs-var">nodeMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text
+</span><a href="CFG.Plot.html#nodeToCFG"><span class="hs-identifier hs-var">nodeToCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224229"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-60"></span><span>      </span><span id="local-6989586621679224233"><span class="annot"><span class="annottext">cfg :: Maybe CFG
+</span><a href="#local-6989586621679224233"><span class="hs-identifier hs-var hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text -&gt; BBID -&gt; Maybe CFG
+</span><a href="CFG.Plot.html#findCFG"><span class="hs-identifier hs-var">findCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224229"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">Map BBID Text
+</span><a href="#local-6989586621679224232"><span class="hs-identifier hs-var">nodeMap</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224230"><span class="hs-identifier hs-var">bbid</span></a></span><span>
+</span><span id="line-61"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Label -&gt; Attribute
 </span><span class="hs-identifier hs-var">GViz.Label</span></span><span> </span><span class="annot"><span class="annottext">(Label -&gt; Attribute) -&gt; Label -&gt; Attribute
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Label
 </span><span class="hs-identifier hs-var">GViz.StrLabel</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Label) -&gt; Text -&gt; Label
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BasicBlock -&gt; CFG -&gt; Text
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BasicBlock -&gt; Maybe CFG -&gt; Text
 </span><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-var">prettyPrintNode</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222140"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BasicBlock
-</span><a href="#local-6989586621679222141"><span class="hs-identifier hs-var">node</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222126"><span class="hs-identifier hs-var">cfg</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-51"></span><span>    </span><span id="local-6989586621679222135"><span class="annot"><span class="annottext">fmtEdge :: (BBID, BBID, CFGEdge) -&gt; Attributes
-</span><a href="#local-6989586621679222135"><span class="hs-identifier hs-var hs-var">fmtEdge</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679222145"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222145"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222146"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222146"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222147"><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222147"><span class="hs-identifier hs-var">edge</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Label -&gt; Attribute
+</span><a href="#local-6989586621679224230"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><a href="#local-6989586621679224231"><span class="hs-identifier hs-var">bb</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe CFG
+</span><a href="#local-6989586621679224233"><span class="hs-identifier hs-var">cfg</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-62"></span><span>
+</span><span id="line-63"></span><span class="annot"><a href="CFG.Plot.html#fmtEdge"><span class="hs-identifier hs-type">fmtEdge</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="hs-identifier hs-type">GViz.Attribute</span></span><span class="hs-special">]</span><span>
+</span><span id="line-64"></span><span id="fmtEdge"><span class="annot"><span class="annottext">fmtEdge :: SingleFileCFG -&gt; (BBID, BBID, CFGEdge) -&gt; [Attribute]
+</span><a href="CFG.Plot.html#fmtEdge"><span class="hs-identifier hs-var hs-var">fmtEdge</span></a></span></span><span> </span><span id="local-6989586621679224238"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224238"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679224239"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224239"><span class="hs-identifier hs-var">src</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224240"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224240"><span class="hs-identifier hs-var">dst</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224241"><span class="annot"><span class="annottext">CFGEdge
+</span><a href="#local-6989586621679224241"><span class="hs-identifier hs-var">edge</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-65"></span><span>  </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Label -&gt; Attribute
 </span><span class="hs-identifier hs-var">GViz.Label</span></span><span> </span><span class="annot"><span class="annottext">(Label -&gt; Attribute) -&gt; Label -&gt; Attribute
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Label
@@ -164,106 +217,240 @@ forall a b. (a -&gt; b) -&gt; a -&gt; b
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CFGEdge -&gt; Text
 </span><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var">prettyPrintEdge</span></a></span><span> </span><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222147"><span class="hs-identifier hs-var">edge</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">Attributes -&gt; Attributes -&gt; Attributes
+</span><a href="#local-6989586621679224241"><span class="hs-identifier hs-var">edge</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[Attribute] -&gt; [Attribute] -&gt; [Attribute]
 forall a. [a] -&gt; [a] -&gt; [a]
-</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">Attributes
-</span><a href="#local-6989586621679222149"><span class="hs-identifier hs-var">dir</span></a></span><span>
-</span><span id="line-52"></span><span>      </span><span class="hs-keyword">where</span><span>
-</span><span id="line-53"></span><span>        </span><span class="hs-comment">-- Some of the nodes had their src-&gt;dst reversed in cfgToDot.</span><span>
-</span><span id="line-54"></span><span>        </span><span class="hs-comment">-- We need to mark them to get a correct arrow.</span><span>
-</span><span id="line-55"></span><span>        </span><span id="local-6989586621679222149"><span class="annot"><span class="annottext">dir :: Attributes
-</span><a href="#local-6989586621679222149"><span class="hs-identifier hs-var hs-var">dir</span></a></span></span><span>
-</span><span id="line-56"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">(BBID, BBID) -&gt; Set (BBID, BBID) -&gt; Bool
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Attribute]
+</span><a href="#local-6989586621679224243"><span class="hs-identifier hs-var">dir</span></a></span><span>
+</span><span id="line-66"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-67"></span><span>    </span><span id="local-6989586621679224244"><span class="annot"><span class="annottext">nodeMap :: Map BBID Text
+</span><a href="#local-6989586621679224244"><span class="hs-identifier hs-var hs-var">nodeMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text
+</span><a href="CFG.Plot.html#nodeToCFG"><span class="hs-identifier hs-var">nodeToCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224238"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-68"></span><span>    </span><span id="local-6989586621679224245"><span class="annot"><span class="annottext">backEdges :: Set (BBID, BBID)
+</span><a href="#local-6989586621679224245"><span class="hs-identifier hs-var hs-var">backEdges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Set (BBID, BBID)
+</span><a href="CFG.Plot.html#findBackEdges"><span class="hs-identifier hs-var">findBackEdges</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224238"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-69"></span><span>    </span><span id="local-6989586621679224246"><span class="annot"><span class="annottext">cfg :: Maybe CFG
+</span><a href="#local-6989586621679224246"><span class="hs-identifier hs-var hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text -&gt; BBID -&gt; Maybe CFG
+</span><a href="CFG.Plot.html#findCFG"><span class="hs-identifier hs-var">findCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224238"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">Map BBID Text
+</span><a href="#local-6989586621679224244"><span class="hs-identifier hs-var">nodeMap</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224239"><span class="hs-identifier hs-var">src</span></a></span><span>
+</span><span id="line-70"></span><span>    </span><span class="hs-comment">-- Some of the nodes had their src-&gt;dst reversed in cfgToDot.</span><span>
+</span><span id="line-71"></span><span>    </span><span class="hs-comment">-- We need to mark them to get a correct arrow.</span><span>
+</span><span id="line-72"></span><span>    </span><span id="local-6989586621679224243"><span class="annot"><span class="annottext">dir :: [Attribute]
+</span><a href="#local-6989586621679224243"><span class="hs-identifier hs-var hs-var">dir</span></a></span></span><span>
+</span><span id="line-73"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">(BBID, BBID) -&gt; Set (BBID, BBID) -&gt; Bool
 forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
 </span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222146"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222145"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set (BBID, BBID)
-</span><a href="#local-6989586621679222136"><span class="hs-identifier hs-var">backEdges'</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">DirType -&gt; Attribute
+</span><a href="#local-6989586621679224240"><span class="hs-identifier hs-var">dst</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224239"><span class="hs-identifier hs-var">src</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set (BBID, BBID)
+</span><a href="#local-6989586621679224245"><span class="hs-identifier hs-var">backEdges</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">DirType -&gt; Attribute
 </span><span class="hs-identifier hs-var">GViz.Dir</span></span><span> </span><span class="annot"><span class="annottext">DirType
 </span><span class="hs-identifier hs-var">GViz.Back</span></span><span class="hs-special">]</span><span>
-</span><span id="line-57"></span><span>          </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span id="line-74"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">]</span><span>
-</span><span id="line-58"></span><span>
-</span><span id="line-59"></span><span class="annot"><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-type">cfgToDot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GViz.DotGraph</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span>
-</span><span id="line-60"></span><span id="cfgToDot"><span class="annot"><span class="annottext">cfgToDot :: CFG -&gt; DotGraph BBID
-</span><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-var hs-var">cfgToDot</span></a></span></span><span> </span><span id="local-6989586621679222154"><span class="annot"><span class="annottext">cfg :: CFG
-</span><a href="#local-6989586621679222154"><span class="hs-identifier hs-var">cfg</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679222155"><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679222155"><span class="hs-identifier hs-var">graph</span></a></span></span><span> </span><span id="local-6989586621679222156"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222156"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span id="local-6989586621679222157"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222157"><span class="hs-identifier hs-var">exit</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-61"></span><span>  </span><span class="annot"><span class="annottext">GraphvizParams BBID BasicBlock CFGEdge () BasicBlock
+</span><span id="line-75"></span><span>
+</span><span id="line-76"></span><span class="annot"><a href="CFG.Plot.html#clusterByCFG"><span class="hs-identifier hs-type">clusterByCFG</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GViz.NodeCluster</span></span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-77"></span><span id="clusterByCFG"><span class="annot"><span class="annottext">clusterByCFG :: SingleFileCFG
+-&gt; (BBID, BasicBlock) -&gt; NodeCluster Text (BBID, BasicBlock)
+</span><a href="CFG.Plot.html#clusterByCFG"><span class="hs-identifier hs-var hs-var">clusterByCFG</span></a></span></span><span> </span><span id="local-6989586621679224251"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224251"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span id="local-6989586621679224252"><span class="annot"><span class="annottext">n :: (BBID, BasicBlock)
+</span><a href="#local-6989586621679224252"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span id="local-6989586621679224253"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224253"><span class="hs-identifier hs-var">bbid</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">Maybe Text
+</span><a href="#local-6989586621679224254"><span class="hs-identifier hs-var">cfgName</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-78"></span><span>  </span><span class="annot"><span class="annottext">Maybe Text
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">(BBID, BasicBlock) -&gt; NodeCluster Text (BBID, BasicBlock)
+forall c a. a -&gt; NodeCluster c a
+</span><span class="hs-identifier hs-var">GViz.N</span></span><span> </span><span class="annot"><span class="annottext">(BBID, BasicBlock)
+</span><a href="#local-6989586621679224252"><span class="hs-identifier hs-var">n</span></a></span><span>
+</span><span id="line-79"></span><span>  </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679224256"><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224256"><span class="hs-identifier hs-var">name</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Text
+-&gt; NodeCluster Text (BBID, BasicBlock)
+-&gt; NodeCluster Text (BBID, BasicBlock)
+forall c a. c -&gt; NodeCluster c a -&gt; NodeCluster c a
+</span><span class="hs-identifier hs-var">GViz.C</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224256"><span class="hs-identifier hs-var">name</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(BBID, BasicBlock) -&gt; NodeCluster Text (BBID, BasicBlock)
+forall c a. a -&gt; NodeCluster c a
+</span><span class="hs-identifier hs-var">GViz.N</span></span><span> </span><span class="annot"><span class="annottext">(BBID, BasicBlock)
+</span><a href="#local-6989586621679224252"><span class="hs-identifier hs-var">n</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-80"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-81"></span><span>    </span><span id="local-6989586621679224258"><span class="annot"><span class="annottext">nodeMap :: Map BBID Text
+</span><a href="#local-6989586621679224258"><span class="hs-identifier hs-var hs-var">nodeMap</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text
+</span><a href="CFG.Plot.html#nodeToCFG"><span class="hs-identifier hs-var">nodeToCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224251"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-82"></span><span>    </span><span id="local-6989586621679224254"><span class="annot"><span class="annottext">cfgName :: Maybe Text
+</span><a href="#local-6989586621679224254"><span class="hs-identifier hs-var hs-var">cfgName</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map BBID Text -&gt; BBID -&gt; Maybe CFG
+</span><a href="CFG.Plot.html#findCFG"><span class="hs-identifier hs-var">findCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224251"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">Map BBID Text
+</span><a href="#local-6989586621679224258"><span class="hs-identifier hs-var">nodeMap</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224253"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe CFG -&gt; (CFG -&gt; Text) -&gt; Maybe Text
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Getting Text CFG Text -&gt; CFG -&gt; Text
+forall s (m :: * -&gt; *) a. MonadReader s m =&gt; Getting a s a -&gt; m a
+</span><span class="hs-identifier hs-var">view</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">(MethodSig -&gt; Const Text MethodSig) -&gt; CFG -&gt; Const Text CFG
+</span><span class="">#sig</span></span><span> </span><span class="annot"><span class="annottext">((MethodSig -&gt; Const Text MethodSig) -&gt; CFG -&gt; Const Text CFG)
+-&gt; ((Text -&gt; Const Text Text) -&gt; MethodSig -&gt; Const Text MethodSig)
+-&gt; Getting Text CFG Text
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Const Text Text) -&gt; MethodSig -&gt; Const Text MethodSig
+</span><span class="">#name</span></span><span class="hs-special">)</span><span>
+</span><span id="line-83"></span><span>
+</span><span id="line-84"></span><span class="annot"><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-type">gvizParams</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GViz.GraphvizParams</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span>
+</span><span id="line-85"></span><span id="gvizParams"><span class="annot"><span class="annottext">gvizParams :: SingleFileCFG
+-&gt; GraphvizParams BBID BasicBlock CFGEdge Text BasicBlock
+</span><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-var hs-var">gvizParams</span></a></span></span><span> </span><span id="local-6989586621679224260"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224260"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-86"></span><span>  </span><span class="annot"><span class="annottext">GraphvizParams Any Any Any Text Any
+forall n nl el cl. GraphvizParams n nl el cl nl
+</span><span class="hs-identifier hs-var">GViz.defaultParams</span></span><span>
+</span><span id="line-87"></span><span>    </span><span class="hs-special">{</span><span> </span><span class="annot"><span class="annottext">isDirected :: Bool
+</span><span class="hs-identifier hs-var">GViz.isDirected</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">True</span></span><span class="hs-special">,</span><span>
+</span><span id="line-88"></span><span>      </span><span class="annot"><span class="annottext">globalAttributes :: [GlobalAttributes]
+</span><span class="hs-identifier hs-var">GViz.globalAttributes</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[GlobalAttributes]
+</span><a href="#local-6989586621679224264"><span class="hs-identifier hs-var">globalAttrs</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-89"></span><span>      </span><span class="annot"><span class="annottext">clusterBy :: (BBID, BasicBlock) -&gt; NodeCluster Text (BBID, BasicBlock)
+</span><span class="hs-identifier hs-var">GViz.clusterBy</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; (BBID, BasicBlock) -&gt; NodeCluster Text (BBID, BasicBlock)
+</span><a href="CFG.Plot.html#clusterByCFG"><span class="hs-identifier hs-var">clusterByCFG</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224260"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-90"></span><span>      </span><span class="annot"><span class="annottext">isDotCluster :: Text -&gt; Bool
+</span><span class="hs-identifier hs-var">GViz.isDotCluster</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Text -&gt; Bool
+forall a b. a -&gt; b -&gt; a
+</span><span class="hs-identifier hs-var">const</span></span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span class="hs-identifier hs-var">False</span></span><span class="hs-special">,</span><span>
+</span><span id="line-91"></span><span>      </span><span class="annot"><span class="annottext">clusterID :: Text -&gt; GraphID
+</span><span class="hs-identifier hs-var">GViz.clusterID</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; GraphID
+</span><span class="hs-identifier hs-var">GViz.Str</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; GraphID) -&gt; (Text -&gt; Text) -&gt; Text -&gt; GraphID
+forall b c a. (b -&gt; c) -&gt; (a -&gt; b) -&gt; a -&gt; c
+</span><span class="hs-operator hs-var">.</span></span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span class="hs-identifier hs-var">LT.fromStrict</span></span><span class="hs-special">,</span><span>
+</span><span id="line-92"></span><span>      </span><span class="annot"><span class="annottext">fmtNode :: (BBID, BasicBlock) -&gt; [Attribute]
+</span><span class="hs-identifier hs-var">GViz.fmtNode</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; (BBID, BasicBlock) -&gt; [Attribute]
+</span><a href="CFG.Plot.html#fmtNode"><span class="hs-identifier hs-var">fmtNode</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224260"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-93"></span><span>      </span><span class="annot"><span class="annottext">fmtEdge :: (BBID, BBID, CFGEdge) -&gt; [Attribute]
+</span><span class="hs-identifier hs-var">GViz.fmtEdge</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; (BBID, BBID, CFGEdge) -&gt; [Attribute]
+</span><a href="CFG.Plot.html#fmtEdge"><span class="hs-identifier hs-var">fmtEdge</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224260"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-94"></span><span>    </span><span class="hs-special">}</span><span>
+</span><span id="line-95"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-96"></span><span>    </span><span id="local-6989586621679224264"><span class="annot"><span class="annottext">globalAttrs :: [GlobalAttributes]
+</span><a href="#local-6989586621679224264"><span class="hs-identifier hs-var hs-var">globalAttrs</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">[Attribute] -&gt; GlobalAttributes
+</span><span class="hs-identifier hs-var">GViz.NodeAttrs</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Shape -&gt; Attribute
+</span><span class="hs-identifier hs-var">GViz.Shape</span></span><span> </span><span class="annot"><span class="annottext">Shape
+</span><span class="hs-identifier hs-var">GViz.BoxShape</span></span><span class="hs-special">]</span><span class="hs-special">]</span><span>
+</span><span id="line-97"></span><span>
+</span><span id="line-98"></span><span class="annot"><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-type">cfgToDot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">GViz.DotGraph</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span>
+</span><span id="line-99"></span><span id="cfgToDot"><span class="annot"><span class="annottext">cfgToDot :: SingleFileCFG -&gt; DotGraph BBID
+</span><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-var hs-var">cfgToDot</span></a></span></span><span> </span><span id="local-6989586621679224276"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224276"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-100"></span><span>  </span><span class="annot"><span class="annottext">GraphvizParams BBID BasicBlock CFGEdge Text BasicBlock
 -&gt; [(BBID, BasicBlock)] -&gt; [(BBID, BBID, CFGEdge)] -&gt; DotGraph BBID
 forall cl n nl el l.
 (Ord cl, Ord n) =&gt;
 GraphvizParams n nl el cl l
 -&gt; [(n, nl)] -&gt; [(n, n, el)] -&gt; DotGraph n
-</span><span class="hs-identifier hs-var">GViz.graphElemsToDot</span></span><span>
-</span><span id="line-62"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFG -&gt; GraphvizParams BBID BasicBlock CFGEdge () BasicBlock
-</span><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-var">gvizParams</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222154"><span class="hs-identifier hs-var">cfg</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-63"></span><span>    </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map BBID BasicBlock -&gt; [(BBID, BasicBlock)]
-forall k a. Map k a -&gt; [(k, a)]
-</span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">(Map BBID BasicBlock -&gt; [(BBID, BasicBlock)])
--&gt; Map BBID BasicBlock -&gt; [(BBID, BasicBlock)]
-forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679222155"><span class="hs-identifier hs-var">graph</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
--&gt; Getting
-     (Map BBID BasicBlock)
-     (Graph BBID BasicBlock CFGEdge)
-     (Map BBID BasicBlock)
--&gt; Map BBID BasicBlock
+</span><span class="hs-identifier hs-var">GViz.graphElemsToDot</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; GraphvizParams BBID BasicBlock CFGEdge Text BasicBlock
+</span><a href="CFG.Plot.html#gvizParams"><span class="hs-identifier hs-var">gvizParams</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224276"><span class="hs-identifier hs-var">file</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">[(BBID, BasicBlock)]
+</span><a href="#local-6989586621679224278"><span class="hs-identifier hs-var">nodes</span></a></span><span> </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)]
+</span><a href="#local-6989586621679224279"><span class="hs-identifier hs-var">reorderedEdges</span></a></span><span>
+</span><span id="line-101"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-102"></span><span>    </span><span id="local-6989586621679224280"><span class="annot"><span class="annottext">graphList :: [Graph BBID BasicBlock CFGEdge]
+</span><a href="#local-6989586621679224280"><span class="hs-identifier hs-var hs-var">graphList</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Getting
+  (Graph BBID BasicBlock CFGEdge) CFG (Graph BBID BasicBlock CFGEdge)
+-&gt; CFG -&gt; Graph BBID BasicBlock CFGEdge
+forall s (m :: * -&gt; *) a. MonadReader s m =&gt; Getting a s a -&gt; m a
+</span><span class="hs-identifier hs-var">view</span></span><span> </span><span class="annot"><span class="annottext">Getting
+  (Graph BBID BasicBlock CFGEdge) CFG (Graph BBID BasicBlock CFGEdge)
+</span><span class="">#graph</span></span><span> </span><span class="annot"><span class="annottext">(CFG -&gt; Graph BBID BasicBlock CFGEdge)
+-&gt; [CFG] -&gt; [Graph BBID BasicBlock CFGEdge]
+forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
+</span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">Map Text CFG -&gt; [CFG]
+forall k a. Map k a -&gt; [a]
+</span><span class="hs-identifier hs-var">Map.elems</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224276"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+-&gt; Map Text CFG
 forall s a. s -&gt; Getting a s a -&gt; a
-</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting
-  (Map BBID BasicBlock)
-  (Graph BBID BasicBlock CFGEdge)
-  (Map BBID BasicBlock)
-</span><span class="">#nodes</span></span><span class="hs-special">)</span><span>
-</span><span id="line-64"></span><span>    </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)]
-</span><a href="#local-6989586621679222159"><span class="hs-identifier hs-var">reorderedEdges</span></a></span><span>
-</span><span id="line-65"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-66"></span><span>    </span><span id="local-6989586621679222159"><span class="annot"><span class="annottext">reorderedEdges :: [(BBID, BBID, CFGEdge)]
-</span><a href="#local-6989586621679222159"><span class="hs-identifier hs-var hs-var">reorderedEdges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-67"></span><span>      </span><span class="annot"><span class="annottext">CFG -&gt; [(BBID, BBID, CFGEdge)]
-</span><a href="CFG.Plot.html#edges"><span class="hs-identifier hs-var">edges</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222154"><span class="hs-identifier hs-var">cfg</span></a></span><span>
-</span><span id="line-68"></span><span>        </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)]
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting (Map Text CFG) SingleFileCFG (Map Text CFG)
+</span><span class="">#cfgs</span></span><span class="hs-special">)</span><span>
+</span><span id="line-103"></span><span>    </span><span id="local-6989586621679224278"><span class="annot"><span class="annottext">nodes :: [(BBID, BasicBlock)]
+</span><a href="#local-6989586621679224278"><span class="hs-identifier hs-var hs-var">nodes</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
+</span><span class="hs-number">0</span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224276"><span class="hs-identifier hs-var">file</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+-&gt; Getting BasicBlock SingleFileCFG BasicBlock -&gt; BasicBlock
+forall s a. s -&gt; Getting a s a -&gt; a
+</span><span class="hs-operator hs-var">^.</span></span><span> </span><span class="annot"><span class="annottext">Getting BasicBlock SingleFileCFG BasicBlock
+</span><span class="">#global</span></span><span class="hs-special">)</span><span class="hs-special">]</span><span> </span><span class="annot"><span class="annottext">[(BBID, BasicBlock)]
+-&gt; [(BBID, BasicBlock)] -&gt; [(BBID, BasicBlock)]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">(Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BasicBlock)])
+-&gt; [Graph BBID BasicBlock CFGEdge] -&gt; [(BBID, BasicBlock)]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BasicBlock)]
+forall ni nd ed. (Eq ni, Ord ni) =&gt; Graph ni nd ed -&gt; [(ni, nd)]
+</span><a href="Util.Graph.html#nodeToList"><span class="hs-identifier hs-var">G.nodeToList</span></a></span><span> </span><span class="annot"><span class="annottext">[Graph BBID BasicBlock CFGEdge]
+</span><a href="#local-6989586621679224280"><span class="hs-identifier hs-var">graphList</span></a></span><span>
+</span><span id="line-104"></span><span>    </span><span id="local-6989586621679224283"><span class="annot"><span class="annottext">edges :: [(BBID, BBID, CFGEdge)]
+</span><a href="#local-6989586621679224283"><span class="hs-identifier hs-var hs-var">edges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">(Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BBID, CFGEdge)])
+-&gt; [Graph BBID BasicBlock CFGEdge] -&gt; [(BBID, BBID, CFGEdge)]
+forall (t :: * -&gt; *) a b. Foldable t =&gt; (a -&gt; [b]) -&gt; t a -&gt; [b]
+</span><span class="hs-identifier hs-var">concatMap</span></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge -&gt; [(BBID, BBID, CFGEdge)]
+forall ni nd ed.
+(Eq ni, Ord ni) =&gt;
+Graph ni nd ed -&gt; [(ni, ni, ed)]
+</span><a href="Util.Graph.html#edgeToList"><span class="hs-identifier hs-var">G.edgeToList</span></a></span><span> </span><span class="annot"><span class="annottext">[Graph BBID BasicBlock CFGEdge]
+</span><a href="#local-6989586621679224280"><span class="hs-identifier hs-var">graphList</span></a></span><span>
+</span><span id="line-105"></span><span>    </span><span id="local-6989586621679224284"><span class="annot"><span class="annottext">backEdges :: Set (BBID, BBID)
+</span><a href="#local-6989586621679224284"><span class="hs-identifier hs-var hs-var">backEdges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; Set (BBID, BBID)
+</span><a href="CFG.Plot.html#findBackEdges"><span class="hs-identifier hs-var">findBackEdges</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224276"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-106"></span><span>    </span><span id="local-6989586621679224279"><span class="annot"><span class="annottext">reorderedEdges :: [(BBID, BBID, CFGEdge)]
+</span><a href="#local-6989586621679224279"><span class="hs-identifier hs-var hs-var">reorderedEdges</span></a></span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-107"></span><span>      </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)]
+</span><a href="#local-6989586621679224283"><span class="hs-identifier hs-var">edges</span></a></span><span>
+</span><span id="line-108"></span><span>        </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)]
 -&gt; ((BBID, BBID, CFGEdge) -&gt; (BBID, BBID, CFGEdge))
 -&gt; [(BBID, BBID, CFGEdge)]
 forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
-</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679222160"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222160"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222161"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222161"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679222162"><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222162"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
-</span><span id="line-69"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">(BBID, BBID) -&gt; Set (BBID, BBID) -&gt; Bool
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679224285"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224285"><span class="hs-identifier hs-var">b1</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224286"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224286"><span class="hs-identifier hs-var">b2</span></a></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679224287"><span class="annot"><span class="annottext">CFGEdge
+</span><a href="#local-6989586621679224287"><span class="hs-identifier hs-var">e</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span>
+</span><span id="line-109"></span><span>          </span><span class="hs-keyword">if</span><span> </span><span class="annot"><span class="annottext">(BBID, BBID) -&gt; Set (BBID, BBID) -&gt; Bool
 forall a. Ord a =&gt; a -&gt; Set a -&gt; Bool
 </span><span class="hs-identifier hs-var">Set.member</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222160"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222161"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">CFG -&gt; Set (BBID, BBID)
-</span><a href="CFG.Plot.html#backEdges"><span class="hs-identifier hs-var">backEdges</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222154"><span class="hs-identifier hs-var">cfg</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-70"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222161"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222160"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222162"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-71"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222160"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222161"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
-</span><a href="#local-6989586621679222162"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
-</span><span id="line-72"></span><span>
-</span><span id="line-73"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-type">prettyPrintNode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">LT.Text</span></span><span>
-</span><span id="line-74"></span><span id="prettyPrintNode"><span class="annot"><span class="annottext">prettyPrintNode :: BBID -&gt; BasicBlock -&gt; CFG -&gt; Text
-</span><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-var hs-var">prettyPrintNode</span></a></span></span><span> </span><span id="local-6989586621679222163"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222163"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:bbid:BasicBlock :: BasicBlock -&gt; BBID
-</span><a href="CFG.Types.html#%24sel%3Abbid%3ABasicBlock"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679222166"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222166"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:statements:BasicBlock :: BasicBlock -&gt; [SSA]
-</span><a href="CFG.Types.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var">statements</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679222168"><span class="annot"><span class="annottext">[SSA]
-</span><a href="#local-6989586621679222168"><span class="hs-identifier hs-var">stmts</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679222169"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222169"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span id="local-6989586621679222170"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222170"><span class="hs-identifier hs-var">exit</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
-</span><span id="line-75"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679222171"><span class="annot"><span class="annottext">idText :: [Text]
-</span><a href="#local-6989586621679222171"><span class="hs-identifier hs-var hs-var">idText</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Format Text (BBID -&gt; Text -&gt; Text) -&gt; BBID -&gt; Text -&gt; Text
+</span><a href="#local-6989586621679224285"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224286"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">Set (BBID, BBID)
+</span><a href="#local-6989586621679224284"><span class="hs-identifier hs-var">backEdges</span></a></span><span>
+</span><span id="line-110"></span><span>            </span><span class="hs-keyword">then</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224286"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224285"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
+</span><a href="#local-6989586621679224287"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-111"></span><span>            </span><span class="hs-keyword">else</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224285"><span class="hs-identifier hs-var">b1</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224286"><span class="hs-identifier hs-var">b2</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">CFGEdge
+</span><a href="#local-6989586621679224287"><span class="hs-identifier hs-var">e</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-112"></span><span>
+</span><span id="line-113"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-type">prettyPrintNode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">LT.Text</span></span><span>
+</span><span id="line-114"></span><span id="prettyPrintNode"><span class="annot"><span class="annottext">prettyPrintNode :: BBID -&gt; BasicBlock -&gt; Maybe CFG -&gt; Text
+</span><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-var hs-var">prettyPrintNode</span></a></span></span><span> </span><span id="local-6989586621679224288"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224288"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:bbid:BasicBlock :: BasicBlock -&gt; BBID
+</span><a href="CFG.Types.html#%24sel%3Abbid%3ABasicBlock"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679224291"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224291"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:statements:BasicBlock :: BasicBlock -&gt; [SSA]
+</span><a href="CFG.Types.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var">statements</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679224293"><span class="annot"><span class="annottext">[SSA]
+</span><a href="#local-6989586621679224293"><span class="hs-identifier hs-var">stmts</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><span class="hs-identifier">_</span></span><span> </span><span id="local-6989586621679224294"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224294"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span id="local-6989586621679224295"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224295"><span class="hs-identifier hs-var">exit</span></a></span></span><span> </span><span id="local-6989586621679224296"><span class="annot"><span class="annottext">MethodSig
+</span><a href="#local-6989586621679224296"><span class="hs-identifier hs-var">sig</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-115"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679224297"><span class="annot"><span class="annottext">idText :: [Text]
+</span><a href="#local-6989586621679224297"><span class="hs-identifier hs-var hs-var">idText</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Format Text (BBID -&gt; Text -&gt; Text) -&gt; BBID -&gt; Text -&gt; Text
 forall a. Format Text a -&gt; a
 </span><span class="hs-identifier hs-var">format</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (BBID -&gt; Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
 </span><span class="hs-string">&quot;&lt;id:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (BBID -&gt; Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
@@ -282,72 +469,132 @@ forall r. Format r (Text -&gt; r)
 forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
 </span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format Text Text
 </span><span class="hs-string">&quot;&gt;&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222166"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="annot"><span class="annottext">Text
-</span><a href="#local-6989586621679222177"><span class="hs-identifier hs-var">entryExit</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-76"></span><span>      </span><span id="local-6989586621679222178"><span class="annot"><span class="annottext">segments :: [Text]
-</span><a href="#local-6989586621679222178"><span class="hs-identifier hs-var hs-var">segments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SSA]
-</span><a href="#local-6989586621679222168"><span class="hs-identifier hs-var">stmts</span></a></span><span> </span><span class="annot"><span class="annottext">[SSA] -&gt; (SSA -&gt; Text) -&gt; [Text]
+</span><a href="#local-6989586621679224291"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224303"><span class="hs-identifier hs-var">entryExit</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-116"></span><span>      </span><span id="local-6989586621679224304"><span class="annot"><span class="annottext">segments :: [Text]
+</span><a href="#local-6989586621679224304"><span class="hs-identifier hs-var hs-var">segments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SSA]
+</span><a href="#local-6989586621679224293"><span class="hs-identifier hs-var">stmts</span></a></span><span> </span><span class="annot"><span class="annottext">[SSA] -&gt; (SSA -&gt; Text) -&gt; [Text]
 forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
 </span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Format Text (SSA -&gt; Text) -&gt; SSA -&gt; Text
 forall a. Format Text a -&gt; a
 </span><span class="hs-identifier hs-var">format</span></span><span> </span><span class="annot"><span class="annottext">Format Text (SSA -&gt; Text)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span>
-</span><span id="line-77"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; Text
+</span><span id="line-117"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; Text
 </span><span class="hs-identifier hs-var">LT.intercalate</span></span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">([Text] -&gt; Text) -&gt; [Text] -&gt; Text
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text]
-</span><a href="#local-6989586621679222171"><span class="hs-identifier hs-var">idText</span></a></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; [Text] -&gt; [Text]
+</span><a href="#local-6989586621679224297"><span class="hs-identifier hs-var">idText</span></a></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; [Text] -&gt; [Text]
 forall a. [a] -&gt; [a] -&gt; [a]
 </span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Text]
-</span><a href="#local-6989586621679222178"><span class="hs-identifier hs-var">segments</span></a></span><span>
-</span><span id="line-78"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-79"></span><span>    </span><span id="local-6989586621679222177"><span class="annot"><span class="annottext">entryExit :: Text
-</span><a href="#local-6989586621679222177"><span class="hs-identifier hs-var hs-var">entryExit</span></a></span></span><span>
-</span><span id="line-80"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222163"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
+</span><a href="#local-6989586621679224304"><span class="hs-identifier hs-var">segments</span></a></span><span>
+</span><span id="line-118"></span><span>  </span><span class="hs-keyword">where</span><span>
+</span><span id="line-119"></span><span>    </span><span id="local-6989586621679224303"><span class="annot"><span class="annottext">entryExit :: Text
+</span><a href="#local-6989586621679224303"><span class="hs-identifier hs-var hs-var">entryExit</span></a></span></span><span>
+</span><span id="line-120"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224288"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222169"><span class="hs-identifier hs-var">entry</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
-</span><span class="hs-string">&quot;[entry]&quot;</span></span><span>
-</span><span id="line-81"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222163"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
+</span><a href="#local-6989586621679224294"><span class="hs-identifier hs-var">entry</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format Text (Text -&gt; Text) -&gt; Text -&gt; Text
+forall a. Format Text a -&gt; a
+</span><span class="hs-identifier hs-var">sformat</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (Text -&gt; Text) (Text -&gt; Text)
+</span><span class="hs-string">&quot;[entry(&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; Text) (Text -&gt; Text)
+-&gt; Format Text (Text -&gt; Text) -&gt; Format Text (Text -&gt; Text)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format Text (Text -&gt; Text)
+forall r. Format r (Text -&gt; r)
+</span><span class="hs-identifier hs-var">stext</span></span><span> </span><span class="annot"><span class="annottext">Format Text (Text -&gt; Text)
+-&gt; Format Text Text -&gt; Format Text (Text -&gt; Text)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format Text Text
+</span><span class="hs-string">&quot;)]&quot;</span></span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">MethodSig -&gt; Text
+</span><a href="AST.html#mangle"><span class="hs-identifier hs-var">AST.mangle</span></a></span><span> </span><span class="annot"><span class="annottext">MethodSig
+</span><a href="#local-6989586621679224296"><span class="hs-identifier hs-var">sig</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-121"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224288"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">==</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679222170"><span class="hs-identifier hs-var">exit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
+</span><a href="#local-6989586621679224295"><span class="hs-identifier hs-var">exit</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;[exit]&quot;</span></span><span>
-</span><span id="line-82"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
+</span><span id="line-122"></span><span>      </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool
 </span><span class="hs-identifier hs-var">otherwise</span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;&quot;</span></span><span>
-</span><span id="line-83"></span><span>
-</span><span id="line-84"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-type">prettyPrintEdge</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">LT.Text</span></span><span>
-</span><span id="line-85"></span><span id="prettyPrintEdge"><span class="annot"><span class="annottext">prettyPrintEdge :: CFGEdge -&gt; Text
+</span><span id="line-123"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintNode"><span class="hs-identifier hs-var">prettyPrintNode</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:bbid:BasicBlock :: BasicBlock -&gt; BBID
+</span><a href="CFG.Types.html#%24sel%3Abbid%3ABasicBlock"><span class="hs-identifier hs-var">bbid</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679224309"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224309"><span class="hs-identifier hs-var">id</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">$sel:statements:BasicBlock :: BasicBlock -&gt; [SSA]
+</span><a href="CFG.Types.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var">statements</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679224310"><span class="annot"><span class="annottext">[SSA]
+</span><a href="#local-6989586621679224310"><span class="hs-identifier hs-var">stmts</span></a></span></span><span class="hs-special">}</span><span> </span><span class="annot"><span class="annottext">Maybe CFG
+</span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">=</span><span>
+</span><span id="line-124"></span><span>  </span><span class="hs-keyword">let</span><span> </span><span id="local-6989586621679224311"><span class="annot"><span class="annottext">idText :: [Text]
+</span><a href="#local-6989586621679224311"><span class="hs-identifier hs-var hs-var">idText</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Format Text (BBID -&gt; Text -&gt; Text) -&gt; BBID -&gt; Text -&gt; Text
+forall a. Format Text a -&gt; a
+</span><span class="hs-identifier hs-var">format</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Format (BBID -&gt; Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
+</span><span class="hs-string">&quot;&lt;id:&quot;</span></span><span> </span><span class="annot"><span class="annottext">Format (BBID -&gt; Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
+-&gt; Format Text (BBID -&gt; Text -&gt; Text)
+-&gt; Format Text (BBID -&gt; Text -&gt; Text)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
+forall a r. Integral a =&gt; Format r (a -&gt; r)
+</span><span class="hs-identifier hs-var">int</span></span><span> </span><span class="annot"><span class="annottext">Format (Text -&gt; Text) (BBID -&gt; Text -&gt; Text)
+-&gt; Format Text (Text -&gt; Text) -&gt; Format Text (BBID -&gt; Text -&gt; Text)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%+</span></span><span> </span><span class="annot"><span class="annottext">Format Text (Text -&gt; Text)
+forall r. Format r (Text -&gt; r)
+</span><span class="hs-identifier hs-var">stext</span></span><span> </span><span class="annot"><span class="annottext">Format Text (Text -&gt; Text)
+-&gt; Format Text Text -&gt; Format Text (Text -&gt; Text)
+forall r a r'. Format r a -&gt; Format r' r -&gt; Format r' a
+</span><span class="hs-operator hs-var">%</span></span><span> </span><span class="annot"><span class="annottext">Format Text Text
+</span><span class="hs-string">&quot;&gt;&quot;</span></span><span class="hs-special">)</span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679224309"><span class="hs-identifier hs-var">id</span></a></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;[global]&quot;</span></span><span class="hs-special">]</span><span>
+</span><span id="line-125"></span><span>      </span><span id="local-6989586621679224312"><span class="annot"><span class="annottext">segments :: [Text]
+</span><a href="#local-6989586621679224312"><span class="hs-identifier hs-var hs-var">segments</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">[SSA]
+</span><a href="#local-6989586621679224310"><span class="hs-identifier hs-var">stmts</span></a></span><span> </span><span class="annot"><span class="annottext">[SSA] -&gt; (SSA -&gt; Text) -&gt; [Text]
+forall (f :: * -&gt; *) a b. Functor f =&gt; f a -&gt; (a -&gt; b) -&gt; f b
+</span><span class="hs-operator hs-var">&lt;&amp;&gt;</span></span><span> </span><span class="annot"><span class="annottext">Format Text (SSA -&gt; Text) -&gt; SSA -&gt; Text
+forall a. Format Text a -&gt; a
+</span><span class="hs-identifier hs-var">format</span></span><span> </span><span class="annot"><span class="annottext">Format Text (SSA -&gt; Text)
+forall a r. Show a =&gt; Format r (a -&gt; r)
+</span><span class="hs-identifier hs-var">shown</span></span><span>
+</span><span id="line-126"></span><span>   </span><span class="hs-keyword">in</span><span> </span><span class="annot"><span class="annottext">Text -&gt; [Text] -&gt; Text
+</span><span class="hs-identifier hs-var">LT.intercalate</span></span><span> </span><span class="annot"><span class="annottext">Text
+</span><span class="hs-string">&quot;\n&quot;</span></span><span> </span><span class="annot"><span class="annottext">([Text] -&gt; Text) -&gt; [Text] -&gt; Text
+forall a b. (a -&gt; b) -&gt; a -&gt; b
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621679224311"><span class="hs-identifier hs-var">idText</span></a></span><span> </span><span class="annot"><span class="annottext">[Text] -&gt; [Text] -&gt; [Text]
+forall a. [a] -&gt; [a] -&gt; [a]
+</span><span class="hs-operator hs-var">++</span></span><span> </span><span class="annot"><span class="annottext">[Text]
+</span><a href="#local-6989586621679224312"><span class="hs-identifier hs-var">segments</span></a></span><span>
+</span><span id="line-127"></span><span>
+</span><span id="line-128"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-type">prettyPrintEdge</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">LT.Text</span></span><span>
+</span><span id="line-129"></span><span id="prettyPrintEdge"><span class="annot"><span class="annottext">prettyPrintEdge :: CFGEdge -&gt; Text
 </span><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var hs-var">prettyPrintEdge</span></a></span></span><span> </span><span class="annot"><span class="annottext">CFGEdge
 </span><a href="CFG.Types.html#SeqEdge"><span class="hs-identifier hs-var">SeqEdge</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;&quot;</span></span><span>
-</span><span id="line-86"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var">prettyPrintEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-type">CondEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679222184"><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679222184"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format Text (VarOrImm -&gt; Text) -&gt; VarOrImm -&gt; Text
+</span><span id="line-130"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var">prettyPrintEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-type">CondEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#Pred"><span class="hs-identifier hs-type">Pred</span></a></span><span> </span><span id="local-6989586621679224316"><span class="annot"><span class="annottext">VarOrImm
+</span><a href="#local-6989586621679224316"><span class="hs-identifier hs-var">var</span></a></span></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Format Text (VarOrImm -&gt; Text) -&gt; VarOrImm -&gt; Text
 forall a. Format Text a -&gt; a
 </span><span class="hs-identifier hs-var">format</span></span><span> </span><span class="annot"><span class="annottext">Format Text (VarOrImm -&gt; Text)
 forall a r. Show a =&gt; Format r (a -&gt; r)
 </span><span class="hs-identifier hs-var">shown</span></span><span> </span><span class="annot"><span class="annottext">VarOrImm
-</span><a href="#local-6989586621679222184"><span class="hs-identifier hs-var">var</span></a></span><span>
-</span><span id="line-87"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var">prettyPrintEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-type">CondEdge</span></a></span><span> </span><span class="annot"><span class="annottext">Condition
+</span><a href="#local-6989586621679224316"><span class="hs-identifier hs-var">var</span></a></span><span>
+</span><span id="line-131"></span><span class="annot"><a href="CFG.Plot.html#prettyPrintEdge"><span class="hs-identifier hs-var">prettyPrintEdge</span></a></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-type">CondEdge</span></a></span><span> </span><span class="annot"><span class="annottext">Condition
 </span><a href="CFG.Types.html#Complement"><span class="hs-identifier hs-var">Complement</span></a></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text
 </span><span class="hs-string">&quot;otherwise&quot;</span></span><span>
-</span><span id="line-88"></span><span>
-</span><span id="line-89"></span><span class="annot"><a href="CFG.Plot.html#generateDotPlot"><span class="hs-identifier hs-type">generateDotPlot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
-</span><span id="line-90"></span><span id="generateDotPlot"><span class="annot"><span class="annottext">generateDotPlot :: CFG -&gt; Text
-</span><a href="CFG.Plot.html#generateDotPlot"><span class="hs-identifier hs-var hs-var">generateDotPlot</span></a></span></span><span> </span><span id="local-6989586621679222186"><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222186"><span class="hs-identifier hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
+</span><span id="line-132"></span><span>
+</span><span id="line-133"></span><span class="annot"><a href="CFG.Plot.html#generateDotPlot"><span class="hs-identifier hs-type">generateDotPlot</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-type">SingleFileCFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Text</span></span><span>
+</span><span id="line-134"></span><span id="generateDotPlot"><span class="annot"><span class="annottext">generateDotPlot :: SingleFileCFG -&gt; Text
+</span><a href="CFG.Plot.html#generateDotPlot"><span class="hs-identifier hs-var hs-var">generateDotPlot</span></a></span></span><span> </span><span id="local-6989586621679224318"><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224318"><span class="hs-identifier hs-var">file</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Text -&gt; Text
 </span><span class="hs-identifier hs-var">LT.toStrict</span></span><span> </span><span class="annot"><span class="annottext">(Text -&gt; Text) -&gt; Text -&gt; Text
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">DotGraph BBID -&gt; Text
 forall (dg :: * -&gt; *) n. PrintDotRepr dg n =&gt; dg n -&gt; Text
 </span><span class="hs-identifier hs-var">GViz.printDotGraph</span></span><span> </span><span class="annot"><span class="annottext">(DotGraph BBID -&gt; Text) -&gt; DotGraph BBID -&gt; Text
 forall a b. (a -&gt; b) -&gt; a -&gt; b
-</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">CFG -&gt; DotGraph BBID
-</span><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-var">cfgToDot</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679222186"><span class="hs-identifier hs-var">cfg</span></a></span><span>
-</span><span id="line-91"></span></pre></body></html>
+</span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG -&gt; DotGraph BBID
+</span><a href="CFG.Plot.html#cfgToDot"><span class="hs-identifier hs-var">cfgToDot</span></a></span><span> </span><span class="annot"><span class="annottext">SingleFileCFG
+</span><a href="#local-6989586621679224318"><span class="hs-identifier hs-var">file</span></a></span><span>
+</span><span id="line-135"></span></pre></body></html>

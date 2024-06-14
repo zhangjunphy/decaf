@@ -11,16 +11,19 @@
 </span><span id="line-11"></span><span>
 </span><span id="line-12"></span><span class="hs-keyword">module</span><span> </span><span class="hs-identifier">CFG.Types</span><span> </span><span class="hs-keyword">where</span><span>
 </span><span id="line-13"></span><span>
-</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
-</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="SSA.html"><span class="hs-identifier">SSA</span></a></span><span>
-</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
-</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.Graph.html"><span class="hs-identifier">Util.Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
-</span><span id="line-18"></span><span>
-</span><span id="line-19"></span><span class="hs-keyword">data</span><span> </span><span id="Condition"><span class="annot"><a href="CFG.Types.html#Condition"><span class="hs-identifier hs-var">Condition</span></a></span></span><span>
-</span><span id="line-20"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Pred"><span class="annot"><a href="CFG.Types.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Apred%3APred"><span class="annot"><span class="annottext">Condition -&gt; VarOrImm
+</span><span id="line-14"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Generics.Labels</span></span><span>
+</span><span id="line-15"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">GHC.Generics</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Generic</span></span><span class="hs-special">)</span><span>
+</span><span id="line-16"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="SSA.html"><span class="hs-identifier">SSA</span></a></span><span>
+</span><span id="line-17"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Types.html"><span class="hs-identifier">Types</span></a></span><span>
+</span><span id="line-18"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><a href="Util.Graph.html"><span class="hs-identifier">Util.Graph</span></a></span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="hs-keyword">as</span><span> </span><span class="annot"><span class="hs-identifier">G</span></span><span>
+</span><span id="line-19"></span><span class="hs-keyword">import</span><span> </span><span class="annot"><span class="hs-identifier">Data.Map</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier">Map</span></span><span class="hs-special">)</span><span>
+</span><span id="line-20"></span><span class="hs-keyword">import</span><span> </span><span class="hs-keyword">qualified</span><span> </span><span class="annot"><a href="AST.html"><span class="hs-identifier">AST</span></a></span><span>
+</span><span id="line-21"></span><span>
+</span><span id="line-22"></span><span class="hs-keyword">data</span><span> </span><span id="Condition"><span class="annot"><a href="CFG.Types.html#Condition"><span class="hs-identifier hs-var">Condition</span></a></span></span><span>
+</span><span id="line-23"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="Pred"><span class="annot"><a href="CFG.Types.html#Pred"><span class="hs-identifier hs-var">Pred</span></a></span></span><span> </span><span class="hs-special">{</span><span id="%24sel%3Apred%3APred"><span class="annot"><span class="annottext">Condition -&gt; VarOrImm
 </span><a href="CFG.Types.html#%24sel%3Apred%3APred"><span class="hs-identifier hs-var hs-var">pred</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="SSA.html#VarOrImm"><span class="hs-identifier hs-type">VarOrImm</span></a></span><span class="hs-special">}</span><span>
-</span><span id="line-21"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Complement"><span class="annot"><a href="CFG.Types.html#Complement"><span class="hs-identifier hs-var">Complement</span></a></span></span><span>
-</span><span id="line-22"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217626"><span id="local-6989586621679217632"><span id="local-6989586621679217636"><span class="annot"><span class="annottext">Int -&gt; Condition -&gt; ShowS
+</span><span id="line-24"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="Complement"><span class="annot"><a href="CFG.Types.html#Complement"><span class="hs-identifier hs-var">Complement</span></a></span></span><span>
+</span><span id="line-25"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219407"><span id="local-6989586621679219413"><span id="local-6989586621679219417"><span class="annot"><span class="annottext">Int -&gt; Condition -&gt; ShowS
 [Condition] -&gt; ShowS
 Condition -&gt; String
 (Int -&gt; Condition -&gt; ShowS)
@@ -36,16 +39,16 @@ show :: Condition -&gt; String
 $cshowList :: [Condition] -&gt; ShowS
 showList :: [Condition] -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-23"></span><span>
-</span><span id="line-24"></span><span class="hs-keyword">data</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span>
-</span><span id="line-25"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Abbid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; Int
+</span><span id="line-26"></span><span>
+</span><span id="line-27"></span><span class="hs-keyword">data</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="BasicBlock"><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-var">BasicBlock</span></a></span></span><span>
+</span><span id="line-28"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Abbid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; Int
 </span><a href="CFG.Types.html#%24sel%3Abbid%3ABasicBlock"><span class="hs-identifier hs-var hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-26"></span><span>    </span><span id="%24sel%3Asid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; Int
+</span><span id="line-29"></span><span>    </span><span id="%24sel%3Asid%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; Int
 </span><a href="CFG.Types.html#%24sel%3Asid%3ABasicBlock"><span class="hs-identifier hs-var hs-var">sid</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Types.html#ScopeID"><span class="hs-identifier hs-type">ScopeID</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-27"></span><span>    </span><span id="%24sel%3Astatements%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; [SSA]
+</span><span id="line-30"></span><span>    </span><span id="%24sel%3Astatements%3ABasicBlock"><span class="annot"><span class="annottext">BasicBlock -&gt; [SSA]
 </span><a href="CFG.Types.html#%24sel%3Astatements%3ABasicBlock"><span class="hs-identifier hs-var hs-var">statements</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">[</span><span class="annot"><a href="SSA.html#SSA"><span class="hs-identifier hs-type">SSA</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-28"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-29"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217646"><span id="local-6989586621679217648"><span class="annot"><span class="annottext">(forall x. BasicBlock -&gt; Rep BasicBlock x)
+</span><span id="line-31"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-32"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219427"><span id="local-6989586621679219429"><span class="annot"><span class="annottext">(forall x. BasicBlock -&gt; Rep BasicBlock x)
 -&gt; (forall x. Rep BasicBlock x -&gt; BasicBlock) -&gt; Generic BasicBlock
 forall x. Rep BasicBlock x -&gt; BasicBlock
 forall x. BasicBlock -&gt; Rep BasicBlock x
@@ -55,7 +58,7 @@ $cfrom :: forall x. BasicBlock -&gt; Rep BasicBlock x
 from :: forall x. BasicBlock -&gt; Rep BasicBlock x
 $cto :: forall x. Rep BasicBlock x -&gt; BasicBlock
 to :: forall x. Rep BasicBlock x -&gt; BasicBlock
-</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679217652"><span id="local-6989586621679217661"><span id="local-6989586621679217665"><span class="annot"><span class="annottext">Int -&gt; BasicBlock -&gt; ShowS
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679219433"><span id="local-6989586621679219442"><span id="local-6989586621679219446"><span class="annot"><span class="annottext">Int -&gt; BasicBlock -&gt; ShowS
 [BasicBlock] -&gt; ShowS
 BasicBlock -&gt; String
 (Int -&gt; BasicBlock -&gt; ShowS)
@@ -71,11 +74,11 @@ show :: BasicBlock -&gt; String
 $cshowList :: [BasicBlock] -&gt; ShowS
 showList :: [BasicBlock] -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-30"></span><span>
-</span><span id="line-31"></span><span class="hs-keyword">data</span><span> </span><span id="CFGEdge"><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-var">CFGEdge</span></a></span></span><span>
-</span><span id="line-32"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SeqEdge"><span class="annot"><a href="CFG.Types.html#SeqEdge"><span class="hs-identifier hs-var">SeqEdge</span></a></span></span><span>
-</span><span id="line-33"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CondEdge"><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-var">CondEdge</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="CFG.Types.html#Condition"><span class="hs-identifier hs-type">Condition</span></a></span><span>
-</span><span id="line-34"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217671"><span id="local-6989586621679217675"><span id="local-6989586621679217679"><span class="annot"><span class="annottext">Int -&gt; CFGEdge -&gt; ShowS
+</span><span id="line-33"></span><span>
+</span><span id="line-34"></span><span class="hs-keyword">data</span><span> </span><span id="CFGEdge"><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-var">CFGEdge</span></a></span></span><span>
+</span><span id="line-35"></span><span>  </span><span class="hs-glyph">=</span><span> </span><span id="SeqEdge"><span class="annot"><a href="CFG.Types.html#SeqEdge"><span class="hs-identifier hs-var">SeqEdge</span></a></span></span><span>
+</span><span id="line-36"></span><span>  </span><span class="hs-glyph">|</span><span> </span><span id="CondEdge"><span class="annot"><a href="CFG.Types.html#CondEdge"><span class="hs-identifier hs-var">CondEdge</span></a></span></span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="CFG.Types.html#Condition"><span class="hs-identifier hs-type">Condition</span></a></span><span>
+</span><span id="line-37"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219452"><span id="local-6989586621679219456"><span id="local-6989586621679219460"><span class="annot"><span class="annottext">Int -&gt; CFGEdge -&gt; ShowS
 [CFGEdge] -&gt; ShowS
 CFGEdge -&gt; String
 (Int -&gt; CFGEdge -&gt; ShowS)
@@ -89,18 +92,20 @@ show :: CFGEdge -&gt; String
 $cshowList :: [CFGEdge] -&gt; ShowS
 showList :: [CFGEdge] -&gt; ShowS
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var hs-var hs-var">Show</span></span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-35"></span><span>
-</span><span id="line-36"></span><span class="hs-comment">-- type CFG = G.Graph BBID CFGNode CFGEdge</span><span>
-</span><span id="line-37"></span><span>
-</span><span id="line-38"></span><span class="hs-keyword">data</span><span> </span><span id="CFG"><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-var">CFG</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFG"><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-var">CFG</span></a></span></span><span>
-</span><span id="line-39"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Agraph%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Graph Int BasicBlock CFGEdge
+</span><span id="line-38"></span><span>
+</span><span id="line-39"></span><span class="hs-comment">-- type CFG = G.Graph BBID CFGNode CFGEdge</span><span>
+</span><span id="line-40"></span><span>
+</span><span id="line-41"></span><span class="hs-keyword">data</span><span> </span><span id="CFG"><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-var">CFG</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="CFG"><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-var">CFG</span></a></span></span><span>
+</span><span id="line-42"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Agraph%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Graph Int BasicBlock CFGEdge
 </span><a href="CFG.Types.html#%24sel%3Agraph%3ACFG"><span class="hs-identifier hs-var hs-var">graph</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><a href="Util.Graph.html#Graph"><span class="hs-identifier hs-type">G.Graph</span></a></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span class="hs-special">)</span><span class="hs-special">,</span><span>
-</span><span id="line-40"></span><span>    </span><span id="%24sel%3Aentry%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Int
+</span><span id="line-43"></span><span>    </span><span id="%24sel%3Aentry%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Int
 </span><a href="CFG.Types.html#%24sel%3Aentry%3ACFG"><span class="hs-identifier hs-var hs-var">entry</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
-</span><span id="line-41"></span><span>    </span><span id="%24sel%3Aexit%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Int
-</span><a href="CFG.Types.html#%24sel%3Aexit%3ACFG"><span class="hs-identifier hs-var hs-var">exit</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span>
-</span><span id="line-42"></span><span>  </span><span class="hs-special">}</span><span>
-</span><span id="line-43"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679217686"><span id="local-6989586621679217688"><span class="annot"><span class="annottext">(forall x. CFG -&gt; Rep CFG x)
+</span><span id="line-44"></span><span>    </span><span id="%24sel%3Aexit%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; Int
+</span><a href="CFG.Types.html#%24sel%3Aexit%3ACFG"><span class="hs-identifier hs-var hs-var">exit</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-45"></span><span>    </span><span id="%24sel%3Asig%3ACFG"><span class="annot"><span class="annottext">CFG -&gt; MethodSig
+</span><a href="CFG.Types.html#%24sel%3Asig%3ACFG"><span class="hs-identifier hs-var hs-var">sig</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="AST.html#MethodSig"><span class="hs-identifier hs-type">AST.MethodSig</span></a></span><span>
+</span><span id="line-46"></span><span>  </span><span class="hs-special">}</span><span>
+</span><span id="line-47"></span><span>  </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219468"><span id="local-6989586621679219470"><span class="annot"><span class="annottext">(forall x. CFG -&gt; Rep CFG x)
 -&gt; (forall x. Rep CFG x -&gt; CFG) -&gt; Generic CFG
 forall x. Rep CFG x -&gt; CFG
 forall x. CFG -&gt; Rep CFG x
@@ -111,6 +116,24 @@ from :: forall x. CFG -&gt; Rep CFG x
 $cto :: forall x. Rep CFG x -&gt; CFG
 to :: forall x. Rep CFG x -&gt; CFG
 </span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
-</span><span id="line-44"></span><span>
-</span><span id="line-45"></span><span class="hs-keyword">type</span><span> </span><span id="CFGBuilder"><span class="annot"><a href="CFG.Types.html#CFGBuilder"><span class="hs-identifier hs-var">CFGBuilder</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Util.Graph.html#GraphBuilder"><span class="hs-identifier hs-type">G.GraphBuilder</span></a></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span>
-</span><span id="line-46"></span></pre></body></html>
+</span><span id="line-48"></span><span>
+</span><span id="line-49"></span><span class="hs-keyword">type</span><span> </span><span id="CFGBuilder"><span class="annot"><a href="CFG.Types.html#CFGBuilder"><span class="hs-identifier hs-var">CFGBuilder</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><a href="Util.Graph.html#GraphBuilder"><span class="hs-identifier hs-type">G.GraphBuilder</span></a></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFGEdge"><span class="hs-identifier hs-type">CFGEdge</span></a></span><span>
+</span><span id="line-50"></span><span>
+</span><span id="line-51"></span><span class="hs-keyword">data</span><span> </span><span id="SingleFileCFG"><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-var">SingleFileCFG</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="SingleFileCFG"><span class="annot"><a href="CFG.Types.html#SingleFileCFG"><span class="hs-identifier hs-var">SingleFileCFG</span></a></span></span><span>
+</span><span id="line-52"></span><span>  </span><span class="hs-special">{</span><span> </span><span id="%24sel%3Aglobal%3ASingleFileCFG"><span class="annot"><span class="annottext">SingleFileCFG -&gt; BasicBlock
+</span><a href="CFG.Types.html#%24sel%3Aglobal%3ASingleFileCFG"><span class="hs-identifier hs-var hs-var">global</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="annot"><a href="CFG.Types.html#BasicBlock"><span class="hs-identifier hs-type">BasicBlock</span></a></span><span class="hs-special">,</span><span>
+</span><span id="line-53"></span><span>    </span><span id="%24sel%3Acfgs%3ASingleFileCFG"><span class="annot"><span class="annottext">SingleFileCFG -&gt; Map Name CFG
+</span><a href="CFG.Types.html#%24sel%3Acfgs%3ASingleFileCFG"><span class="hs-identifier hs-var hs-var">cfgs</span></a></span></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="hs-glyph">!</span><span class="hs-special">(</span><span class="annot"><span class="hs-identifier hs-type">Map</span></span><span> </span><span class="annot"><a href="Types.html#Name"><span class="hs-identifier hs-type">Name</span></a></span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span class="hs-special">)</span><span>
+</span><span id="line-54"></span><span>  </span><span class="hs-special">}</span><span> </span><span class="hs-keyword">deriving</span><span> </span><span class="hs-special">(</span><span id="local-6989586621679219478"><span id="local-6989586621679219480"><span class="annot"><span class="annottext">(forall x. SingleFileCFG -&gt; Rep SingleFileCFG x)
+-&gt; (forall x. Rep SingleFileCFG x -&gt; SingleFileCFG)
+-&gt; Generic SingleFileCFG
+forall x. Rep SingleFileCFG x -&gt; SingleFileCFG
+forall x. SingleFileCFG -&gt; Rep SingleFileCFG x
+forall a.
+(forall x. a -&gt; Rep a x) -&gt; (forall x. Rep a x -&gt; a) -&gt; Generic a
+$cfrom :: forall x. SingleFileCFG -&gt; Rep SingleFileCFG x
+from :: forall x. SingleFileCFG -&gt; Rep SingleFileCFG x
+$cto :: forall x. Rep SingleFileCFG x -&gt; SingleFileCFG
+to :: forall x. Rep SingleFileCFG x -&gt; SingleFileCFG
+</span><span class="hs-identifier hs-var hs-var hs-var hs-var hs-var hs-var">Generic</span></span></span></span><span class="hs-special">)</span><span>
+</span><span id="line-55"></span></pre></body></html>

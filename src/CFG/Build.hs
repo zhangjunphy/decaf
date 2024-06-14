@@ -15,7 +15,7 @@ import AST qualified
 import CFG.Types
 import Control.Applicative (liftA2, (<|>))
 import Control.Exception (throw)
-import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3)
+import Control.Lens (use, uses, view, views, (%=), (%~), (&), (+=), (.=), (.~), (<~), (^.), _1, _2, _3, _Just)
 import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
@@ -35,6 +35,7 @@ import GHC.Generics (Generic)
 import SSA
 import Semantic qualified as SE
 import Types
+import Util.Constants (globalScopeID)
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
 
@@ -48,16 +49,16 @@ data SymVarMap = SymVarMap
   deriving (Show, Generic)
 
 data CFGState = CFGState
-  { cfg :: !CFG,
+  { cfg :: !(Maybe CFG),
     astScope :: !ScopeID,
-    sig :: !AST.MethodSig,
     currentBBID :: !BBID,
     vars :: !VarList,
     sym2var :: !(Map ScopeID SymVarMap),
     var2sym :: !(Map VID (ScopeID, Name)),
     statements :: ![SSA],
     currentControlBlock :: !(Maybe (BBID, BBID)), -- entry and exit
-    currentFunctionExit :: !(Maybe BBID)
+    currentFunctionExit :: !(Maybe BBID),
+    globalBB :: !(Maybe BasicBlock)
   }
   deriving (Generic)
 
@@ -66,29 +67,38 @@ data BBTransition
   | TailAt !BBID
   | Deadend !BBID
 
-initialState :: AST.MethodSig -> CFGState
-initialState sig =
+initialState :: CFGState
+initialState =
   CFGState
-    { cfg = CFG G.empty 0 0,
+    { cfg = Nothing,
       astScope = 0,
-      sig = sig,
       currentBBID = 0,
       vars = [],
       sym2var = Map.fromList [(0, SymVarMap Map.empty Nothing)],
       var2sym = Map.empty,
       statements = [],
       currentControlBlock = Nothing,
-      currentFunctionExit = Nothing
+      currentFunctionExit = Nothing,
+      globalBB = Nothing
     }
 
 {------------------------------------------------
 Helps for CFGBuild monad
 ------------------------------------------------}
+getCFG :: CFGBuild CFG
+getCFG =
+  use #cfg >>= \case
+    Nothing -> throwError $ CompileError Nothing "CFG not initialized"
+    Just cfg -> return cfg
+
+setCFG :: CFG -> CFGBuild ()
+setCFG cfg = #cfg .= Just cfg
+
 getGraph :: CFGBuild (G.Graph BBID BasicBlock CFGEdge)
-getGraph = use $ #cfg . #graph
+getGraph = getCFG <&> view #graph
 
 setGraph :: G.Graph BBID BasicBlock CFGEdge -> CFGBuild ()
-setGraph g = #cfg . #graph .= g
+setGraph g = #cfg . _Just . #graph .= g
 
 updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGBuild ()
 updateCFG update = do
@@ -154,14 +164,14 @@ withControlBlock entry exit f = do
 
 setFunctionEntry :: BBID -> CFGBuild ()
 setFunctionEntry entry = do
-  #cfg . #entry .= entry
+  #cfg . _Just . #entry .= entry
 
 setFunctionExit :: BBID -> CFGBuild ()
 setFunctionExit exit = do
-  #cfg . #exit .= exit
+  #cfg . _Just . #exit .= exit
 
 getFunctionExit :: CFGBuild BBID
-getFunctionExit = use $ #cfg . #exit
+getFunctionExit = getCFG <&> view #exit
 
 getBasicBlock' :: BBID -> CFGBuild BasicBlock
 getBasicBlock' bbid = do
@@ -185,7 +195,7 @@ addVarSym name vid = do
   sym2var <- use #sym2var
   let sym2varInScope = Map.lookup sid sym2var
   case sym2varInScope of
-    Nothing -> throwError $ CompileError Nothing "Unable to find scope in sym->var map"
+    Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find scope" %+ int %+ "in sym->var map") sid
     Just s2v -> #sym2var %= Map.insert sid (s2v & #m %~ Map.insert name vid)
 
 lookupVar :: VID -> CFGBuild (Maybe (ScopeID, Name))
@@ -234,7 +244,6 @@ getSymDecl :: Name -> CFGBuild (Maybe (Either AST.Argument AST.FieldDecl))
 getSymDecl name = do
   sid <- use #astScope
   sts <- view $ #semantic . #symbolTables
-  sig <- use #sig
   case Map.lookup sid sts of
     Nothing -> throwError $ CompileError Nothing (sformat ("Unable to find scope " % int) sid)
     Just st -> return $ lookup name st
@@ -247,7 +256,6 @@ getSymScope :: Name -> CFGBuild (Maybe ScopeID)
 getSymScope name = do
   sid <- use #astScope
   sts <- view $ #semantic . #symbolTables
-  sig <- use #sig
   case Map.lookup sid sts of
     Nothing -> throwError $ CompileError Nothing (sformat ("Unable to find scope " % int) sid)
     Just st -> return $ lookup name st
@@ -285,14 +293,12 @@ newGlobal name tpe@(AST.ArrayType _ _) sl = do
   sid <- use #astScope
   setASTScope 0
   ptr <- newVar (Just name) tpe sl Global
-  addSSA $ Alloca ptr tpe
   setASTScope sid
   return ptr
 newGlobal name tpe sl = do
   sid <- use #astScope
   setASTScope 0
   ptr <- newVar (Just name) (AST.Ptr tpe) sl Global
-  addSSA $ Alloca ptr tpe
   setASTScope sid
   return ptr
 
@@ -432,40 +438,53 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
 Build cfg from ast fragments
 -----------------------------------------}
 
-buildCFG :: AST.ASTRoot -> CFGContext -> Either [CompileError] (Map Name CFG)
-buildCFG root@(AST.ASTRoot _ _ methods) context =
-  let build method =
-        runState $
-          flip runReaderT context $
-            runExceptT $
-              runCFGBuild (populateGlobals root >> buildMethod method)
-      updateMap map m =
-        let (r, _) = build m $ initialState (m ^. #sig)
-         in case r of
-              Left e -> Left [e]
-              Right r' -> Right $ Map.insert (m ^. (#sig . #name)) r' map
-   in foldM updateMap Map.empty methods
+buildCFGs :: AST.ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
+buildCFGs root@(AST.ASTRoot _ _ methods) context =
+  runMonads buildAll initialState
+  where
+    runMonads build state =
+      let (res, _) = runState (flip runReaderT context $ runExceptT $ runCFGBuild build) state
+       in case res of
+            Left e -> Left [e]
+            Right a -> Right a
+    buildAll = do
+      globalBB <- populateGlobals root
+      cfgs <-
+        sequence $
+          Map.fromList
+            (methods <&> \method -> (method ^. #sig . #name, buildMethod method))
+      return $ SingleFileCFG globalBB cfgs
 
-populateGlobals :: AST.ASTRoot -> CFGBuild ()
+populateGlobals :: AST.ASTRoot -> CFGBuild BasicBlock
 populateGlobals root@(AST.ASTRoot _ globals _) = do
   sid <- use #astScope
   setASTScope 0
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newGlobal name tpe loc) globals
-  finishCurrentBB
+  allocs <-
+    mapM
+      ( \(AST.FieldDecl name tpe loc) -> do
+          ptr <- newGlobal name tpe loc
+          return $ Alloca ptr tpe
+      )
+      globals
   setASTScope sid
+  return $ BasicBlock 0 globalScopeID allocs
 
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
-buildMethod AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
+buildMethod decl@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
   checkStmts
+  setCFG $ CFG G.empty 0 0 sig
+  entry <- createEmptyBB
+  setFunctionEntry entry
   exit <- createEmptyBB
   setFunctionExit exit
-  (blockH, blockT) <- buildBlock block
-  setFunctionEntry blockH
-  updateCFG (G.addEdge blockT exit SeqEdge)
-  gets cfg
+  (blockH, blockT) <- buildBlock (sig ^. #args) block
+  updateCFG $ do
+    G.addEdge entry blockH SeqEdge
+    G.addEdge blockT exit SeqEdge
+  getCFG
 
-buildBlock :: AST.Block -> CFGBuild (BBID, BBID)
-buildBlock block@AST.Block {stmts = stmts} = do
+buildBlock :: [AST.Argument] -> AST.Block -> CFGBuild (BBID, BBID)
+buildBlock args block@AST.Block {stmts = stmts} = do
   checkStmts
   -- always create an empty BB at the start
   head <- createEmptyBB
@@ -476,6 +495,8 @@ buildBlock block@AST.Block {stmts = stmts} = do
   setASTScope scopeID
   -- create a new varmap for this scope
   #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
+  -- handle method arguments
+  mapM_ (\(AST.Argument name tpe loc) -> newLocal (Just name) tpe loc) args
   -- handle variable declarations
   mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
   -- handle statements
@@ -537,13 +558,13 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   prevBB <- finishCurrentBB
   prevBBPhiList <- recordPhiVar phiList
   -- Build if body
-  (ifHead, ifTail) <- buildBlock ifBlock
+  (ifHead, ifTail) <- buildBlock [] ifBlock
   ifBBPhiList <- recordPhiVar phiList
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   -- Build else body if it exist.
   case maybeElseBlock of
     (Just elseBlock) -> do
-      (elseHead, elseTail) <- buildBlock elseBlock
+      (elseHead, elseTail) <- buildBlock [] elseBlock
       elseBBPhiList <- recordPhiVar phiList
       addDummyPhiNode phiList
       tail <- finishCurrentBB
@@ -585,7 +606,7 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
       dummyUpdateBB
       tail
       ( do
-          (blockHead, blockTail) <- buildBlock block
+          (blockHead, blockTail) <- buildBlock [] block
           -- create the actual update block(s)
           updateHead <- use #currentBBID
           case update of

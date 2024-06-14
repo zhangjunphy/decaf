@@ -33,7 +33,7 @@ removeNoOp = do
 
 -- find the first no-op node
 findNoOpNode :: CFG -> Maybe BBID
-findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
+findNoOpNode (CFG g@(G.Graph nodes edges) entry exit _) =
   fst <$> find (uncurry pred) (Map.toList nodes)
   where
     noOpPred bbid node
@@ -56,7 +56,7 @@ findNoOpNode (CFG g@(G.Graph nodes edges) entry exit) =
 removeNodeAndPatchPhi :: BBID -> CFGOptimizer ()
 removeNodeAndPatchPhi bbid = do
   -- no-op should have only 1 inbound and 1 outbound
-  (CFG g _ _) <- getCFG
+  (CFG g _ _ _) <- getCFG
   let inbound = G.inBound bbid g
   let outbound = G.outBound bbid g
   let (bbidIn, _, edgeIn) = head inbound

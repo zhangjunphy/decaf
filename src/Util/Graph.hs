@@ -20,6 +20,8 @@ module Util.Graph
   , outBound
   , inBound
   , lookupNode
+  , nodeToList
+  , edgeToList
   , alterNode
   , adjustNode
   , union
@@ -76,6 +78,12 @@ inBound idx g = fmap flattenEdgeTuple $
 
 lookupNode :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Maybe nd
 lookupNode nid g = Map.lookup nid $ nodes g
+
+nodeToList :: (Eq ni, Ord ni) => Graph ni nd ed -> [(ni, nd)]
+nodeToList g = Map.toList $ nodes g
+
+edgeToList :: (Eq ni, Ord ni) => Graph ni nd ed -> [(ni, ni, ed)]
+edgeToList g = fmap flattenEdgeTuple $ Map.toList $ edges g
 
 union :: (Eq ni, Ord ni) => Graph ni nd ed -> Graph ni nd ed -> Graph ni nd ed
 union g1 g2 =

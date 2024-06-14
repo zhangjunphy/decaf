@@ -11,10 +11,13 @@
 
 module CFG.Types where
 
+import Data.Generics.Labels
 import GHC.Generics (Generic)
 import SSA
 import Types
 import Util.Graph qualified as G
+import Data.Map (Map)
+import qualified AST
 
 data Condition
   = Pred {pred :: !VarOrImm}
@@ -38,8 +41,14 @@ data CFGEdge
 data CFG = CFG
   { graph :: !(G.Graph BBID BasicBlock CFGEdge),
     entry :: !BBID,
-    exit :: !BBID
+    exit :: !BBID,
+    sig :: !AST.MethodSig
   }
   deriving (Generic)
 
 type CFGBuilder = G.GraphBuilder BBID BasicBlock CFGEdge
+
+data SingleFileCFG = SingleFileCFG
+  { global :: !BasicBlock,
+    cfgs :: !(Map Name CFG)
+  } deriving (Generic)

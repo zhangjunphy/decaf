@@ -12,16 +12,16 @@
 -- AST -- AST after type checking and clean up
 module AST where
 
-import GHC.Generics (Generic)
-
+import Control.Lens (view)
+import Data.Functor ((<&>))
 import Data.Int (Int64)
 import Data.Text (Text)
-import Data.Functor ((<&>))
+import Formatting
+import Data.Generics.Labels
+import GHC.Generics (Generic)
 import Text.Printf (printf)
 import Types
-import Formatting
-
-import qualified Util.SourceLoc as SL
+import Util.SourceLoc qualified as SL
 
 -- operators
 data RelOp
@@ -29,7 +29,8 @@ data RelOp
   | GreaterThan
   | LessEqual
   | GreaterEqual
-  deriving Eq
+  deriving (Eq)
+
 instance Show RelOp where
   show LessThan = "<"
   show GreaterThan = ">"
@@ -42,7 +43,8 @@ data ArithOp
   | Multiply
   | Division
   | Modulo
-  deriving Eq
+  deriving (Eq)
+
 instance Show ArithOp where
   show Plus = "+"
   show Minus = "-"
@@ -53,7 +55,8 @@ instance Show ArithOp where
 data EqOp
   = Equal
   | NotEqual
-  deriving Eq
+  deriving (Eq)
+
 instance Show EqOp where
   show Equal = "=="
   show NotEqual = "!="
@@ -61,20 +64,23 @@ instance Show EqOp where
 data CondOp
   = Or
   | And
-  deriving Eq
+  deriving (Eq)
+
 instance Show CondOp where
   show Or = "||"
   show And = "&&"
 
 data NegOp
   = Neg
-  deriving Eq
+  deriving (Eq)
+
 instance Show NegOp where
   show Neg = "-"
 
 data NotOp
   = Not
-  deriving Eq
+  deriving (Eq)
+
 instance Show NotOp where
   show Not = "!"
 
@@ -88,7 +94,8 @@ data AssignOp
   | DecAssign
   | PlusPlus
   | MinusMinus
-  deriving Eq
+  deriving (Eq)
+
 instance Show AssignOp where
   show EqlAssign = "="
   show IncAssign = "+="
@@ -104,6 +111,7 @@ data Type
   | ArrayType !Type !Int64
   | Ptr !Type
   deriving (Eq)
+
 instance Show Type where
   show Void = "void"
   show IntType = "int"
@@ -168,39 +176,44 @@ data Location = Location
     variableDef :: !(Either Argument FieldDecl),
     tpe :: !Type,
     loc :: !SL.Range
-  } deriving (Generic)
+  }
+  deriving (Generic)
 
 typeOfDef :: Either Argument FieldDecl -> Type
-typeOfDef (Left Argument{tpe=tpe}) = tpe
-typeOfDef (Right FieldDecl{tpe=tpe}) = tpe
+typeOfDef (Left Argument {tpe = tpe}) = tpe
+typeOfDef (Right FieldDecl {tpe = tpe}) = tpe
 
 instance Show Location where
-  show Location{name=nm, idx=idx} = printf "Location {name=%s, idx=%s}" nm (show idx)
+  show Location {name = nm, idx = idx} = printf "Location {name=%s, idx=%s}" nm (show idx)
 
 data Assignment = Assignment
   { location :: !Location,
     op :: !AssignOp,
     expr :: !(Maybe Expr),
     loc :: !SL.Range
-  } deriving (Generic, Show)
+  }
+  deriving (Generic, Show)
 
 data MethodCall = MethodCall
   { name :: !Name,
     args :: ![Expr],
     loc :: !SL.Range
-  } deriving (Generic, Show)
+  }
+  deriving (Generic, Show)
 
 -- AST nodes
 data ASTRoot = ASTRoot
   { imports :: ![ImportDecl],
     vars :: ![FieldDecl],
     methods :: ![MethodDecl]
-  } deriving (Generic, Show)
+  }
+  deriving (Generic, Show)
 
 data ImportDecl = ImportDecl
-  { name :: !Name
-  , loc :: !SL.Range
-  } deriving (Generic, Show)
+  { name :: !Name,
+    loc :: !SL.Range
+  }
+  deriving (Generic, Show)
 
 data FieldDecl = FieldDecl
   { name :: !Name,
@@ -223,6 +236,10 @@ data MethodSig = MethodSig
   }
   deriving (Generic, Show)
 
+mangle :: MethodSig -> Text
+mangle (MethodSig name _ args) =
+  sformat (stext % "@" % intercalated "@" shown) name (args <&> view #tpe)
+
 data MethodDecl = MethodDecl
   { sig :: !MethodSig,
     block :: !Block,
@@ -231,14 +248,15 @@ data MethodDecl = MethodDecl
   deriving (Generic, Show)
 
 data Statement = Statement
-  { statement_ :: !Statement_
-  , loc :: !SL.Range
-  } deriving (Generic, Show)
+  { statement_ :: !Statement_,
+    loc :: !SL.Range
+  }
+  deriving (Generic, Show)
+
 data Statement_
   = AssignStmt {assign :: !Assignment}
   | IfStmt {pred :: !Expr, ifBlock :: !Block, elseBlock :: !(Maybe Block)}
-  | ForStmt { init :: !(Maybe Assignment), pred :: !Expr, update :: !(Maybe Assignment), block :: !Block}
-  -- | WhileStmt {pred :: !Expr, block :: !Block}
+  | ForStmt {init :: !(Maybe Assignment), pred :: !Expr, update :: !(Maybe Assignment), block :: !Block}
   | ReturnStmt {expr :: !(Maybe Expr)}
   | MethodCallStmt {methodCall :: !MethodCall}
   | BreakStmt
@@ -246,10 +264,11 @@ data Statement_
   deriving (Generic, Show)
 
 data Expr = Expr
-  { expr_ :: !Expr_
-  , tpe :: !Type
-  , loc :: !SL.Range
-  } deriving (Generic, Show)
+  { expr_ :: !Expr_,
+    tpe :: !Type,
+    loc :: !SL.Range
+  }
+  deriving (Generic, Show)
 
 data Expr_
   = LocationExpr {location :: !Location}

@@ -10,23 +10,24 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- CFG -- Control Flow Graph with SSA nodes
-module CFG (plot, CFGContext (..), buildCFG, Condition (..), BasicBlock (..), CFGEdge (..), CFG (..)) where
+module CFG (plot, CFGContext (..), Condition (..), BasicBlock (..), CFGEdge (..), CFG (..)) where
 
 import AST qualified
-import CFG.Build (CFGContext (..), buildCFG)
+import CFG.Build (CFGContext (..), buildCFGs)
 import CFG.Optimizations.Optimizer (CFGOptimizer, runOptimizerOnCFG)
 import CFG.Optimizations.RemoveDeadBlock (removeDeadBlock)
 import CFG.Optimizations.RemoveNoOp (removeNoOp)
 import CFG.Plot (generateDotPlot)
 import CFG.Types
+import Control.Lens (views, (%~), (&), (.~), (^.))
 import Control.Monad (mapM_)
 import Data.Functor ((<&>))
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Text qualified as Text
+import SSA
 import Semantic qualified as SE
 import Types
-import SSA
 
 {-
 Refactor and clean up.
@@ -41,16 +42,18 @@ TODO:
 optimizations :: [CFGOptimizer ()]
 optimizations = [removeDeadBlock, removeNoOp]
 
-generateCFG :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] (Map Name CFG)
-generateCFG root si = do
+buildAndOptimize :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] SingleFileCFG
+buildAndOptimize root si = do
   let context = CFGContext si
-  cfgs <- buildCFG root context
-  mapM (runOptimizerOnCFG (sequence_ optimizations)) cfgs
+  fileCFG <- buildCFGs root context
+  let runOpts = views #cfgs $ mapM (runOptimizerOnCFG (sequence_ optimizations))
+  cfgs <- runOpts fileCFG
+  return $ fileCFG {cfgs = cfgs}
 
 plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
 plot root si = do
-  cfgs <- generateCFG root si
-  return $ Text.unpack $ mconcat $ Map.elems cfgs <&> generateDotPlot
+  fileCFG <- buildAndOptimize root si
+  return $ Text.unpack $ generateDotPlot fileCFG
 
 -- linearize :: CFG -> [SSA]
 -- linearize cfg = _

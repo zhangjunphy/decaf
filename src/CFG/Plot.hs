@@ -34,81 +34,75 @@ import Util.Graph qualified as G
 
 -- Reorder some backward edges introduced by loops so graphviz could find a
 -- clear ordering of the nodes.
-findBackEdges :: SingleFileCFG -> Set (BBID, BBID)
-findBackEdges file =
-  Set.unions $ fmap (findBackEdgesInCFG . snd) (Map.toList $ file ^. #cfgs)
-  where
-    findBackEdgesInCFG (CFG g _ exit _) =
-      Set.fromList $
-        filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $
-          fmap (\(b1, b2, _) -> (b1, b2)) (G.edgeToList g)
+findBackEdges :: CFG -> Set (BBID, BBID)
+findBackEdges (CFG g _ exit _) =
+  Set.fromList $
+    filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $
+      fmap (\(b1, b2, _) -> (b1, b2)) (G.edgeToList g)
 
-nodeToCFG :: SingleFileCFG -> Map BBID Name
-nodeToCFG (SingleFileCFG _ cfgs) =
-  Map.fromList $
-    concatMap
-      (\(n, cfg) -> G.nodeToList (cfg ^. #graph) <&> \(bbid, _) -> (bbid, n))
-      (Map.toList cfgs)
+data GVizNode = GVizNode
+  { id :: !BBID,
+    label :: !Text
+  }
 
-findCFG :: SingleFileCFG -> Map BBID Name -> BBID -> Maybe CFG
-findCFG file nodeMap bbid =
-    Map.lookup bbid nodeMap >>= \name -> Map.lookup name (file ^. #cfgs)
+instance Show GVizNode where
+  show (GVizNode id label) = formatToString (int %+ "[label=\"" % stext % "\"]") id label
 
-fmtNode :: SingleFileCFG -> (BBID, BasicBlock) -> [GViz.Attribute]
-fmtNode file (bbid, bb) =
-  let nodeMap = nodeToCFG file
-      cfg = findCFG file nodeMap bbid
-   in [GViz.Label $ GViz.StrLabel $ prettyPrintNode bbid bb cfg]
+data GVizEdge = GVizEdge
+  { from :: !BBID,
+    to :: !BBID,
+    label :: !Text,
+    dir :: !Text
+  }
 
-fmtEdge :: SingleFileCFG -> (BBID, BBID, CFGEdge) -> [GViz.Attribute]
-fmtEdge file (src, dst, edge) =
-  [GViz.Label $ GViz.StrLabel $ prettyPrintEdge edge] ++ dir
-  where
-    nodeMap = nodeToCFG file
-    backEdges = findBackEdges file
-    cfg = findCFG file nodeMap src
-    -- Some of the nodes had their src->dst reversed in cfgToDot.
-    -- We need to mark them to get a correct arrow.
-    dir
-      | Set.member (dst, src) backEdges = [GViz.Dir GViz.Back]
-      | otherwise = []
+instance Show GVizEdge where
+  show (GVizEdge from to label dir) =
+    formatToString
+      (int %+ "->" %+ int %+ "[label=\"" % stext % "\", dir=" % stext % "]")
+      from
+      to
+      label
+      dir
 
-clusterByCFG :: SingleFileCFG -> (BBID, BasicBlock) -> GViz.NodeCluster Name (BBID, BasicBlock)
-clusterByCFG file n@(bbid, _) = case cfgName of
-  Nothing -> GViz.N n
-  Just name -> GViz.C name (GViz.N n)
-  where
-    nodeMap = nodeToCFG file
-    cfgName = findCFG file nodeMap bbid <&> view (#sig . #name)
+data GVizSubgraph = GVizSubgraph
+  { name :: !Text,
+    nodes :: ![GVizNode],
+    edges :: ![GVizEdge]
+  }
 
-gvizParams :: SingleFileCFG -> GViz.GraphvizParams BBID BasicBlock CFGEdge Name BasicBlock
-gvizParams file =
-  GViz.defaultParams
-    { GViz.isDirected = True,
-      GViz.globalAttributes = globalAttrs,
-      GViz.clusterBy = clusterByCFG file,
-      GViz.isDotCluster = const False,
-      GViz.clusterID = GViz.Str . LT.fromStrict,
-      GViz.fmtNode = fmtNode file,
-      GViz.fmtEdge = fmtEdge file
-    }
-  where
-    globalAttrs = [GViz.NodeAttrs [GViz.Shape GViz.BoxShape]]
-
-cfgToDot :: SingleFileCFG -> GViz.DotGraph BBID
-cfgToDot file =
-  GViz.graphElemsToDot (gvizParams file) nodes reorderedEdges
-  where
-    graphList = view #graph <$> Map.elems (file ^. #cfgs)
-    nodes = [(0, file ^. #global)] ++ concatMap G.nodeToList graphList
-    edges = concatMap G.edgeToList graphList
-    backEdges = findBackEdges file
-    reorderedEdges =
+instance Show GVizSubgraph where
+  show (GVizSubgraph name nodes edges) =
+    formatToString
+      ( "subgraph "
+          %+ stext
+          %+ "{\n"
+          % concatenated (shown % ";\n")
+          % concatenated (shown % ";\n")
+          % "}"
+      )
+      name
+      nodes
       edges
-        <&> \(b1, b2, e) ->
-          if Set.member (b1, b2) backEdges
-            then (b2, b1, e)
-            else (b1, b2, e)
+
+data GVizGraph = GVizGraph
+  { subgraphs :: ![GVizSubgraph],
+    nodes :: ![GVizNode],
+    edges :: ![GVizEdge]
+  }
+
+instance Show GVizGraph where
+  show (GVizGraph subgraphs nodes edges) =
+    formatToString
+      ( "digraph {\n"
+          % "node [shape=box];\n"
+          % concatenated (shown % "\n")
+          % concatenated (shown % ";\n")
+          % concatenated (shown % ";\n")
+          % "}"
+      )
+      subgraphs
+      nodes
+      edges
 
 prettyPrintNode :: BBID -> BasicBlock -> Maybe CFG -> LT.Text
 prettyPrintNode bbid BasicBlock {bbid = id, statements = stmts} (Just (CFG _ entry exit sig)) =
@@ -130,5 +124,24 @@ prettyPrintEdge SeqEdge = ""
 prettyPrintEdge (CondEdge (Pred var)) = format shown var
 prettyPrintEdge (CondEdge Complement) = "otherwise"
 
-generateDotPlot :: SingleFileCFG -> Text
-generateDotPlot file = LT.toStrict $ GViz.printDotGraph $ cfgToDot file
+basicBlockToNode :: BasicBlock -> GVizNode
+basicBlockToNode BasicBlock {bbid = id, statements = ssas} =
+  GVizNode id $ Text.intercalate "\n" (ssas <&> (Text.pack . show))
+
+cfgToSubgraph :: CFG -> GVizSubgraph
+cfgToSubgraph cfg = GVizSubgraph name nodes edges
+  where
+    name = AST.mangle (cfg ^. #sig)
+    graph = cfg ^. #graph
+    nodes = G.nodeToList graph <&> basicBlockToNode . snd
+    backEdges = findBackEdges cfg
+    isBackEdge (from, to, _) = Set.member (from, to) backEdges
+    convertEdge edge@(from, to, _) =
+      GVizEdge from to "" (if isBackEdge edge then "back" else "forward")
+    edges = G.edgeToList graph <&> convertEdge
+
+fileCFGsToGraph :: SingleFileCFG -> GVizGraph
+fileCFGsToGraph (SingleFileCFG global cfgs) = GVizGraph subgraphs [globalNode] []
+  where
+    globalNode = basicBlockToNode global
+    subgraphs = Map.elems cfgs <&> cfgToSubgraph

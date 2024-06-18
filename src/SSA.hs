@@ -55,8 +55,8 @@ data VarOrImm
 escapeChar :: Char -> Text
 escapeChar = \case
   '\\' -> "\\\\"
-  '\n' -> "\\n"
-  '\t' -> "\\t"
+  '\n' -> "\\\\n"
+  '\t' -> "\\\\t"
   '\'' -> "\\\'"
   '"' -> "\\\""
   c -> Text.singleton c
@@ -69,7 +69,7 @@ instance Show VarOrImm where
   show (BoolImm False) = "false"
   show (IntImm val) = formatToString int val
   show (CharImm val) = formatToString ("'" % stext % "'") $ escapeChar val 
-  show (StringImm val) = formatToString ("\"" % stext % "\"") $ escape val
+  show (StringImm val) = formatToString ("\\\"" % stext % "\\\"") $ escape val
   show (Variable Var {id = id}) = formatToString ("v" % int) id
 
 data SSA

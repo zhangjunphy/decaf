@@ -17,7 +17,7 @@ import CFG.Build (CFGContext (..), buildCFGs)
 import CFG.Optimizations.Optimizer (CFGOptimizer, runOptimizerOnCFG)
 import CFG.Optimizations.RemoveDeadBlock (removeDeadBlock)
 import CFG.Optimizations.RemoveNoOp (removeNoOp)
-import CFG.Plot (generateDotPlot)
+import CFG.Plot (fileCFGsToDot)
 import CFG.Types
 import Control.Lens (views, (%~), (&), (.~), (^.))
 import Control.Monad (mapM_)
@@ -53,7 +53,7 @@ buildAndOptimize root si = do
 plot :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] String
 plot root si = do
   fileCFG <- buildAndOptimize root si
-  return $ Text.unpack $ generateDotPlot fileCFG
+  return $ Text.unpack $ fileCFGsToDot fileCFG
 
 -- linearize :: CFG -> [SSA]
 -- linearize cfg = _

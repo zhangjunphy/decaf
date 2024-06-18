@@ -9,16 +9,13 @@
 -- WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
-module CFG.Plot (generateDotPlot) where
+module CFG.Plot (fileCFGsToDot) where
 
 import AST qualified
 import CFG.Build
 import CFG.Types
 import Control.Lens (use, uses, view, (%=), (%~), (&), (+=), (.=), (.~), (^.), _1, _2, _3, _Just)
 import Data.Functor ((<&>))
-import Data.GraphViz (GraphvizParams (isDotCluster))
-import Data.GraphViz qualified as GViz
-import Data.GraphViz.Attributes.Complete qualified as GViz
 import Data.Map (Map)
 import Data.Map qualified as Map
 import Data.Maybe (fromJust)
@@ -42,11 +39,13 @@ findBackEdges (CFG g _ exit _) =
 
 data GVizNode = GVizNode
   { id :: !BBID,
-    label :: !Text
+    label :: !Text,
+    rank :: !(Maybe Text)
   }
 
 instance Show GVizNode where
-  show (GVizNode id label) = formatToString (int %+ "[label=\"" % stext % "\"]") id label
+  show (GVizNode id label (Just rank)) = formatToString (int %+ "[label=\"" % stext % "\", rank=\"" % stext % "\"]") id label rank
+  show (GVizNode id label Nothing) = formatToString (int %+ "[label=\"" % stext % "\"]") id label
 
 data GVizEdge = GVizEdge
   { from :: !BBID,
@@ -73,7 +72,7 @@ data GVizSubgraph = GVizSubgraph
 instance Show GVizSubgraph where
   show (GVizSubgraph name nodes edges) =
     formatToString
-      ( "subgraph "
+      ( "subgraph"
           %+ stext
           %+ "{\n"
           % concatenated (shown % ";\n")
@@ -95,53 +94,56 @@ instance Show GVizGraph where
     formatToString
       ( "digraph {\n"
           % "node [shape=box];\n"
+          % concatenated (shown % ";\n")
+          % concatenated (shown % ";\n")
           % concatenated (shown % "\n")
-          % concatenated (shown % ";\n")
-          % concatenated (shown % ";\n")
           % "}"
       )
-      subgraphs
       nodes
       edges
+      subgraphs
 
-prettyPrintNode :: BBID -> BasicBlock -> Maybe CFG -> LT.Text
-prettyPrintNode bbid BasicBlock {bbid = id, statements = stmts} (Just (CFG _ entry exit sig)) =
-  let idText = [format ("<id:" %+ int %+ stext % ">") id entryExit]
-      segments = stmts <&> format shown
-   in LT.intercalate "\n" $ idText ++ segments
+basicBlockToNode :: Maybe CFG -> BasicBlock -> GVizNode
+basicBlockToNode (Just (CFG _ entry exit sig)) BasicBlock {bbid = id, statements = stmts} =
+  let idText = [sformat ("<id:" %+ int %+ stext % ">") id entryExit]
+      segments = stmts <&> sformat shown
+   in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "same")
   where
     entryExit
-      | bbid == entry = sformat ("[entry(" % stext % ")]") (AST.mangle sig)
-      | bbid == exit = "[exit]"
+      | id == entry = sformat ("[entry(" % stext % ")]") (AST.mangle sig)
+      | id == exit = "[exit]"
       | otherwise = ""
-prettyPrintNode _ BasicBlock {bbid = id, statements = stmts} Nothing =
-  let idText = [format ("<id:" %+ int %+ stext % ">") id "[global]"]
-      segments = stmts <&> format shown
-   in LT.intercalate "\n" $ idText ++ segments
+basicBlockToNode Nothing BasicBlock {bbid = id, statements = stmts} =
+  let idText = [sformat ("<id:" %+ int %+ stext % ">") id "[global]"]
+      segments = stmts <&> sformat shown
+   in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "source")
 
-prettyPrintEdge :: CFGEdge -> LT.Text
+prettyPrintEdge :: CFGEdge -> Text
 prettyPrintEdge SeqEdge = ""
-prettyPrintEdge (CondEdge (Pred var)) = format shown var
+prettyPrintEdge (CondEdge (Pred var)) = sformat shown var
 prettyPrintEdge (CondEdge Complement) = "otherwise"
-
-basicBlockToNode :: BasicBlock -> GVizNode
-basicBlockToNode BasicBlock {bbid = id, statements = ssas} =
-  GVizNode id $ Text.intercalate "\n" (ssas <&> (Text.pack . show))
 
 cfgToSubgraph :: CFG -> GVizSubgraph
 cfgToSubgraph cfg = GVizSubgraph name nodes edges
   where
-    name = AST.mangle (cfg ^. #sig)
+    name = cfg ^. #sig . #name
     graph = cfg ^. #graph
-    nodes = G.nodeToList graph <&> basicBlockToNode . snd
+    nodes = G.nodeToList graph <&> basicBlockToNode (Just cfg) . snd
     backEdges = findBackEdges cfg
     isBackEdge (from, to, _) = Set.member (from, to) backEdges
-    convertEdge edge@(from, to, _) =
-      GVizEdge from to "" (if isBackEdge edge then "back" else "forward")
+    convertEdge edge'@(from, to, edge) =
+      GVizEdge
+        from
+        to
+        (prettyPrintEdge edge)
+        (if isBackEdge edge' then "back" else "forward")
     edges = G.edgeToList graph <&> convertEdge
 
 fileCFGsToGraph :: SingleFileCFG -> GVizGraph
 fileCFGsToGraph (SingleFileCFG global cfgs) = GVizGraph subgraphs [globalNode] []
   where
-    globalNode = basicBlockToNode global
+    globalNode = basicBlockToNode Nothing global
     subgraphs = Map.elems cfgs <&> cfgToSubgraph
+
+fileCFGsToDot :: SingleFileCFG -> Text
+fileCFGsToDot = Text.pack . show . fileCFGsToGraph

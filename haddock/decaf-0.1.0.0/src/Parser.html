@@ -40,16 +40,16 @@
 </span><span id="line-40"></span><span>
 </span><span id="line-41"></span><span class="annot"><a href="Parser.html#parse"><span class="hs-identifier hs-type">parse</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><span class="hs-identifier hs-type">ByteString</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Either</span></span><span> </span><span class="hs-special">[</span><span class="annot"><a href="Types.html#CompileError"><span class="hs-identifier hs-type">CompileError</span></a></span><span class="hs-special">]</span><span> </span><span class="annot"><a href="Parser.Tree.html#Program"><span class="hs-identifier hs-type">Program</span></a></span><span>
 </span><span id="line-42"></span><span id="parse"><span class="annot"><span class="annottext">parse :: ByteString -&gt; Either [CompileError] Program
-</span><a href="Parser.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span id="local-6989586621679215631"><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679215631"><span class="hs-identifier hs-var">input</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ByteString
+</span><a href="Parser.html#parse"><span class="hs-identifier hs-var hs-var">parse</span></a></span></span><span> </span><span id="local-6989586621679201681"><span class="annot"><span class="annottext">ByteString
+</span><a href="#local-6989586621679201681"><span class="hs-identifier hs-var">input</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">ByteString
 -&gt; Alex ([CompileError], Program)
 -&gt; Either String ([CompileError], Program)
 forall a. ByteString -&gt; Alex a -&gt; Either String a
 </span><a href="Lexer.Lex.html#runAlex"><span class="hs-identifier hs-var">runAlex</span></a></span><span> </span><span class="annot"><span class="annottext">ByteString
-</span><a href="#local-6989586621679215631"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="annot"><span class="annottext">Alex ([CompileError], Program)
-</span><a href="#local-6989586621679215632"><span class="hs-identifier hs-var">parseAndHandleError</span></a></span><span> </span><span class="hs-keyword">of</span><span>
-</span><span id="line-43"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679215633"><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679215633"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[CompileError] -&gt; Either [CompileError] Program
+</span><a href="#local-6989586621679201681"><span class="hs-identifier hs-var">input</span></a></span><span> </span><span class="annot"><span class="annottext">Alex ([CompileError], Program)
+</span><a href="#local-6989586621679201682"><span class="hs-identifier hs-var">parseAndHandleError</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><span id="line-43"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Left</span></span><span> </span><span id="local-6989586621679201683"><span class="annot"><span class="annottext">String
+</span><a href="#local-6989586621679201683"><span class="hs-identifier hs-var">m</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[CompileError] -&gt; Either [CompileError] Program
 forall a b. a -&gt; Either a b
 </span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="hs-special">[</span><span class="annot"><span class="annottext">Maybe Range -&gt; Text -&gt; CompileError
 </span><a href="Types.html#CompileError"><span class="hs-identifier hs-var">CompileError</span></a></span><span> </span><span class="annot"><span class="annottext">Maybe Range
@@ -58,9 +58,9 @@ forall a. Maybe a
 forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">String -&gt; Text
 </span><span class="hs-identifier hs-var">Text.pack</span></span><span> </span><span class="annot"><span class="annottext">String
-</span><a href="#local-6989586621679215633"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">]</span><span>
-</span><span id="line-44"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679215636"><span class="annot"><span class="annottext">[CompileError]
-</span><a href="#local-6989586621679215636"><span class="hs-identifier hs-var">errs</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Program
+</span><a href="#local-6989586621679201683"><span class="hs-identifier hs-var">m</span></a></span><span class="hs-special">]</span><span>
+</span><span id="line-44"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span id="local-6989586621679201686"><span class="annot"><span class="annottext">[CompileError]
+</span><a href="#local-6989586621679201686"><span class="hs-identifier hs-var">errs</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Program
 </span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">|</span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool
 </span><span class="hs-identifier hs-var">not</span></span><span> </span><span class="annot"><span class="annottext">(Bool -&gt; Bool) -&gt; Bool -&gt; Bool
 forall a b. (a -&gt; b) -&gt; a -&gt; b
@@ -68,38 +68,38 @@ forall a b. (a -&gt; b) -&gt; a -&gt; b
 forall a. [a] -&gt; Bool
 forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
 </span><span class="hs-identifier hs-var">null</span></span><span> </span><span class="annot"><span class="annottext">[CompileError]
-</span><a href="#local-6989586621679215636"><span class="hs-identifier hs-var">errs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[CompileError] -&gt; Either [CompileError] Program
+</span><a href="#local-6989586621679201686"><span class="hs-identifier hs-var">errs</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">[CompileError] -&gt; Either [CompileError] Program
 forall a b. a -&gt; Either a b
 </span><span class="hs-identifier hs-var">Left</span></span><span> </span><span class="annot"><span class="annottext">[CompileError]
-</span><a href="#local-6989586621679215636"><span class="hs-identifier hs-var">errs</span></a></span><span>
+</span><a href="#local-6989586621679201686"><span class="hs-identifier hs-var">errs</span></a></span><span>
 </span><span id="line-45"></span><span>        </span><span class="annot"><span class="hs-identifier hs-type">Right</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[CompileError]
-</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679215639"><span class="annot"><span class="annottext">Program
-</span><a href="#local-6989586621679215639"><span class="hs-identifier hs-var">program</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Program -&gt; Either [CompileError] Program
+</span><span class="hs-identifier">_</span></span><span class="hs-special">,</span><span> </span><span id="local-6989586621679201689"><span class="annot"><span class="annottext">Program
+</span><a href="#local-6989586621679201689"><span class="hs-identifier hs-var">program</span></a></span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">Program -&gt; Either [CompileError] Program
 forall a b. b -&gt; Either a b
 </span><span class="hs-identifier hs-var">Right</span></span><span> </span><span class="annot"><span class="annottext">Program
-</span><a href="#local-6989586621679215639"><span class="hs-identifier hs-var">program</span></a></span><span>
+</span><a href="#local-6989586621679201689"><span class="hs-identifier hs-var">program</span></a></span><span>
 </span><span id="line-46"></span><span>  </span><span class="hs-keyword">where</span><span>
-</span><span id="line-47"></span><span>    </span><span id="local-6989586621679215632"><span class="annot"><span class="annottext">parseAndHandleError :: Alex ([CompileError], Program)
-</span><a href="#local-6989586621679215632"><span class="hs-identifier hs-var hs-var">parseAndHandleError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alex Program
+</span><span id="line-47"></span><span>    </span><span id="local-6989586621679201682"><span class="annot"><span class="annottext">parseAndHandleError :: Alex ([CompileError], Program)
+</span><a href="#local-6989586621679201682"><span class="hs-identifier hs-var hs-var">parseAndHandleError</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">Alex Program
 </span><a href="Parser.Grammar.html#parseInternal"><span class="hs-identifier hs-var">parseInternal</span></a></span><span> </span><span class="annot"><span class="annottext">Alex Program
 -&gt; (Program -&gt; Alex ([CompileError], Program))
 -&gt; Alex ([CompileError], Program)
 forall a b. Alex a -&gt; (a -&gt; Alex b) -&gt; Alex b
 forall (m :: * -&gt; *) a b. Monad m =&gt; m a -&gt; (a -&gt; m b) -&gt; m b
-</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679215645"><span class="annot"><span class="annottext">Program
-</span><a href="#local-6989586621679215645"><span class="hs-identifier hs-var">program</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-48"></span><span>      </span><span id="local-6989586621679215646"><span class="annot"><span class="annottext">AlexState
-</span><a href="#local-6989586621679215646"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alex AlexState
+</span><span class="hs-operator hs-var">&gt;&gt;=</span></span><span> </span><span class="hs-glyph">\</span><span id="local-6989586621679201695"><span class="annot"><span class="annottext">Program
+</span><a href="#local-6989586621679201695"><span class="hs-identifier hs-var">program</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-48"></span><span>      </span><span id="local-6989586621679201696"><span class="annot"><span class="annottext">AlexState
+</span><a href="#local-6989586621679201696"><span class="hs-identifier hs-var">state</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">Alex AlexState
 </span><a href="Lexer.Lex.html#getAlexState"><span class="hs-identifier hs-var">getAlexState</span></a></span><span>
 </span><span id="line-49"></span><span>      </span><span class="hs-keyword">let</span><span> </span><span class="annot"><a href="Lexer.Lex.html#AlexUserState"><span class="hs-identifier hs-type">AlexUserState</span></a></span><span class="hs-special">{</span><span class="annot"><span class="annottext">$sel:errors:AlexUserState :: AlexUserState -&gt; [CompileError]
-</span><a href="Lexer.Lex.html#%24sel%3Aerrors%3AAlexUserState"><span class="hs-identifier hs-var">errors</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679215649"><span class="annot"><span class="annottext">[CompileError]
-</span><a href="#local-6989586621679215649"><span class="hs-identifier hs-var">errors</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AlexState -&gt; AlexUserState
+</span><a href="Lexer.Lex.html#%24sel%3Aerrors%3AAlexUserState"><span class="hs-identifier hs-var">errors</span></a></span><span> </span><span class="hs-glyph">=</span><span> </span><span id="local-6989586621679201699"><span class="annot"><span class="annottext">[CompileError]
+</span><a href="#local-6989586621679201699"><span class="hs-identifier hs-var">errors</span></a></span></span><span class="hs-special">}</span><span> </span><span class="hs-glyph">=</span><span> </span><span class="annot"><span class="annottext">AlexState -&gt; AlexUserState
 </span><a href="Lexer.Lex.html#%24sel%3Aalex_ust%3AAlexState"><span class="hs-identifier hs-var">alex_ust</span></a></span><span> </span><span class="annot"><span class="annottext">AlexState
-</span><a href="#local-6989586621679215646"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span>
+</span><a href="#local-6989586621679201696"><span class="hs-identifier hs-var">state</span></a></span><span> </span><span>
 </span><span id="line-50"></span><span>      </span><span class="annot"><span class="annottext">([CompileError], Program) -&gt; Alex ([CompileError], Program)
 forall a. a -&gt; Alex a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">[CompileError]
-</span><a href="#local-6989586621679215649"><span class="hs-identifier hs-var">errors</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Program
-</span><a href="#local-6989586621679215645"><span class="hs-identifier hs-var">program</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679201699"><span class="hs-identifier hs-var">errors</span></a></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">Program
+</span><a href="#local-6989586621679201695"><span class="hs-identifier hs-var">program</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-51"></span></pre></body></html>

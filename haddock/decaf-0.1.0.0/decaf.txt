@@ -1280,7 +1280,11 @@ instance GHC.Base.Applicative CFG.Build.CFGBuild
 instance GHC.Base.Functor CFG.Build.CFGBuild
 
 module CFG.Plot
-generateDotPlot :: SingleFileCFG -> Text
+fileCFGsToDot :: SingleFileCFG -> Text
+instance GHC.Show.Show CFG.Plot.GVizGraph
+instance GHC.Show.Show CFG.Plot.GVizSubgraph
+instance GHC.Show.Show CFG.Plot.GVizEdge
+instance GHC.Show.Show CFG.Plot.GVizNode
 
 module CFG
 plot :: ASTRoot -> SemanticInfo -> Either [CompileError] String

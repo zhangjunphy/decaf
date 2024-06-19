@@ -850,7 +850,7 @@ irgenExpr (SL.LocatedAt range (P.BoolLiteralExpr b)) = do
 irgenExpr (SL.LocatedAt range (P.CharLiteralExpr c)) = do
   updateCurrentRange range
   lit <- checkCharLiteral c
-  return $ Expr (CharLiteralExpr lit) IntType range
+  return $ Expr (CharLiteralExpr lit) CharType range
 irgenExpr (SL.LocatedAt range (P.LenExpr id)) = do
   updateCurrentRange range
   def <- lookupVariable' id

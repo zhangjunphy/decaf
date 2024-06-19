@@ -105,8 +105,9 @@ instance Show AssignOp where
 
 data Type
   = Void
-  | IntType
   | BoolType
+  | CharType
+  | IntType
   | StringType
   | ArrayType !Type !Int64
   | Ptr !Type
@@ -114,8 +115,9 @@ data Type
 
 instance Show Type where
   show Void = "void"
-  show IntType = "int"
   show BoolType = "bool"
+  show CharType = "char"
+  show IntType = "int"
   show StringType = "string"
   show (ArrayType tpe size) = formatToString (shown % "x" % shown) size tpe
   show (Ptr tpe) = formatToString ("ptr" %+ shown) tpe

@@ -54,11 +54,12 @@ data VarOrImm
 
 escapeChar :: Char -> Text
 escapeChar = \case
-  '\\' -> "\\\\"
+  '\\' -> "\\\\\\\\"
   '\n' -> "\\\\n"
   '\t' -> "\\\\t"
   '\'' -> "\\\'"
-  '"' -> "\\\""
+  '"' -> "\\\\\\\""
+  '\0' -> "\\\\0"
   c -> Text.singleton c
 
 escape :: Text -> Text
@@ -88,6 +89,8 @@ data SSA
   | Phi {dst :: !Var, predecessors :: ![(Var, BBID)]}
   | BrUncon {target :: !Label}
   | BrCon {pred :: !VarOrImm, targetT :: !Label, targetF :: !Label}
+  | InitGlobal {dst :: !Var, tpe :: !AST.Type}
+  | AllocaStr {dst :: !Var, content :: !Text, tpe :: !AST.Type}
   deriving (Generic)
 
 ppVarWithType :: Format r (Var -> r)
@@ -116,3 +119,5 @@ instance Show SSA where
   show (Neg dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
   show (Not dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
   show (Phi dst preds) = formatToString (ppVarWithType %+ "= phi" %+ ppPhiPreds) dst preds
+  show (InitGlobal dst tpe) = formatToString (ppVarWithType %+ "= global" %+ shown) dst tpe
+  show (AllocaStr dst content tpe) = formatToString (ppVarWithType %+ "= string \\\"" % stext % "\\\"") dst (escape content)

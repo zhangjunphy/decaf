@@ -282,11 +282,19 @@ newVar (Just name) tpe sl locality = do
   return var
 
 newLocal :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
-newLocal name tpe@(AST.ArrayType _ _) sl = do
+newLocal name tpe@(AST.ArrayType _ _) sl = 
+  traceShow tpe $ throwError (CompileError (Just sl) $ sformat ("Trying to create reg for an array: " % shown) name)
+newLocal name tpe sl = newVar name tpe sl Local
+
+allocaOnStack :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
+allocaOnStack name tpe@(AST.ArrayType _ _) sl = do 
   ptr <- newVar name tpe sl Local
   addSSA $ Alloca ptr tpe
   return ptr
-newLocal name tpe sl = newVar name tpe sl Local
+allocaOnStack name tpe sl = do 
+  ptr <- newVar name (AST.Ptr tpe) sl Local
+  addSSA $ Alloca ptr (AST.Ptr tpe)
+  return ptr
 
 newGlobal :: Name -> AST.Type -> SL.Range -> CFGBuild Var
 newGlobal name tpe@(AST.ArrayType _ _) sl = do
@@ -463,7 +471,7 @@ populateGlobals root@(AST.ASTRoot _ globals _) = do
     mapM
       ( \(AST.FieldDecl name tpe loc) -> do
           ptr <- newGlobal name tpe loc
-          return $ Alloca ptr tpe
+          return $ InitGlobal ptr tpe
       )
       globals
   setASTScope sid
@@ -498,7 +506,7 @@ buildBlock args block@AST.Block {stmts = stmts} = do
   -- handle method arguments
   mapM_ (\(AST.Argument name tpe loc) -> newLocal (Just name) tpe loc) args
   -- handle variable declarations
-  mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
+  mapM_ (\(AST.FieldDecl name tpe loc) -> allocaOnStack (Just name) tpe loc) (block ^. #vars)
   -- handle statements
   stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
   -- connect last basic block with dangling statements if necessary
@@ -671,10 +679,12 @@ buildExpr (AST.Expr (AST.CharLiteralExpr val) tpe loc) = do
   dst <- newLocal Nothing tpe loc
   addSSA $ Assignment dst (CharImm val)
   return dst
-buildExpr (AST.Expr (AST.StringLiteralExpr val) tpe loc) = do
-  dst <- newLocal Nothing tpe loc
-  addSSA $ Assignment dst (StringImm val)
-  return dst
+buildExpr (AST.Expr (AST.StringLiteralExpr val) _ loc) = do
+  let len = fromIntegral (Text.length val) + 1
+  let tpe = AST.ArrayType AST.CharType len
+  ptr <- newVar Nothing tpe loc Local
+  addSSA $ AllocaStr ptr (Text.append val "\0") tpe
+  return ptr
 buildExpr (AST.Expr (AST.ArithOpExpr op lhs rhs) tpe loc) = do
   lhs' <- buildExpr lhs
   rhs' <- buildExpr rhs

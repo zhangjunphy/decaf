@@ -283,7 +283,7 @@ newVar (Just name) tpe sl locality = do
 
 newLocal :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
 newLocal name tpe@(AST.ArrayType _ _) sl = 
-  traceShow tpe $ throwError (CompileError (Just sl) $ sformat ("Trying to create reg for an array: " % shown) name)
+  throwError (CompileError (Just sl) $ sformat ("Trying to create reg for an array: " % shown) name)
 newLocal name tpe sl = newVar name tpe sl Local
 
 allocaOnStack :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var

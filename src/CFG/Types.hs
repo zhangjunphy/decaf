@@ -42,6 +42,7 @@ data CFG = CFG
   { graph :: !(G.Graph BBID BasicBlock CFGEdge),
     entry :: !BBID,
     exit :: !BBID,
+    arguments :: ![Var],
     sig :: !AST.MethodSig
   }
   deriving (Generic)

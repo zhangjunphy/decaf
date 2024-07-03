@@ -32,5 +32,5 @@ removeDeadBlock = do
       removeDeadBlock
 
 findDeadNode :: CFG -> Maybe BBID
-findDeadNode (CFG g@(G.Graph nodes _) entry _ _) =
+findDeadNode (CFG g@(G.Graph nodes _) entry _ _ _) =
   fst <$> find (\(n, _) -> n /= entry && null (G.inBound n g)) (Map.toList nodes)

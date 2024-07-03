@@ -480,18 +480,19 @@ populateGlobals root@(AST.ASTRoot _ globals _) = do
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod decl@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do
   checkStmts
-  setCFG $ CFG G.empty 0 0 sig
+  setCFG $ CFG G.empty 0 0 [] sig
   entry <- createEmptyBB
   setFunctionEntry entry
   exit <- createEmptyBB
   setFunctionExit exit
-  (blockH, blockT) <- buildBlock (sig ^. #args) block
+  (blockH, blockT, vars) <- buildBlock (sig ^. #args) block
   updateCFG $ do
     G.addEdge entry blockH SeqEdge
     G.addEdge blockT exit SeqEdge
+  #cfg . _Just . #arguments .= vars
   getCFG
 
-buildBlock :: [AST.Argument] -> AST.Block -> CFGBuild (BBID, BBID)
+buildBlock :: [AST.Argument] -> AST.Block -> CFGBuild (BBID, BBID, [Var])
 buildBlock args block@AST.Block {stmts = stmts} = do
   checkStmts
   -- always create an empty BB at the start
@@ -504,7 +505,7 @@ buildBlock args block@AST.Block {stmts = stmts} = do
   -- create a new varmap for this scope
   #sym2var %= Map.insert scopeID (SymVarMap Map.empty $ Just parentScope)
   -- handle method arguments
-  mapM_ (\(AST.Argument name tpe loc) -> newLocal (Just name) tpe loc) args
+  arguments <- mapM (\(AST.Argument name tpe loc) -> newLocal (Just name) tpe loc) args
   -- handle variable declarations
   mapM_ (\(AST.FieldDecl name tpe loc) -> allocaOnStack (Just name) tpe loc) (block ^. #vars)
   -- handle statements
@@ -523,25 +524,29 @@ buildBlock args block@AST.Block {stmts = stmts} = do
       return bbid
   -- recover parent scope
   setASTScope parentScope
-  return (head, tail)
+  return (head, tail, arguments)
 
-buildAssignOp :: Var -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
-buildAssignOp prev AST.EqlAssign (Just expr) = buildExpr expr
-buildAssignOp prev AST.IncAssign (Just expr) = do
+buildAssignOp :: AST.Location -> AST.AssignOp -> Maybe AST.Expr -> CFGBuild Var
+buildAssignOp _ AST.EqlAssign (Just expr) = buildExpr expr
+buildAssignOp location AST.IncAssign (Just expr) = do
+  prev <- buildReadFromLocation location
   addition <- buildExpr expr
   dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Plus (Variable prev) (Variable addition))
   return dst'
-buildAssignOp prev AST.DecAssign (Just expr) = do
+buildAssignOp location AST.DecAssign (Just expr) = do
+  prev <- buildReadFromLocation location
   addition <- buildExpr expr
   dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Minus (Variable prev) (Variable addition))
   return dst'
-buildAssignOp prev AST.PlusPlus Nothing = do
+buildAssignOp location AST.PlusPlus Nothing = do
+  prev <- buildReadFromLocation location
   dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Plus (Variable prev) (IntImm 1))
   return dst'
-buildAssignOp prev AST.MinusMinus Nothing = do
+buildAssignOp location AST.MinusMinus Nothing = do
+  prev <- buildReadFromLocation location
   dst' <- newLocal Nothing (prev ^. #tpe) (SSA.loc prev)
   addSSA (SSA.Arith dst' AST.Minus (Variable prev) (IntImm 1))
   return dst'
@@ -549,8 +554,7 @@ buildAssignOp _ _ _ = throwError $ CompileError Nothing "Malformed assignment."
 
 buildStatement :: AST.Statement -> CFGBuild BBTransition
 buildStatement (AST.Statement (AST.AssignStmt (AST.Assignment location op expr _)) _) = do
-  prev <- buildReadFromLocation location
-  var <- buildAssignOp prev op expr
+  var <- buildAssignOp location op expr
   buildWriteToLocation location (Variable var)
   use #currentBBID <&> StayIn
 buildStatement (AST.Statement (AST.MethodCallStmt call) _) = do
@@ -566,13 +570,13 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   prevBB <- finishCurrentBB
   prevBBPhiList <- recordPhiVar phiList
   -- Build if body
-  (ifHead, ifTail) <- buildBlock [] ifBlock
+  (ifHead, ifTail, _) <- buildBlock [] ifBlock
   ifBBPhiList <- recordPhiVar phiList
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   -- Build else body if it exist.
   case maybeElseBlock of
     (Just elseBlock) -> do
-      (elseHead, elseTail) <- buildBlock [] elseBlock
+      (elseHead, elseTail, _) <- buildBlock [] elseBlock
       elseBBPhiList <- recordPhiVar phiList
       addDummyPhiNode phiList
       tail <- finishCurrentBB
@@ -614,7 +618,7 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
       dummyUpdateBB
       tail
       ( do
-          (blockHead, blockTail) <- buildBlock [] block
+          (blockHead, blockTail, _) <- buildBlock [] block
           -- create the actual update block(s)
           updateHead <- use #currentBBID
           case update of

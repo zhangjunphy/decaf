@@ -28,11 +28,12 @@ import Formatting
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
+import SSA qualified
 
 -- Reorder some backward edges introduced by loops so graphviz could find a
 -- clear ordering of the nodes.
 findBackEdges :: CFG -> Set (BBID, BBID)
-findBackEdges (CFG g _ exit _) =
+findBackEdges (CFG g _ exit _ _) =
   Set.fromList $
     filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $
       fmap (\(b1, b2, _) -> (b1, b2)) (G.edgeToList g)
@@ -104,13 +105,16 @@ instance Show GVizGraph where
       subgraphs
 
 basicBlockToNode :: Maybe CFG -> BasicBlock -> GVizNode
-basicBlockToNode (Just (CFG _ entry exit sig)) BasicBlock {bbid = id, statements = stmts} =
+basicBlockToNode (Just (CFG _ entry exit args sig)) BasicBlock {bbid = id, statements = stmts} =
   let idText = [sformat ("<id:" %+ int %+ stext % ">") id entryExit]
       segments = stmts <&> sformat shown
    in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "same")
   where
+    ppVarWithType :: Format r (SSA.Var -> r)
+    ppVarWithType = viewed #tpe shown <%+> shown
+    methodAndArgs = sformat (stext % "(" % intercalated ", " ppVarWithType % ")") (AST.mangle sig) args
     entryExit
-      | id == entry = sformat ("[entry(" % stext % ")]") (AST.mangle sig)
+      | id == entry = sformat ("[entry(" % stext % ")]") methodAndArgs
       | id == exit = "[exit]"
       | otherwise = ""
 basicBlockToNode Nothing BasicBlock {bbid = id, statements = stmts} =

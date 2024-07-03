@@ -41,7 +41,7 @@ getCFG = gets cfg
 
 updateCFG :: G.GraphBuilder BBID BasicBlock CFGEdge a -> CFGOptimizer ()
 updateCFG update = do
-  (CFG g _ _ _) <- getCFG
+  (CFG g _ _ _ _) <- getCFG
   let g' = G.update update g
   case g' of
     Left m -> throwError $ CompileError Nothing m

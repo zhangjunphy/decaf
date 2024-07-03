@@ -869,7 +869,7 @@ span.spaces    { background: white }
 <span class="lineno">  850 </span><span class="spaces"></span><span class="istickedoff">irgenExpr (SL.LocatedAt range (P.CharLiteralExpr c)) = <span class="nottickedoff">do</span></span>
 <span class="lineno">  851 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">updateCurrentRange range</span></span>
 <span class="lineno">  852 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">lit &lt;- checkCharLiteral c</span></span>
-<span class="lineno">  853 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Expr (CharLiteralExpr lit) IntType range</span></span>
+<span class="lineno">  853 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">return $ Expr (CharLiteralExpr lit) CharType range</span></span>
 <span class="lineno">  854 </span><span class="spaces"></span><span class="istickedoff">irgenExpr (SL.LocatedAt range (P.LenExpr id)) = <span class="nottickedoff">do</span></span>
 <span class="lineno">  855 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">updateCurrentRange range</span></span>
 <span class="lineno">  856 </span><span class="spaces">  </span><span class="istickedoff"><span class="nottickedoff">def &lt;- lookupVariable' id</span></span>

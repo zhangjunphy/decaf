@@ -825,8 +825,9 @@ PlusPlus :: AssignOp
 MinusMinus :: AssignOp
 data Type
 Void :: Type
-IntType :: Type
 BoolType :: Type
+CharType :: Type
+IntType :: Type
 StringType :: Type
 ArrayType :: !Type -> !Int64 -> Type
 Ptr :: !Type -> Type
@@ -1131,6 +1132,13 @@ BrCon :: !VarOrImm -> !Label -> !Label -> SSA
 [$sel:pred:Assignment] :: SSA -> !VarOrImm
 [$sel:targetT:Assignment] :: SSA -> !Label
 [$sel:targetF:Assignment] :: SSA -> !Label
+InitGlobal :: !Var -> !Type -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:tpe:Assignment] :: SSA -> !Type
+AllocaStr :: !Var -> !Text -> !Type -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:content:Assignment] :: SSA -> !Text
+[$sel:tpe:Assignment] :: SSA -> !Type
 instance GHC.Generics.Generic SSA.Var
 instance GHC.Generics.Generic SSA.SSA
 instance GHC.Show.Show SSA.SSA
@@ -1151,10 +1159,11 @@ data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> !MethodSig -> CFG
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> ![Var] -> !MethodSig -> CFG
 [$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID
+[$sel:arguments:CFG] :: CFG -> ![Var]
 [$sel:sig:CFG] :: CFG -> !MethodSig
 type CFGBuilder = GraphBuilder BBID BasicBlock CFGEdge
 data SingleFileCFG
@@ -1248,6 +1257,7 @@ getSymDecl :: Name -> CFGBuild (Maybe (Either Argument FieldDecl))
 getSymScope :: Name -> CFGBuild (Maybe ScopeID)
 newVar :: Maybe Name -> Type -> Range -> Locality -> CFGBuild Var
 newLocal :: Maybe Name -> Type -> Range -> CFGBuild Var
+allocaOnStack :: Maybe Name -> Type -> Range -> CFGBuild Var
 newGlobal :: Name -> Type -> Range -> CFGBuild Var
 createEmptyBB :: CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
@@ -1261,8 +1271,8 @@ patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID,
 buildCFGs :: ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
 populateGlobals :: ASTRoot -> CFGBuild BasicBlock
 buildMethod :: MethodDecl -> CFGBuild CFG
-buildBlock :: [Argument] -> Block -> CFGBuild (BBID, BBID)
-buildAssignOp :: Var -> AssignOp -> Maybe Expr -> CFGBuild Var
+buildBlock :: [Argument] -> Block -> CFGBuild (BBID, BBID, [Var])
+buildAssignOp :: Location -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
 buildExpr :: Expr -> CFGBuild Var
 buildReadFromLocation :: Location -> CFGBuild Var
@@ -1304,8 +1314,9 @@ data CFGEdge
 SeqEdge :: CFGEdge
 CondEdge :: !Condition -> CFGEdge
 data CFG
-CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> !MethodSig -> CFG
+CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> ![Var] -> !MethodSig -> CFG
 [$sel:graph:CFG] :: CFG -> !Graph BBID BasicBlock CFGEdge
 [$sel:entry:CFG] :: CFG -> !BBID
 [$sel:exit:CFG] :: CFG -> !BBID
+[$sel:arguments:CFG] :: CFG -> ![Var]
 [$sel:sig:CFG] :: CFG -> !MethodSig

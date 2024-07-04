@@ -25,19 +25,19 @@
 </span><span id="line-25"></span><span class="annot"><a href="CFG.Optimizations.RemoveDeadBlock.html#removeDeadBlock"><span class="hs-identifier hs-type">removeDeadBlock</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Optimizations.Optimizer.html#CFGOptimizer"><span class="hs-identifier hs-type">CFGOptimizer</span></a></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
 </span><span id="line-26"></span><span id="removeDeadBlock"><span class="annot"><span class="annottext">removeDeadBlock :: CFGOptimizer ()
 </span><a href="CFG.Optimizations.RemoveDeadBlock.html#removeDeadBlock"><span class="hs-identifier hs-var hs-var">removeDeadBlock</span></a></span></span><span> </span><span class="hs-glyph">=</span><span> </span><span class="hs-keyword">do</span><span>
-</span><span id="line-27"></span><span>  </span><span id="local-6989586621679207543"><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679207543"><span class="hs-identifier hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CFGOptimizer CFG
+</span><span id="line-27"></span><span>  </span><span id="local-6989586621679209786"><span class="annot"><span class="annottext">CFG
+</span><a href="#local-6989586621679209786"><span class="hs-identifier hs-var">cfg</span></a></span></span><span> </span><span class="hs-glyph">&lt;-</span><span> </span><span class="annot"><span class="annottext">CFGOptimizer CFG
 </span><a href="CFG.Optimizations.Optimizer.html#getCFG"><span class="hs-identifier hs-var">getCFG</span></a></span><span>
 </span><span id="line-28"></span><span>  </span><span class="hs-keyword">case</span><span> </span><span class="annot"><span class="annottext">CFG -&gt; Maybe BBID
 </span><a href="CFG.Optimizations.RemoveDeadBlock.html#findDeadNode"><span class="hs-identifier hs-var">findDeadNode</span></a></span><span> </span><span class="annot"><span class="annottext">CFG
-</span><a href="#local-6989586621679207543"><span class="hs-identifier hs-var">cfg</span></a></span><span> </span><span class="hs-keyword">of</span><span>
+</span><a href="#local-6989586621679209786"><span class="hs-identifier hs-var">cfg</span></a></span><span> </span><span class="hs-keyword">of</span><span>
 </span><span id="line-29"></span><span>    </span><span class="annot"><span class="annottext">Maybe BBID
 </span><span class="hs-identifier hs-var">Nothing</span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">() -&gt; CFGOptimizer ()
 forall a. a -&gt; CFGOptimizer a
 forall (m :: * -&gt; *) a. Monad m =&gt; a -&gt; m a
 </span><span class="hs-identifier hs-var">return</span></span><span> </span><span class="hs-special">(</span><span class="hs-special">)</span><span>
-</span><span id="line-30"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679207546"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207546"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
+</span><span id="line-30"></span><span>    </span><span class="annot"><span class="hs-identifier hs-type">Just</span></span><span> </span><span id="local-6989586621679209789"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679209789"><span class="hs-identifier hs-var">bbid</span></a></span></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="hs-keyword">do</span><span>
 </span><span id="line-31"></span><span>      </span><span class="annot"><span class="annottext">GraphBuilder BBID BasicBlock CFGEdge () -&gt; CFGOptimizer ()
 forall a. GraphBuilder BBID BasicBlock CFGEdge a -&gt; CFGOptimizer ()
 </span><a href="CFG.Optimizations.Optimizer.html#updateCFG"><span class="hs-identifier hs-var">updateCFG</span></a></span><span> </span><span class="annot"><span class="annottext">(GraphBuilder BBID BasicBlock CFGEdge () -&gt; CFGOptimizer ())
@@ -46,17 +46,17 @@ forall a b. (a -&gt; b) -&gt; a -&gt; b
 </span><span class="hs-operator hs-var">$</span></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; GraphBuilder BBID BasicBlock CFGEdge ()
 forall ni nd ed. (Eq ni, Ord ni) =&gt; ni -&gt; GraphBuilder ni nd ed ()
 </span><a href="Util.Graph.html#deleteNode"><span class="hs-identifier hs-var">G.deleteNode</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207546"><span class="hs-identifier hs-var">bbid</span></a></span><span>
+</span><a href="#local-6989586621679209789"><span class="hs-identifier hs-var">bbid</span></a></span><span>
 </span><span id="line-32"></span><span>      </span><span class="annot"><span class="annottext">CFGOptimizer ()
 </span><a href="CFG.Optimizations.RemoveDeadBlock.html#removeDeadBlock"><span class="hs-identifier hs-var">removeDeadBlock</span></a></span><span>
 </span><span id="line-33"></span><span>
 </span><span id="line-34"></span><span class="annot"><a href="CFG.Optimizations.RemoveDeadBlock.html#findDeadNode"><span class="hs-identifier hs-type">findDeadNode</span></a></span><span> </span><span class="hs-glyph">::</span><span> </span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="hs-identifier hs-type">Maybe</span></span><span> </span><span class="annot"><a href="Types.html#BBID"><span class="hs-identifier hs-type">BBID</span></a></span><span>
 </span><span id="line-35"></span><span id="findDeadNode"><span class="annot"><span class="annottext">findDeadNode :: CFG -&gt; Maybe BBID
-</span><a href="CFG.Optimizations.RemoveDeadBlock.html#findDeadNode"><span class="hs-identifier hs-var hs-var">findDeadNode</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679207550"><span class="annot"><span class="annottext">g :: Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679207550"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.Graph.html#Graph"><span class="hs-identifier hs-type">G.Graph</span></a></span><span> </span><span id="local-6989586621679207552"><span class="annot"><span class="annottext">Map BBID BasicBlock
-</span><a href="#local-6989586621679207552"><span class="hs-identifier hs-var">nodes</span></a></span></span><span> </span><span class="annot"><span class="annottext">Map (BBID, BBID) CFGEdge
-</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679207553"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207553"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span class="annot"><span class="annottext">BBID
+</span><a href="CFG.Optimizations.RemoveDeadBlock.html#findDeadNode"><span class="hs-identifier hs-var hs-var">findDeadNode</span></a></span></span><span> </span><span class="hs-special">(</span><span class="annot"><a href="CFG.Types.html#CFG"><span class="hs-identifier hs-type">CFG</span></a></span><span> </span><span id="local-6989586621679209793"><span class="annot"><span class="annottext">g :: Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679209793"><span class="hs-identifier hs-var">g</span></a></span></span><span class="hs-glyph">@</span><span class="hs-special">(</span><span class="annot"><a href="Util.Graph.html#Graph"><span class="hs-identifier hs-type">G.Graph</span></a></span><span> </span><span id="local-6989586621679209795"><span class="annot"><span class="annottext">Map BBID BasicBlock
+</span><a href="#local-6989586621679209795"><span class="hs-identifier hs-var">nodes</span></a></span></span><span> </span><span class="annot"><span class="annottext">Map (BBID, BBID) CFGEdge
+</span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span id="local-6989586621679209796"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679209796"><span class="hs-identifier hs-var">entry</span></a></span></span><span> </span><span class="annot"><span class="annottext">BBID
 </span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">[Var]
 </span><span class="hs-identifier">_</span></span><span> </span><span class="annot"><span class="annottext">MethodSig
 </span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">=</span><span>
@@ -68,13 +68,13 @@ forall (f :: * -&gt; *) a b. Functor f =&gt; (a -&gt; b) -&gt; f a -&gt; f b
 </span><span class="hs-operator hs-var">&lt;$&gt;</span></span><span> </span><span class="annot"><span class="annottext">((BBID, BasicBlock) -&gt; Bool)
 -&gt; [(BBID, BasicBlock)] -&gt; Maybe (BBID, BasicBlock)
 forall (t :: * -&gt; *) a. Foldable t =&gt; (a -&gt; Bool) -&gt; t a -&gt; Maybe a
-</span><span class="hs-identifier hs-var">find</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679207556"><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207556"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BasicBlock
+</span><span class="hs-identifier hs-var">find</span></span><span> </span><span class="hs-special">(</span><span class="hs-glyph">\</span><span class="hs-special">(</span><span id="local-6989586621679209799"><span class="annot"><span class="annottext">BBID
+</span><a href="#local-6989586621679209799"><span class="hs-identifier hs-var">n</span></a></span></span><span class="hs-special">,</span><span> </span><span class="annot"><span class="annottext">BasicBlock
 </span><span class="hs-identifier">_</span></span><span class="hs-special">)</span><span> </span><span class="hs-glyph">-&gt;</span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207556"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
+</span><a href="#local-6989586621679209799"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">BBID -&gt; BBID -&gt; Bool
 forall a. Eq a =&gt; a -&gt; a -&gt; Bool
 </span><span class="hs-operator hs-var">/=</span></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207553"><span class="hs-identifier hs-var">entry</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
+</span><a href="#local-6989586621679209796"><span class="hs-identifier hs-var">entry</span></a></span><span> </span><span class="annot"><span class="annottext">Bool -&gt; Bool -&gt; Bool
 </span><span class="hs-operator hs-var">&amp;&amp;</span></span><span> </span><span class="annot"><span class="annottext">[(BBID, BBID, CFGEdge)] -&gt; Bool
 forall a. [a] -&gt; Bool
 forall (t :: * -&gt; *) a. Foldable t =&gt; t a -&gt; Bool
@@ -83,9 +83,9 @@ forall ni nd ed.
 (Eq ni, Ord ni) =&gt;
 ni -&gt; Graph ni nd ed -&gt; [(ni, ni, ed)]
 </span><a href="Util.Graph.html#inBound"><span class="hs-identifier hs-var">G.inBound</span></a></span><span> </span><span class="annot"><span class="annottext">BBID
-</span><a href="#local-6989586621679207556"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
-</span><a href="#local-6989586621679207550"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map BBID BasicBlock -&gt; [(BBID, BasicBlock)]
+</span><a href="#local-6989586621679209799"><span class="hs-identifier hs-var">n</span></a></span><span> </span><span class="annot"><span class="annottext">Graph BBID BasicBlock CFGEdge
+</span><a href="#local-6989586621679209793"><span class="hs-identifier hs-var">g</span></a></span><span class="hs-special">)</span><span class="hs-special">)</span><span> </span><span class="hs-special">(</span><span class="annot"><span class="annottext">Map BBID BasicBlock -&gt; [(BBID, BasicBlock)]
 forall k a. Map k a -&gt; [(k, a)]
 </span><span class="hs-identifier hs-var">Map.toList</span></span><span> </span><span class="annot"><span class="annottext">Map BBID BasicBlock
-</span><a href="#local-6989586621679207552"><span class="hs-identifier hs-var">nodes</span></a></span><span class="hs-special">)</span><span>
+</span><a href="#local-6989586621679209795"><span class="hs-identifier hs-var">nodes</span></a></span><span class="hs-special">)</span><span>
 </span><span id="line-37"></span></pre></body></html>

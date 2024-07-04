@@ -9,6 +9,53 @@
 
 module CodeGen
 
+module CodeGen.LLVMIR
+data Module
+Module :: ![Global] -> ![Function] -> Module
+[$sel:globals:Module] :: Module -> ![Global]
+[$sel:functions:Module] :: Module -> ![Function]
+data Global
+Global :: !Text -> !Type -> Global
+[$sel:name:Global] :: Global -> !Text
+[$sel:tpe:Global] :: Global -> !Type
+data Function
+Function :: !Text -> ![Argument] -> ![BasicBlock] -> Function
+[$sel:name:Function] :: Function -> !Text
+[$sel:arguments:Function] :: Function -> ![Argument]
+[$sel:basicBlocks:Function] :: Function -> ![BasicBlock]
+data Argument
+Argument :: !Text -> !Type -> Argument
+[$sel:name:Argument] :: Argument -> !Text
+[$sel:tpe:Argument] :: Argument -> !Type
+data Type
+VoidType :: Type
+IntType :: !Int -> Type
+PointerType :: !Type -> Type
+ArrayType :: !Type -> !Int -> Type
+data BasicBlock
+BasicBlock :: !Text -> ![Instruction] -> BasicBlock
+[$sel:label:BasicBlock] :: BasicBlock -> !Text
+[$sel:instructions:BasicBlock] :: BasicBlock -> ![Instruction]
+data Instruction
+Terminator :: !TermInst -> Instruction
+Binary :: !BinaryInst -> Instruction
+MemAccess :: !MemAccInst -> Instruction
+Phi :: Instruction
+Select :: Instruction
+Call :: Instruction
+data TermInst
+Ret :: TermInst
+Br :: TermInst
+data BinaryInst
+Add :: BinaryInst
+Sub :: BinaryInst
+Mul :: BinaryInst
+SDiv :: BinaryInst
+data MemAccInst
+Alloca :: MemAccInst
+Load :: MemAccInst
+Store :: MemAccInst
+
 module Configuration.Types
 data Configuration
 Configuration :: FilePath -> Maybe CompilerStage -> Bool -> OptimizationSpecification -> Maybe FilePath -> Configuration
@@ -1271,6 +1318,7 @@ patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID,
 buildCFGs :: ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
 populateGlobals :: ASTRoot -> CFGBuild BasicBlock
 buildMethod :: MethodDecl -> CFGBuild CFG
+replaceExitBlock :: BBID -> CFGBuild ()
 buildBlock :: [Argument] -> Block -> CFGBuild (BBID, BBID, [Var])
 buildAssignOp :: Location -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
@@ -1320,3 +1368,27 @@ CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> ![Var] -> !MethodSig 
 [$sel:exit:CFG] :: CFG -> !BBID
 [$sel:arguments:CFG] :: CFG -> ![Var]
 [$sel:sig:CFG] :: CFG -> !MethodSig
+data SingleFileCFG
+SingleFileCFG :: !BasicBlock -> !Map Name CFG -> SingleFileCFG
+[$sel:global:SingleFileCFG] :: SingleFileCFG -> !BasicBlock
+[$sel:cfgs:SingleFileCFG] :: SingleFileCFG -> !Map Name CFG
+
+module CodeGen.LLVMGen
+data LLVMGenState
+LLVMGenState :: LLVMGenState
+newtype LLVMGen a
+LLVMGen :: ExceptT CompileError (State LLVMGenState) a -> LLVMGen a
+[$sel:runLLVMGen:LLVMGen] :: LLVMGen a -> ExceptT CompileError (State LLVMGenState) a
+varName :: Var -> Text
+convertType :: Type -> Type
+genLLVMIR :: SingleFileCFG -> LLVMGen Module
+genGlobalBB :: BasicBlock -> LLVMGen [Global]
+genGlobalDecl :: SSA -> LLVMGen Global
+genFunction :: CFG -> LLVMGen Function
+genArgument :: Var -> Argument
+genBasicBlocks :: Graph BBID BasicBlock CFGEdge -> [BasicBlock]
+instance Control.Monad.State.Class.MonadState CodeGen.LLVMGen.LLVMGenState CodeGen.LLVMGen.LLVMGen
+instance Control.Monad.Error.Class.MonadError Types.CompileError CodeGen.LLVMGen.LLVMGen
+instance GHC.Base.Monad CodeGen.LLVMGen.LLVMGen
+instance GHC.Base.Applicative CodeGen.LLVMGen.LLVMGen
+instance GHC.Base.Functor CodeGen.LLVMGen.LLVMGen

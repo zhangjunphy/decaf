@@ -25,17 +25,17 @@ import Data.Text (Text)
 import Data.Text qualified as Text
 import Data.Text.Lazy qualified as LT
 import Formatting
+import SSA qualified
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
-import SSA qualified
 
 -- Reorder some backward edges introduced by loops so graphviz could find a
 -- clear ordering of the nodes.
 findBackEdges :: CFG -> Set (BBID, BBID)
-findBackEdges (CFG g _ exit _ _) =
+findBackEdges (CFG g _ _ _ _) =
   Set.fromList $
-    filter (\(b1, b2) -> b1 > b2 && b2 /= exit) $
+    filter (uncurry (>)) $
       fmap (\(b1, b2, _) -> (b1, b2)) (G.edgeToList g)
 
 data GVizNode = GVizNode
@@ -135,12 +135,12 @@ cfgToSubgraph cfg = GVizSubgraph name nodes edges
     nodes = G.nodeToList graph <&> basicBlockToNode (Just cfg) . snd
     backEdges = findBackEdges cfg
     isBackEdge (from, to, _) = Set.member (from, to) backEdges
-    convertEdge edge'@(from, to, edge) =
-      GVizEdge
-        from
-        to
-        (prettyPrintEdge edge)
-        (if isBackEdge edge' then "back" else "forward")
+    convertEdge edge@(from, to, ed) =
+      let (from', to', dir) =
+            if isBackEdge edge
+              then (to, from, "back")
+              else (from, to, "forward")
+       in GVizEdge from' to' (prettyPrintEdge ed) dir
     edges = G.edgeToList graph <&> convertEdge
 
 fileCFGsToGraph :: SingleFileCFG -> GVizGraph

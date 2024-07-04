@@ -489,8 +489,28 @@ buildMethod decl@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid
   updateCFG $ do
     G.addEdge entry blockH SeqEdge
     G.addEdge blockT exit SeqEdge
+  replaceExitBlock exit
   #cfg . _Just . #arguments .= vars
   getCFG
+
+-- Replace previously created exit block so id's are always monotonically increasing.
+replaceExitBlock :: BBID -> CFGBuild ()
+replaceExitBlock prevExit = do
+  exit <- createEmptyBB
+  g' <- use #cfg
+  case g' of
+    Nothing -> return ()
+    Just g -> do
+      let edges = G.edgeToList $ g ^. #graph
+      let nodes = G.nodeToList $ g ^. #graph
+      updateCFG $ forM_ edges (updateExitEdge exit)
+  where
+    updateExitEdge exit (src, dst, ed) = do
+      when (src == prevExit)
+        (G.deleteEdge src dst >> G.addEdge exit dst ed)
+      when (dst == prevExit)
+        (G.deleteEdge src dst >> G.addEdge src exit ed)
+
 
 buildBlock :: [AST.Argument] -> AST.Block -> CFGBuild (BBID, BBID, [Var])
 buildBlock args block@AST.Block {stmts = stmts} = do

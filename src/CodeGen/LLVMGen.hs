@@ -13,19 +13,21 @@
 
 module CodeGen.LLVMGen where
 
+import AST qualified
 import CFG (CFG (..), SingleFileCFG (..))
 import CFG qualified
 import CodeGen.LLVMIR
+import Control.Lens ((^.))
 import Control.Monad.Except
 import Control.Monad.State
-import SSA (SSA)
-import SSA qualified
-import Types (CompileError (CompileError))
-import Control.Lens ((^.))
+import Data.Functor ((<&>))
 import Data.Generics.Labels
 import Data.Text (Text)
 import Data.Text qualified as Text
-import AST qualified
+import SSA (SSA)
+import SSA qualified
+import Types (BBID, CompileError (CompileError))
+import Util.Graph qualified as G
 
 data LLVMGenState = LLVMGenState
 
@@ -52,11 +54,26 @@ convertType (AST.ArrayType tpe len) = ArrayType (convertType tpe) (fromIntegral 
 convertType (AST.Ptr tpe) = PointerType (convertType tpe)
 
 genLLVMIR :: SingleFileCFG -> LLVMGen Module
-genLLVMIR (SingleFileCFG global cfgs) = undefined
+genLLVMIR (SingleFileCFG global cfgs) = do
+  globals <- genGlobalBB global
+  undefined
 
 genGlobalBB :: CFG.BasicBlock -> LLVMGen [Global]
-genGlobalBB (CFG.BasicBlock _ _ insts) = forM insts genGlobalDecl 
+genGlobalBB (CFG.BasicBlock _ _ insts) = forM insts genGlobalDecl
 
 genGlobalDecl :: SSA -> LLVMGen Global
 genGlobalDecl (SSA.InitGlobal dst tpe) = return $ Global (varName dst) (convertType tpe)
 genGlobalDecl _ = throwError $ CompileError Nothing "Global basic block contains instruction other than alloc."
+
+genFunction :: CFG -> LLVMGen Function
+genFunction (CFG g _ _ args sig) = do
+  let name = sig ^. #name
+  let arguments = args <&> genArgument
+  let bbs = genBasicBlocks g
+  return $ Function name arguments bbs
+
+genArgument :: SSA.Var -> Argument
+genArgument var = Argument (varName var) (convertType $ var ^. #tpe)
+
+genBasicBlocks :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> [BasicBlock]
+genBasicBlocks g = undefined

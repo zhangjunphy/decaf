@@ -287,13 +287,13 @@ newLocal name tpe@(AST.ArrayType _ _) sl =
 newLocal name tpe sl = newVar name tpe sl Local
 
 allocaOnStack :: Maybe Name -> AST.Type -> SL.Range -> CFGBuild Var
-allocaOnStack name tpe@(AST.ArrayType _ _) sl = do
-  ptr <- newVar name tpe sl Local
-  addSSA $ Alloca ptr tpe
+allocaOnStack name tpe'@(AST.ArrayType tpe sz) sl = do
+  ptr <- newVar name tpe' sl Local
+  addSSA $ Alloca ptr tpe (Just sz)
   return ptr
 allocaOnStack name tpe sl = do
   ptr <- newVar name (AST.Ptr tpe) sl Local
-  addSSA $ Alloca ptr (AST.Ptr tpe)
+  addSSA $ Alloca ptr tpe Nothing
   return ptr
 
 newGlobal :: Name -> AST.Type -> SL.Range -> CFGBuild Var

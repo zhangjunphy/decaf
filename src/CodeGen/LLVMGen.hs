@@ -24,6 +24,7 @@ import Data.Functor ((<&>))
 import Data.Generics.Labels
 import Data.Text (Text)
 import Data.Text qualified as Text
+import Data.Char (ord)
 import SSA (SSA)
 import SSA qualified
 import Types (BBID, CompileError (CompileError))
@@ -69,11 +70,42 @@ genFunction :: CFG -> LLVMGen Function
 genFunction (CFG g _ _ args sig) = do
   let name = sig ^. #name
   let arguments = args <&> genArgument
-  let bbs = genBasicBlocks g
+  bbs <- genCFG g
   return $ Function name arguments bbs
 
 genArgument :: SSA.Var -> Argument
 genArgument var = Argument (varName var) (convertType $ var ^. #tpe)
 
-genBasicBlocks :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> [BasicBlock]
-genBasicBlocks g = undefined
+genCFG :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> LLVMGen [BasicBlock]
+genCFG = G.topologicalTraverseM genBasicBlock
+
+genBasicBlock :: BBID -> CFG.BasicBlock -> LLVMGen BasicBlock
+genBasicBlock _ b = undefined
+
+genImmOrVar :: SSA.VarOrImm -> LLVMGen Value
+genImmOrVar (SSA.BoolImm True) = return $ IntImm (IntType 1) 1
+genImmOrVar (SSA.BoolImm False) = return $ IntImm (IntType 1) 0
+genImmOrVar (SSA.IntImm val) = return $ IntImm (IntType 64) val
+genImmOrVar (SSA.CharImm val) = return $ IntImm (IntType 4) (fromIntegral $ ord val)
+genImmOrVar (SSA.StringImm val) = throwError $ CompileError Nothing "LLVM IR shall not contain any unhandled string literal."
+genImmOrVar (SSA.Variable var) = return $ Variable $ convertVar var
+  where
+    convertVar var = Var (var ^. #id) (convertType (var ^. #tpe)) (var ^. #loc)
+
+genVar :: SSA.Var -> Var
+genVar var = Var (var ^. #id) (convertType (var ^. #tpe)) (var ^. #loc)
+
+genInstruction :: SSA -> LLVMGen Instruction
+genInstruction (SSA.Assignment result value) = do
+  let res = genVar result
+  val <- genImmOrVar value
+  return $ Assignment res val
+genInstruction (SSA.MethodCall dst name args) = do
+  let res = genVar dst
+  let args' = args <&> Variable .genVar
+  let tpe = convertType (dst ^. #tpe)
+  return $ Call res tpe name args'
+genInstruction (SSA.Return ret) = do
+  let res = genVar ret
+  return $ Terminator $ Ret (Variable res) (convertType (ret ^. #tpe))
+genInstruction _ = undefined

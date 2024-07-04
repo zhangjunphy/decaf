@@ -35,6 +35,7 @@ module Util.Graph
   , strictlyDominate
   , strictlyPostDominate
   , topologicalTraverse
+  , topologicalTraverseM
   ) where
 
 import Control.Lens ((%=))
@@ -150,7 +151,10 @@ update bd init =
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 build bd = update bd empty
 
-topologicalTraverse :: (Eq ni, Ord ni, Monoid (f a)) => (ni -> nd -> f a) -> Graph ni nd ed -> f a
+topologicalTraverseM :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m [a]
+topologicalTraverseM f g = sequence $ topologicalTraverse f g
+
+topologicalTraverse :: (Eq ni, Ord ni) => (ni -> nd -> a) -> Graph ni nd ed -> [a]
 topologicalTraverse f g@Graph {nodes = nodes} = recurse initIndegree g
   where
     initIndegree = Map.mapWithKey (\i d -> length $ inBound i g) nodes
@@ -167,7 +171,7 @@ topologicalTraverse f g@Graph {nodes = nodes} = recurse initIndegree g
         (n : ns) ->
           let ele = f n (Maybe.fromJust $ lookupNode n g)
               indegree' = updateIndegree n indegree g
-          in ele <> recurse indegree' g
+          in ele : recurse indegree' g
 
 newtype Memoize ni m a = Memoize
   { unmem :: State m a

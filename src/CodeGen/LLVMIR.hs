@@ -13,59 +13,79 @@
 
 module CodeGen.LLVMIR where
 
+import Data.Generics.Labels
+import Data.Int (Int64)
 import Data.Text (Text)
+import GHC.Generics (Generic)
+import Types (VID, Name)
+import Util.SourceLoc qualified as SL
 
-data Module = Module 
-  { globals :: ![Global]
-  , functions :: ![Function]
+type Label = Text
+
+data Module = Module
+  { globals :: ![Global],
+    functions :: ![Function]
   }
 
 data Global = Global
-  { name :: !Text
-  , tpe :: !Type
+  { name :: !Text,
+    tpe :: !Type
   }
 
 data Function = Function
-  { name :: !Text
-  , arguments :: ![Argument]
-  , basicBlocks :: ![BasicBlock]
+  { name :: !Text,
+    arguments :: ![Argument],
+    basicBlocks :: ![BasicBlock]
   }
 
 data Argument = Argument
-  { name :: !Text
-  , tpe :: !Type
+  { name :: !Text,
+    tpe :: !Type
   }
 
-data Type =
-  VoidType
+data Type
+  = VoidType
   | IntType !Int
   | PointerType !Type
   | ArrayType !Type !Int
 
 data BasicBlock = BasicBlock
-  { label :: !Text
-  , instructions :: ![Instruction]
+  { label :: !Text,
+    instructions :: ![Instruction]
   }
 
-data Instruction = 
-  Terminator !TermInst
+data Var = Var
+  { id :: !VID,
+    tpe :: !Type,
+    loc :: !SL.Range
+  }
+  deriving (Generic)
+
+data Value
+  = IntImm !Type !Int64
+  | Variable !Var
+
+data Instruction
+  = Terminator !TermInst
   | Binary !BinaryInst
   | MemAccess !MemAccInst
-  | Phi
-  | Select
-  | Call
+  | Assignment !Var !Value
+  | Phi !Var ![(Var, Label)]
+  | Select !Value !Value !Value
+  | Call !Var !Type !Name ![Value]
 
-data TermInst =
-  Ret
-  | Br
+data TermInst
+  = Ret !Value !Type
+  | BrUncon !Label
+  | BrCon !Value !Label !Label
 
-data BinaryInst =
-  Add
-  | Sub
-  | Mul
-  | SDiv
+data BinaryInst
+  = Add !Var !Type !Value !Value
+  | Sub !Var !Type !Value !Value
+  | Mul !Var !Type !Value !Value
+  | SDiv !Var !Type !Value !Value
 
-data MemAccInst =
-  Alloca
-  | Load
-  | Store
+data MemAccInst
+  = Alloca !Type !Int
+  | Load !Type !Value
+  | Store !Type !Value !Value

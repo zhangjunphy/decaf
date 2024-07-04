@@ -77,7 +77,7 @@ data SSA
   = Assignment {dst :: !Var, src :: !VarOrImm}
   | MethodCall {dst :: !Var, name :: !Name, arguments :: ![Var]}
   | Return {ret :: !Var}
-  | Alloca {dst :: !Var, tpe :: !AST.Type}
+  | Alloca {dst :: !Var, tpe :: !AST.Type, sz :: !(Maybe Int64)}
   | Load {dst :: !Var, ptr :: !VarOrImm}
   | Store {ptr :: !VarOrImm, src :: !VarOrImm}
   | Arith {dst :: !Var, arithOp :: !ArithOp, opl :: !VarOrImm, opr :: !VarOrImm}
@@ -111,7 +111,8 @@ instance Show SSA where
   show (Return ret) = formatToString ("return" %+ ppVarWithType) ret
   show (Load dst ptr) = formatToString (ppVarWithType %+ "= *" % shown) dst ptr
   show (Store ptr src) = formatToString ("*" % shown %+ "=" %+ shown) ptr src
-  show (Alloca dst tpe) = formatToString (ppVarWithType %+ "= alloca" %+ shown) dst tpe
+  show (Alloca dst tpe Nothing) = formatToString (ppVarWithType %+ "= alloca" %+ shown) dst tpe
+  show (Alloca dst tpe (Just sz)) = formatToString (ppVarWithType %+ "= alloca" %+ shown %+ int) dst tpe sz
   show (Arith dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Rel dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr
   show (Cond dst op opl opr) = formatToString (ppVarWithType %+ "=" %+ shown %+ shown %+ shown) dst opl op opr

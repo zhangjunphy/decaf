@@ -39,6 +39,7 @@ import Types
 import Util.CLI qualified as CLI
 import Util.SourceLoc qualified as SL
 import Prelude hiding (readFile)
+import CodeGen (buildLLVMIR)
 
 ------------------------ Impure code: Fun with ExceptT ------------------------
 
@@ -94,6 +95,7 @@ process configuration input =
           Scan -> scan input
           Parse -> parse input
           Cfg -> cfg input
+          LLVM -> llvm input
           -- Inter -> irgen configuration input
           phase -> Left [CompileError Nothing $ sformat (shown %+ "not implemented") phase]
    in outputStageResult configuration stageResult
@@ -134,3 +136,11 @@ cfg input = do
   tree <- Parser.parse input
   (program, semantic) <- Semantic.analyze tree
   CFG.plot program semantic
+
+llvm :: ByteString -> Either [CompileError] String
+llvm input = do
+  tree <- Parser.parse input
+  (program, semantic) <- Semantic.analyze tree
+  fileCFG <- CFG.buildAndOptimize program semantic
+  mod <- CodeGen.buildLLVMIR fileCFG
+  return $ show mod

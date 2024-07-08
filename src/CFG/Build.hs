@@ -601,7 +601,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
       addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
-        G.addEdge prevBB elseHead $ CondEdge Complement
+        G.addEdge prevBB elseHead $ CondEdge $ Complement $ Variable predVar
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
       patchPhiNode tail ifTail ifBBPhiList elseTail elseBBPhiList
@@ -610,7 +610,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
       addDummyPhiNode phiList
       tail <- finishCurrentBB
       updateCFG $ do
-        G.addEdge prevBB tail $ CondEdge Complement
+        G.addEdge prevBB tail $ CondEdge $ Complement $ Variable predVar
         G.addEdge ifTail tail SeqEdge
       patchPhiNode tail prevBB prevBBPhiList ifTail ifBBPhiList
       return $ TailAt tail
@@ -648,7 +648,7 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
           updateBBPhiList <- recordPhiVar phiList
           updateCFG $ do
             G.addEdge predTail blockHead $ CondEdge $ Pred $ Variable predVar
-            G.addEdge predTail tail $ CondEdge Complement
+            G.addEdge predTail tail $ CondEdge $ Complement $ Variable predVar
             G.addEdge blockTail dummyUpdateBB SeqEdge
             G.addEdge dummyUpdateBB updateHead SeqEdge
             G.addEdge updateTail predHead SeqEdge
@@ -731,7 +731,7 @@ buildExpr (AST.Expr (AST.CondOpExpr AST.And lhs rhs) tpe loc) = do
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
     G.addEdge lhsTail rhsHead $ CondEdge $ Pred $ Variable lhs'
-    G.addEdge lhsTail tail $ CondEdge Complement
+    G.addEdge lhsTail tail $ CondEdge $ Complement $ Variable lhs'
     G.addEdge rhsTail tail SeqEdge
   addSSA $ Phi dst [(lhs', lhsTail), (rhs', rhsTail)]
   return dst
@@ -745,7 +745,7 @@ buildExpr (AST.Expr (AST.CondOpExpr AST.Or lhs rhs) tpe loc) = do
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
     G.addEdge lhsTail bbid $ CondEdge $ Pred $ Variable lhs'
-    G.addEdge lhsTail rhsHead $ CondEdge Complement
+    G.addEdge lhsTail rhsHead $ CondEdge $ Complement $ Variable lhs'
     G.addEdge rhsHead bbid SeqEdge
   addSSA $ Phi dst [(lhs', lhsTail), (rhs', rhsTail)]
   return dst
@@ -778,7 +778,7 @@ buildExpr (AST.Expr (AST.ChoiceOpExpr op e1 e2 e3) tpe loc) = do
   dst <- newLocal Nothing tpe loc
   updateCFG $ do
     G.addEdge prev bbTHead $ CondEdge $ Pred $ Variable pred'
-    G.addEdge prev bbFHead $ CondEdge Complement
+    G.addEdge prev bbFHead $ CondEdge $ Complement $ Variable pred'
     G.addEdge bbTTail tail SeqEdge
     G.addEdge bbFTail tail SeqEdge
   addSSA $ Phi dst [(exprT', bbTTail), (exprF', bbFTail)]

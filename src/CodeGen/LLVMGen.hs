@@ -29,6 +29,10 @@ import SSA (SSA)
 import SSA qualified
 import Types (BBID, CompileError (CompileError))
 import Util.Graph qualified as G
+import Data.Maybe (fromMaybe)
+import qualified Data.Map as Map
+import Formatting
+import Data.List (sort, sortBy, sortOn)
 
 data LLVMGenState = LLVMGenState
 
@@ -57,7 +61,8 @@ convertType (AST.Ptr tpe) = PointerType (convertType tpe)
 genLLVMIR :: SingleFileCFG -> LLVMGen Module
 genLLVMIR (SingleFileCFG global cfgs) = do
   globals <- genGlobalBB global
-  undefined
+  functions <- mapM genFunction cfgs <&> Map.elems
+  return $ Module globals functions
 
 genGlobalBB :: CFG.BasicBlock -> LLVMGen [Global]
 genGlobalBB (CFG.BasicBlock _ _ insts) = forM insts genGlobalDecl
@@ -71,16 +76,33 @@ genFunction (CFG g _ _ args sig) = do
   let name = sig ^. #name
   let arguments = args <&> genArgument
   bbs <- genCFG g
-  return $ Function name arguments bbs
+  let retTpe = maybe VoidType convertType (sig ^. #tpe)
+  return $ Function name retTpe arguments bbs
 
 genArgument :: SSA.Var -> Argument
 genArgument var = Argument (varName var) (convertType $ var ^. #tpe)
 
 genCFG :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> LLVMGen [BasicBlock]
-genCFG = G.topologicalTraverseM genBasicBlock
+genCFG g = do
+  let nodes = sortOn fst (G.nodeToList g)
+  mapM (uncurry $ genBasicBlock g) nodes
 
-genBasicBlock :: BBID -> CFG.BasicBlock -> LLVMGen BasicBlock
-genBasicBlock _ b = undefined
+genBasicBlock :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> BBID -> CFG.BasicBlock -> LLVMGen BasicBlock
+genBasicBlock g id b = do
+  let label = Text.pack $ show id
+  insts <- mapM genInstruction (b ^. #statements) <&> concat
+  let outEdges = G.outBound id g
+  br <- case outEdges of
+    [] -> return []
+    [(_, dst, CFG.SeqEdge)] -> return [BrUncon $ Text.pack $ show dst]
+    [(_, dst1, CFG.CondEdge (CFG.Pred var)), (_, dst2, CFG.CondEdge (CFG.Complement _))] -> do
+      pred <- genImmOrVar var
+      return [BrCon pred (Text.pack $ show dst1) (Text.pack $ show dst2)]
+    [(_, dst1, CFG.CondEdge (CFG.Complement var)), (_, dst2, CFG.CondEdge (CFG.Pred _))] -> do
+      pred <- genImmOrVar var
+      return [BrCon pred (Text.pack $ show dst2) (Text.pack $ show dst1)]
+    edges -> throwError $ CompileError Nothing (sformat ("Unsupported out bound edge of basicblock: " % shown) edges)
+  return $ BasicBlock label $ insts ++ (br <&> Terminator)
 
 genImmOrVar :: SSA.VarOrImm -> LLVMGen Value
 genImmOrVar (SSA.BoolImm True) = return $ IntImm (IntType 1) 1
@@ -88,24 +110,103 @@ genImmOrVar (SSA.BoolImm False) = return $ IntImm (IntType 1) 0
 genImmOrVar (SSA.IntImm val) = return $ IntImm (IntType 64) val
 genImmOrVar (SSA.CharImm val) = return $ IntImm (IntType 4) (fromIntegral $ ord val)
 genImmOrVar (SSA.StringImm val) = throwError $ CompileError Nothing "LLVM IR shall not contain any unhandled string literal."
-genImmOrVar (SSA.Variable var) = return $ Variable $ convertVar var
-  where
-    convertVar var = Var (var ^. #id) (convertType (var ^. #tpe)) (var ^. #loc)
+genImmOrVar (SSA.Variable var) = return $ Variable $ genVar var
 
 genVar :: SSA.Var -> Var
 genVar var = Var (var ^. #id) (convertType (var ^. #tpe)) (var ^. #loc)
 
-genInstruction :: SSA -> LLVMGen Instruction
+genInstruction :: SSA -> LLVMGen [Instruction]
 genInstruction (SSA.Assignment result value) = do
   let res = genVar result
   val <- genImmOrVar value
-  return $ Assignment res val
+  return [Assignment res val]
 genInstruction (SSA.MethodCall dst name args) = do
   let res = genVar dst
   let args' = args <&> Variable .genVar
   let tpe = convertType (dst ^. #tpe)
-  return $ Call res tpe name args'
+  return [Call res tpe name args']
 genInstruction (SSA.Return ret) = do
   let res = genVar ret
-  return $ Terminator $ Ret (Variable res) (convertType (ret ^. #tpe))
-genInstruction _ = undefined
+  return [Terminator $ Ret (Variable res) (convertType (ret ^. #tpe))]
+genInstruction (SSA.Alloca dst tpe sz) = do
+  let res = genVar dst
+  let tpe' = convertType tpe
+  let sz' = fromMaybe 1 sz
+  return [MemAccess $ Alloca res tpe' sz']
+genInstruction (SSA.Load dst ptr) = do
+  let res = genVar dst
+  ptr' <- genImmOrVar ptr
+  let tpe = convertType (dst ^. #tpe)
+  return [MemAccess $ Load res tpe ptr']
+genInstruction (SSA.Store ptr src) = do
+  src' <- genImmOrVar src
+  res <- genImmOrVar ptr
+  return [MemAccess $ Store (valueType src') src' res]
+genInstruction (SSA.Arith dst op opl opr) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  opl' <- genImmOrVar opl
+  opr' <- genImmOrVar opr
+  case op of
+    AST.Plus -> return [Binary $ Add res tpe opl' opr']
+    AST.Minus -> return [Binary $ Sub res tpe opl' opr']
+    AST.Multiply -> return [Binary $ Mul res tpe opl' opr']
+    AST.Division -> return [Binary $ SDiv res tpe opl' opr']
+genInstruction (SSA.Rel dst op opl opr) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  opl' <- genImmOrVar opl
+  opr' <- genImmOrVar opr
+  case op of 
+    AST.LessThan -> return [ICmp res SLT tpe opl' opr']
+    AST.GreaterThan -> return [ICmp res SGT tpe opl' opr']
+    AST.LessEqual -> return [ICmp res SLE tpe opl' opr']
+    AST.GreaterEqual -> return [ICmp res SGE tpe opl' opr']
+genInstruction (SSA.Cond dst op opl opr) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  opl' <- genImmOrVar opl
+  opr' <- genImmOrVar opr
+  case op of 
+    AST.And -> return [BitBinary $ And res tpe opl' opr']
+    AST.Or -> return [BitBinary $ Or res tpe opl' opr']
+genInstruction (SSA.Eq dst op opl opr) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  opl' <- genImmOrVar opl
+  opr' <- genImmOrVar opr
+  case op of
+    AST.Equal -> return [ICmp res EQL tpe opl' opr']
+    AST.NotEqual -> return [ICmp res NEQ tpe opl' opr']
+genInstruction (SSA.Neg dst op opd) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  zero <- genImmOrVar (SSA.IntImm 0)
+  opd' <- genImmOrVar opd
+  return [Binary $ Sub res tpe zero opd']
+genInstruction (SSA.Not dst op opd) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  let true = IntImm (IntType 1) 1
+  opd' <- genImmOrVar opd
+  return [Binary $ Sub res tpe true opd']
+genInstruction (SSA.Phi dst preds) = do
+  let res = genVar dst
+  let tpe = convertType (dst ^. #tpe)
+  let preds' = preds <&> \(var, label) ->
+        let var' = genVar var
+            label' = Text.pack (show label)
+        in (var', label')
+  return [Phi res tpe preds']
+genInstruction (SSA.AllocaStr dst content tpe) = do
+  let res = genVar dst
+  let tpe' = convertType tpe
+  sz <- case tpe of
+    AST.ArrayType _ sz' -> return sz'
+    _ -> throwError $ CompileError Nothing "String should have array type."
+  let alloca = MemAccess $ Alloca res tpe' sz
+  let charType = IntType 8
+  let stores = Text.unpack content <&> \c -> (charType, IntImm charType $ fromIntegral $ ord c)
+  return [alloca, MemAccess $ StoreVec tpe' stores (Variable res)]
+genInstruction inst =
+  throwError $ CompileError Nothing (sformat ("Unhandled SSA Instruction:" %+ shown) inst)

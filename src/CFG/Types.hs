@@ -21,7 +21,7 @@ import qualified AST
 
 data Condition
   = Pred {pred :: !VarOrImm}
-  | Complement
+  | Complement {pred :: !VarOrImm}
   deriving (Show)
 
 data BasicBlock = BasicBlock

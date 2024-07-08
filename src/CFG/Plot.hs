@@ -125,7 +125,7 @@ basicBlockToNode Nothing BasicBlock {bbid = id, statements = stmts} =
 prettyPrintEdge :: CFGEdge -> Text
 prettyPrintEdge SeqEdge = ""
 prettyPrintEdge (CondEdge (Pred var)) = sformat shown var
-prettyPrintEdge (CondEdge Complement) = "otherwise"
+prettyPrintEdge (CondEdge (Complement var)) = sformat ("!" % shown) var
 
 cfgToSubgraph :: CFG -> GVizSubgraph
 cfgToSubgraph cfg = GVizSubgraph name nodes edges

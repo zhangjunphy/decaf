@@ -10,7 +10,7 @@
 -- FOR A PARTICULAR PURPOSE.  See the X11 license for more details.
 
 -- CFG -- Control Flow Graph with SSA nodes
-module CFG (plot, CFGContext (..), Condition (..), BasicBlock (..), CFGEdge (..), CFG (..), SingleFileCFG (..)) where
+module CFG (plot, CFGContext (..), Condition (..), BasicBlock (..), CFGEdge (..), CFG (..), SingleFileCFG (..), buildAndOptimize) where
 
 import AST qualified
 import CFG.Build (CFGContext (..), buildCFGs)

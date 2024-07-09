@@ -7,55 +7,6 @@
 @package decaf
 @version 0.1.0.0
 
-module CodeGen
-
-module CodeGen.LLVMIR
-data Module
-Module :: ![Global] -> ![Function] -> Module
-[$sel:globals:Module] :: Module -> ![Global]
-[$sel:functions:Module] :: Module -> ![Function]
-data Global
-Global :: !Text -> !Type -> Global
-[$sel:name:Global] :: Global -> !Text
-[$sel:tpe:Global] :: Global -> !Type
-data Function
-Function :: !Text -> ![Argument] -> ![BasicBlock] -> Function
-[$sel:name:Function] :: Function -> !Text
-[$sel:arguments:Function] :: Function -> ![Argument]
-[$sel:basicBlocks:Function] :: Function -> ![BasicBlock]
-data Argument
-Argument :: !Text -> !Type -> Argument
-[$sel:name:Argument] :: Argument -> !Text
-[$sel:tpe:Argument] :: Argument -> !Type
-data Type
-VoidType :: Type
-IntType :: !Int -> Type
-PointerType :: !Type -> Type
-ArrayType :: !Type -> !Int -> Type
-data BasicBlock
-BasicBlock :: !Text -> ![Instruction] -> BasicBlock
-[$sel:label:BasicBlock] :: BasicBlock -> !Text
-[$sel:instructions:BasicBlock] :: BasicBlock -> ![Instruction]
-data Instruction
-Terminator :: !TermInst -> Instruction
-Binary :: !BinaryInst -> Instruction
-MemAccess :: !MemAccInst -> Instruction
-Phi :: Instruction
-Select :: Instruction
-Call :: Instruction
-data TermInst
-Ret :: TermInst
-Br :: TermInst
-data BinaryInst
-Add :: BinaryInst
-Sub :: BinaryInst
-Mul :: BinaryInst
-SDiv :: BinaryInst
-data MemAccInst
-Alloca :: MemAccInst
-Load :: MemAccInst
-Store :: MemAccInst
-
 module Configuration.Types
 data Configuration
 Configuration :: FilePath -> Maybe CompilerStage -> Bool -> OptimizationSpecification -> Maybe FilePath -> Configuration
@@ -71,12 +22,13 @@ Parse :: CompilerStage
 Cfg :: CompilerStage
 Inter :: CompilerStage
 Assembly :: CompilerStage
+LLVM :: CompilerStage
 data OptimizationSpecification
 All :: OptimizationSpecification
-Some :: [OptimizationName] -> OptimizationSpecification
+Some :: ![OptimizationName] -> OptimizationSpecification
 data OptimizationName
-Enable :: String -> OptimizationName
-Disable :: String -> OptimizationName
+Enable :: !String -> OptimizationName
+Disable :: !String -> OptimizationName
 instance GHC.Classes.Ord Configuration.Types.CompilerStage
 instance GHC.Classes.Eq Configuration.Types.CompilerStage
 instance GHC.Classes.Eq Configuration.Types.OptimizationName
@@ -99,12 +51,13 @@ Parse :: CompilerStage
 Cfg :: CompilerStage
 Inter :: CompilerStage
 Assembly :: CompilerStage
+LLVM :: CompilerStage
 data OptimizationSpecification
 All :: OptimizationSpecification
-Some :: [OptimizationName] -> OptimizationSpecification
+Some :: ![OptimizationName] -> OptimizationSpecification
 data OptimizationName
-Enable :: String -> OptimizationName
-Disable :: String -> OptimizationName
+Enable :: !String -> OptimizationName
+Disable :: !String -> OptimizationName
 
 module Lexer.Token
 
@@ -174,7 +127,8 @@ update :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Graph ni nd ed -> Either
 build :: (Eq ni, Ord ni) => GraphBuilder ni nd ed a -> Either Text (Graph ni nd ed)
 strictlyDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
 strictlyPostDominate :: (Eq ni, Ord ni) => ni -> Graph ni nd ed -> Set ni
-topologicalTraverse :: (Eq ni, Ord ni, Monoid (f a)) => (ni -> nd -> f a) -> Graph ni nd ed -> f a
+topologicalTraverse :: (Eq ni, Ord ni) => (ni -> nd -> a) -> Graph ni nd ed -> [a]
+topologicalTraverseM :: (Eq ni, Ord ni, Monad m) => (ni -> nd -> m a) -> Graph ni nd ed -> m [a]
 instance GHC.Generics.Generic (Util.Graph.Graph ni nd ed)
 instance (GHC.Show.Show ni, GHC.Show.Show nd, GHC.Show.Show ed) => GHC.Show.Show (Util.Graph.Graph ni nd ed)
 instance Control.Monad.State.Class.MonadState (Util.Graph.Graph ni nd ed) (Util.Graph.GraphBuilder ni nd ed)
@@ -840,6 +794,99 @@ ChoiceExpr :: !Located Expr -> !Located Expr -> !Located Expr -> Expr
 [$sel:lExpr:LocationExpr] :: Expr -> !Located Expr
 [$sel:rExpr:LocationExpr] :: Expr -> !Located Expr
 
+module CodeGen.LLVMIR
+newtype Label
+Label :: Int -> Label
+data Module
+Module :: ![Global] -> ![Function] -> Module
+[$sel:globals:Module] :: Module -> ![Global]
+[$sel:functions:Module] :: Module -> ![Function]
+data Global
+Global :: !Text -> !Type -> Global
+[$sel:name:Global] :: Global -> !Text
+[$sel:tpe:Global] :: Global -> !Type
+data Function
+Function :: !Text -> !Type -> ![Argument] -> ![BasicBlock] -> Function
+[$sel:name:Function] :: Function -> !Text
+[$sel:returnType:Function] :: Function -> !Type
+[$sel:arguments:Function] :: Function -> ![Argument]
+[$sel:basicBlocks:Function] :: Function -> ![BasicBlock]
+data Argument
+Argument :: !Text -> !Type -> Argument
+[$sel:name:Argument] :: Argument -> !Text
+[$sel:tpe:Argument] :: Argument -> !Type
+data Type
+VoidType :: Type
+IntType :: !Int -> Type
+PointerType :: !Type -> Type
+ArrayType :: !Type -> !Int -> Type
+arrayType :: Type -> Text
+data BasicBlock
+BasicBlock :: !Label -> ![Instruction] -> BasicBlock
+[$sel:label:BasicBlock] :: BasicBlock -> !Label
+[$sel:instructions:BasicBlock] :: BasicBlock -> ![Instruction]
+data Var
+Var :: !VID -> !Type -> !Range -> Var
+[$sel:id:Var] :: Var -> !VID
+[$sel:tpe:Var] :: Var -> !Type
+[$sel:loc:Var] :: Var -> !Range
+formatVar :: Format r (Var -> r)
+data Value
+IntImm :: !Type -> !Int64 -> Value
+Variable :: !Var -> Value
+valueType :: Value -> Type
+valueWithType :: Format r (Value -> r)
+data CondCodes
+EQL :: CondCodes
+NEQ :: CondCodes
+SGT :: CondCodes
+SGE :: CondCodes
+SLT :: CondCodes
+SLE :: CondCodes
+data Instruction
+Terminator :: !TermInst -> Instruction
+Binary :: !BinaryInst -> Instruction
+BitBinary :: !BitwiseBinaryInst -> Instruction
+MemAccess :: !MemAccInst -> Instruction
+ICmp :: !Var -> !CondCodes -> !Type -> !Value -> !Value -> Instruction
+Assignment :: !Var -> !Value -> Instruction
+Phi :: !Var -> !Type -> ![(Var, Label)] -> Instruction
+Call :: !Var -> !Type -> !Name -> ![Value] -> Instruction
+data TermInst
+Ret :: !Value -> !Type -> TermInst
+BrUncon :: !Label -> TermInst
+BrCon :: !Value -> !Label -> !Label -> TermInst
+data BinaryInst
+Add :: !Var -> !Type -> !Value -> !Value -> BinaryInst
+Sub :: !Var -> !Type -> !Value -> !Value -> BinaryInst
+Mul :: !Var -> !Type -> !Value -> !Value -> BinaryInst
+SDiv :: !Var -> !Type -> !Value -> !Value -> BinaryInst
+data BitwiseBinaryInst
+And :: !Var -> !Type -> !Value -> !Value -> BitwiseBinaryInst
+Or :: !Var -> !Type -> !Value -> !Value -> BitwiseBinaryInst
+data MemAccInst
+Alloca :: !Var -> !Type -> !Int64 -> MemAccInst
+Load :: !Var -> !Type -> !Value -> MemAccInst
+Store :: !Type -> !Value -> !Value -> MemAccInst
+StoreVec :: !Type -> ![(Type, Value)] -> !Value -> MemAccInst
+instance GHC.Generics.Generic CodeGen.LLVMIR.Var
+instance GHC.Classes.Eq CodeGen.LLVMIR.CondCodes
+instance GHC.Show.Show CodeGen.LLVMIR.Module
+instance GHC.Show.Show CodeGen.LLVMIR.Function
+instance GHC.Show.Show CodeGen.LLVMIR.BasicBlock
+instance GHC.Show.Show CodeGen.LLVMIR.Instruction
+instance GHC.Show.Show CodeGen.LLVMIR.MemAccInst
+instance GHC.Show.Show CodeGen.LLVMIR.BitwiseBinaryInst
+instance GHC.Show.Show CodeGen.LLVMIR.BinaryInst
+instance GHC.Show.Show CodeGen.LLVMIR.TermInst
+instance GHC.Show.Show CodeGen.LLVMIR.CondCodes
+instance GHC.Show.Show CodeGen.LLVMIR.Value
+instance GHC.Show.Show CodeGen.LLVMIR.Var
+instance GHC.Show.Show CodeGen.LLVMIR.Global
+instance GHC.Show.Show CodeGen.LLVMIR.Argument
+instance GHC.Show.Show CodeGen.LLVMIR.Type
+instance GHC.Show.Show CodeGen.LLVMIR.Label
+
 module AST
 data RelOp
 LessThan :: RelOp
@@ -1133,9 +1180,10 @@ MethodCall :: !Var -> !Name -> ![Var] -> SSA
 [$sel:arguments:Assignment] :: SSA -> ![Var]
 Return :: !Var -> SSA
 [$sel:ret:Assignment] :: SSA -> !Var
-Alloca :: !Var -> !Type -> SSA
+Alloca :: !Var -> !Type -> !Maybe Int64 -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:tpe:Assignment] :: SSA -> !Type
+[$sel:sz:Assignment] :: SSA -> !Maybe Int64
 Load :: !Var -> !VarOrImm -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:ptr:Assignment] :: SSA -> !VarOrImm
@@ -1196,7 +1244,8 @@ module CFG.Types
 data Condition
 Pred :: !VarOrImm -> Condition
 [$sel:pred:Pred] :: Condition -> !VarOrImm
-Complement :: Condition
+Complement :: !VarOrImm -> Condition
+[$sel:pred:Pred] :: Condition -> !VarOrImm
 data BasicBlock
 BasicBlock :: !BBID -> !ScopeID -> ![SSA] -> BasicBlock
 [$sel:bbid:BasicBlock] :: BasicBlock -> !BBID
@@ -1352,7 +1401,8 @@ CFGContext :: SemanticInfo -> CFGContext
 data Condition
 Pred :: !VarOrImm -> Condition
 [$sel:pred:Pred] :: Condition -> !VarOrImm
-Complement :: Condition
+Complement :: !VarOrImm -> Condition
+[$sel:pred:Pred] :: Condition -> !VarOrImm
 data BasicBlock
 BasicBlock :: !BBID -> !ScopeID -> ![SSA] -> BasicBlock
 [$sel:bbid:BasicBlock] :: BasicBlock -> !BBID
@@ -1372,6 +1422,7 @@ data SingleFileCFG
 SingleFileCFG :: !BasicBlock -> !Map Name CFG -> SingleFileCFG
 [$sel:global:SingleFileCFG] :: SingleFileCFG -> !BasicBlock
 [$sel:cfgs:SingleFileCFG] :: SingleFileCFG -> !Map Name CFG
+buildAndOptimize :: ASTRoot -> SemanticInfo -> Either [CompileError] SingleFileCFG
 
 module CodeGen.LLVMGen
 data LLVMGenState
@@ -1386,9 +1437,16 @@ genGlobalBB :: BasicBlock -> LLVMGen [Global]
 genGlobalDecl :: SSA -> LLVMGen Global
 genFunction :: CFG -> LLVMGen Function
 genArgument :: Var -> Argument
-genBasicBlocks :: Graph BBID BasicBlock CFGEdge -> [BasicBlock]
+genCFG :: CFG -> LLVMGen [BasicBlock]
+genBasicBlock :: CFG -> BBID -> BasicBlock -> LLVMGen BasicBlock
+genImmOrVar :: VarOrImm -> LLVMGen Value
+genVar :: Var -> Var
+genInstruction :: SSA -> LLVMGen [Instruction]
 instance Control.Monad.State.Class.MonadState CodeGen.LLVMGen.LLVMGenState CodeGen.LLVMGen.LLVMGen
 instance Control.Monad.Error.Class.MonadError Types.CompileError CodeGen.LLVMGen.LLVMGen
 instance GHC.Base.Monad CodeGen.LLVMGen.LLVMGen
 instance GHC.Base.Applicative CodeGen.LLVMGen.LLVMGen
 instance GHC.Base.Functor CodeGen.LLVMGen.LLVMGen
+
+module CodeGen
+buildLLVMIR :: SingleFileCFG -> Either [CompileError] Module

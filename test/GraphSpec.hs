@@ -72,7 +72,7 @@ specCyclicGraph = do
     getNodeData n g = Map.lookup n (Graph.nodes g)
 
 topologicalSort :: (Ord ni) => Graph ni nd ed -> [ni]
-topologicalSort = Graph.topologicalTraverse (\ni _ -> [ni]) 
+topologicalSort = Graph.topologicalTraverse const 
 
 traverseGraph :: SpecWith ()
 traverseGraph = do

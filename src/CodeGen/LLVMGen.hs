@@ -155,9 +155,9 @@ genInstruction (SSA.Arith dst op opl opr) = do
     AST.Division -> return [Binary $ SDiv res tpe opl' opr']
 genInstruction (SSA.Rel dst op opl opr) = do
   let res = genVar dst
-  let tpe = convertType (dst ^. #tpe)
   opl' <- genImmOrVar opl
   opr' <- genImmOrVar opr
+  let tpe = valueType opl'
   case op of 
     AST.LessThan -> return [ICmp res SLT tpe opl' opr']
     AST.GreaterThan -> return [ICmp res SGT tpe opl' opr']

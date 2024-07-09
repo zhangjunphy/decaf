@@ -41,6 +41,7 @@ TODO:
 
 optimizations :: [CFGOptimizer ()]
 optimizations = [removeDeadBlock, removeNoOp]
+--optimizations = []
 
 buildAndOptimize :: AST.ASTRoot -> SE.SemanticInfo -> Either [CompileError] SingleFileCFG
 buildAndOptimize root si = do

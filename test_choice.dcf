@@ -1,5 +1,0 @@
-bool a, a1;
-int b;
-void main() {
-b = a ? (a1 ? 2 : 3) : 1;
-}

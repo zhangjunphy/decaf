@@ -65,7 +65,6 @@ data CFGState = CFGState
 
 data BBTransition
   = StayIn !BBID
-  | TailAt !BBID
   | Deadend !BBID
 
 initialState :: CFGState
@@ -560,10 +559,6 @@ buildBlock args block@AST.Block {stmts = stmts} = do
     StayIn bbid ->
       -- collect dangling statements, possibly left by some previous basic block.
       finishCurrentBB
-    TailAt bbid -> do
-      -- some basic blocks were created, we check for dangling statements
-      checkStmts
-      return bbid
   -- recover parent scope
   setASTScope parentScope
   return (head, tail, arguments)
@@ -616,7 +611,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   ifBBPhiList <- recordPhiVar phiList
   updateCFG (G.addEdge prevBB ifHead $ CondEdge $ Pred $ Variable predVar)
   -- Build else body if it exist.
-  case maybeElseBlock of
+  tail <- case maybeElseBlock of
     (Just elseBlock) -> do
       (elseHead, elseTail, _) <- buildBlock [] elseBlock
       elseBBPhiList <- recordPhiVar phiList
@@ -627,7 +622,7 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge ifTail tail SeqEdge
         G.addEdge elseTail tail SeqEdge
       patchPhiNode tail ifTail ifBBPhiList elseTail elseBBPhiList
-      return $ TailAt tail
+      return tail
     Nothing -> do
       addDummyPhiNode phiList
       tail <- finishCurrentBB
@@ -635,7 +630,10 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
         G.addEdge prevBB tail $ CondEdge $ Complement $ Variable predVar
         G.addEdge ifTail tail SeqEdge
       patchPhiNode tail prevBB prevBBPhiList ifTail ifBBPhiList
-      return $ TailAt tail
+      return tail
+  bbid <- use #currentBBID
+  updateCFG $ G.addEdge tail bbid SeqEdge
+  return $ StayIn bbid
 buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
   phiList <- inferPhiList [block ^. #blockID]
   -- append init to previous block
@@ -655,7 +653,7 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
   -- create a dummy tail block fro break to jump to
   tail <- createEmptyBB
   -- build for body and block connections
-  updateBBPhiList <-
+  (updateTail, updateBBPhiList) <-
     withControlBlock
       dummyUpdateBB
       tail
@@ -674,10 +672,12 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
             G.addEdge blockTail dummyUpdateBB SeqEdge
             G.addEdge dummyUpdateBB updateHead SeqEdge
             G.addEdge updateTail predHead SeqEdge
-          return updateBBPhiList
+          return (updateTail, updateBBPhiList)
       )
-  patchPhiNode predHead prevBB prevBBPhiList dummyUpdateBB updateBBPhiList
-  return $ TailAt tail
+  patchPhiNode predHead prevBB prevBBPhiList updateTail updateBBPhiList
+  bbid <- use #currentBBID
+  updateCFG $ G.addEdge tail bbid SeqEdge
+  return $ StayIn bbid
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
   case expr' of
     (Just e) -> do
@@ -869,6 +869,8 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
           addSSA $ Store (Variable ptr) src
     AST.Ptr tpe -> do
       addSSA $ Store (Variable var) src
+      dst <- newLocal (Just name) tpe loc
+      addSSA $ Load dst (Variable var)
     _scalarType -> do
       dst <- newLocal (Just name) tpe loc
       addSSA $ Assignment dst src

@@ -78,6 +78,9 @@ data Type
   | PointerType !Type
   | ArrayType !Type !Int
 
+defaultImm :: Type -> Value
+defaultImm tpe = IntImm tpe 0
+
 instance Show Type where
   show VoidType = "void"
   show (IntType n) = formatToString ("i" % int) n
@@ -160,8 +163,8 @@ instance Show Instruction where
   show (Binary b) = show b
   show (BitBinary b) = show b
   show (MemAccess m) = show m
-  show (ICmp var cc tpe v1 v2) = formatToString (formatVar %+ "=" %+ "icmp" %+ shown %+ shown %+ shown %+ shown) var cc tpe v1 v2
-  show (Assignment var val) = formatToString (formatVar %+ "=" %+ shown %+ shown) var (valueType val) val
+  show (ICmp var cc tpe v1 v2) = formatToString (formatVar %+ "=" %+ "icmp" %+ shown %+ shown %+ shown % ", " % shown) var cc tpe v1 v2
+  show (Assignment var val) = show (Add var (var ^. #tpe) val (defaultImm (var ^. #tpe))) 
   show (Phi var tpe preds) = formatToString (formatVar %+ "= phi" %+ shown %+ intercalated ", " ("[" %+ viewed _1 shown % ", %" <> viewed _2 shown %+ "]")) var tpe preds
   show (Call var VoidType name args) = formatToString
     ("call" %+ shown %+ "@" % stext % "(" % intercalated ", " valueWithType % ")")
@@ -180,7 +183,7 @@ instance Show TermInst where
   show (Ret (Just val) tpe) = formatToString ("ret" %+ shown %+ shown) tpe val
   show (BrUncon label) = formatToString ("br label %" % shown) label
   show (BrCon val l1 l2) =
-    formatToString ("br" %+ shown %+ ", label %" % shown %+ ", label %" % shown) val l1 l2
+    formatToString ("br i1" %+ shown % ", label %" % shown %+ ", label %" % shown) val l1 l2
 
 data BinaryInst
   = Add !Var !Type !Value !Value

@@ -38,6 +38,7 @@ import Types
 import Util.Constants (globalScopeID)
 import Util.Graph qualified as G
 import Util.SourceLoc qualified as SL
+import Data.Char (chr)
 
 {------------------------------------------------
 Data types
@@ -324,6 +325,15 @@ createEmptyBB = do
   updateCFG (G.addNode bbid bb)
   return bbid
 
+createBB :: [SSA] -> CFGBuild BBID
+createBB stmts = do
+  #currentBBID += 1
+  bbid <- use #currentBBID
+  sid <- use #astScope
+  let bb = BasicBlock bbid sid stmts
+  updateCFG (G.addNode bbid bb)
+  return bbid
+
 finishCurrentBB :: CFGBuild BBID
 finishCurrentBB = do
   bbid <- use #currentBBID
@@ -488,14 +498,23 @@ buildMethod decl@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid
   updateCFG $ do
     G.addEdge entry blockH SeqEdge
     G.addEdge blockT exit SeqEdge
-  replaceExitBlock exit
+  newExit <- replaceExitBlock exit decl
   #cfg . _Just . #arguments .= vars
   getCFG
 
+defaultImm :: AST.Type -> VarOrImm
+defaultImm AST.Void = IntImm 0
+defaultImm AST.BoolType = BoolImm False 
+defaultImm AST.CharType = CharImm $ chr 0
+defaultImm AST.IntType = IntImm 0
+defaultImm (AST.ArrayType _ _) = PtrImm 0
+defaultImm (AST.Ptr _) = PtrImm 0
+
 -- Replace previously created exit block so id's are always monotonically increasing.
-replaceExitBlock :: BBID -> CFGBuild ()
-replaceExitBlock prevExit = do
-  exit <- createEmptyBB
+-- Also add a return statement as a default to exit block.
+replaceExitBlock :: BBID -> AST.MethodDecl -> CFGBuild BBID
+replaceExitBlock prevExit decl = do
+  exit <- createBB [retStmt]
   g' <- use #cfg
   case g' of
     Nothing -> return ()
@@ -503,7 +522,11 @@ replaceExitBlock prevExit = do
       let edges = G.edgeToList $ g ^. #graph
       let nodes = G.nodeToList $ g ^. #graph
       updateCFG $ forM_ edges (updateExitEdge exit)
+  return exit
   where
+    retStmt = case decl ^. #sig . #tpe of
+            Nothing -> Return Nothing
+            Just tpe -> Return $ Just $ defaultImm tpe
     updateExitEdge exit (src, dst, ed) = do
       when (src == prevExit)
         (G.deleteEdge src dst >> G.addEdge exit dst ed)
@@ -656,10 +679,11 @@ buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
   patchPhiNode predHead prevBB prevBBPhiList dummyUpdateBB updateBBPhiList
   return $ TailAt tail
 buildStatement (AST.Statement (AST.ReturnStmt expr') loc) = do
-  ret <- case expr' of
-    (Just e) -> buildExpr e
-    _ -> newLocal Nothing AST.Void loc
-  addSSA $ Return ret
+  case expr' of
+    (Just e) -> do
+      var <- buildExpr e
+      addSSA $ Return $ Just $ Variable var
+    _ -> addSSA $ Return Nothing
   -- Go directly to function exit
   bbid <- finishCurrentBB
   funcTail <- getFunctionExit

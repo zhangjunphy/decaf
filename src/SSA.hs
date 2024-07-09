@@ -50,6 +50,7 @@ data VarOrImm
   | IntImm !Int64
   | CharImm !Char
   | StringImm !Text
+  | PtrImm !Int64
   | Variable !Var
 
 escapeChar :: Char -> Text
@@ -70,13 +71,14 @@ instance Show VarOrImm where
   show (BoolImm False) = "false"
   show (IntImm val) = formatToString int val
   show (CharImm val) = formatToString ("'" % stext % "'") $ escapeChar val 
+  show (PtrImm val) = formatToString prefixHex val 
   show (StringImm val) = formatToString ("\\\"" % stext % "\\\"") $ escape val
   show (Variable Var {id = id}) = formatToString ("v" % int) id
 
 data SSA
   = Assignment {dst :: !Var, src :: !VarOrImm}
   | MethodCall {dst :: !Var, name :: !Name, arguments :: ![Var]}
-  | Return {ret :: !Var}
+  | Return {ret :: !(Maybe VarOrImm)}
   | Alloca {dst :: !Var, tpe :: !AST.Type, sz :: !(Maybe Int64)}
   | Load {dst :: !Var, ptr :: !VarOrImm}
   | Store {ptr :: !VarOrImm, src :: !VarOrImm}
@@ -107,7 +109,8 @@ ppPhiPreds = intercalated ", " showPredPair
 instance Show SSA where
   show (Assignment dst src) = formatToString (ppVarWithType %+ "=" %+ shown) dst src
   show (MethodCall dst name arguments) = formatToString (ppVarWithType %+ "=" %+ stext % "(" % ppVars % ")") dst name arguments
-  show (Return ret) = formatToString ("return" %+ ppVarWithType) ret
+  show (Return Nothing) = "return"
+  show (Return (Just val)) = formatToString ("return" %+ shown) val
   show (Load dst ptr) = formatToString (ppVarWithType %+ "= *" % shown) dst ptr
   show (Store ptr src) = formatToString ("*" % shown %+ "=" %+ shown) ptr src
   show (Alloca dst tpe Nothing) = formatToString (ppVarWithType %+ "= alloca" %+ shown) dst tpe

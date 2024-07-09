@@ -124,9 +124,11 @@ genInstruction (SSA.MethodCall dst name args) = do
   let args' = args <&> Variable .genVar
   let tpe = convertType (dst ^. #tpe)
   return [Call res tpe name args']
-genInstruction (SSA.Return ret) = do
-  let res = genVar ret
-  return [Terminator $ Ret (Variable res) (convertType (ret ^. #tpe))]
+genInstruction (SSA.Return Nothing) = do
+  return [Terminator $ Ret Nothing VoidType]
+genInstruction (SSA.Return (Just val)) = do
+  val' <- genImmOrVar val 
+  return [Terminator $ Ret (Just val') (valueType val')]
 genInstruction (SSA.Alloca dst tpe sz) = do
   let res = genVar dst
   let tpe' = convertType tpe

@@ -171,12 +171,13 @@ instance Show Instruction where
     var tpe name args
 
 data TermInst
-  = Ret !Value !Type
+  = Ret !(Maybe Value) !Type
   | BrUncon !Label
   | BrCon !Value !Label !Label
 
 instance Show TermInst where
-  show (Ret val tpe) = formatToString ("ret" %+ shown %+ shown) tpe val
+  show (Ret Nothing tpe) = "ret void"
+  show (Ret (Just val) tpe) = formatToString ("ret" %+ shown %+ shown) tpe val
   show (BrUncon label) = formatToString ("br label %" % shown) label
   show (BrCon val l1 l2) =
     formatToString ("br" %+ shown %+ ", label %" % shown %+ ", label %" % shown) val l1 l2

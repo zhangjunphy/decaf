@@ -29,12 +29,13 @@ instance Show Label where
   show (Label t) = formatToString ("l" % int) t
 
 data Module = Module
-  { globals :: ![Global],
+  { declares :: ![Declare],
+    globals :: ![Global],
     functions :: ![Function]
   }
 
 instance Show Module where 
-  show (Module globals functions) = formatToString (intercalated "\n" shown % "\n" % intercalated "\n" shown) globals functions
+  show (Module declares globals functions) = formatToString (intercalated "\n" shown % "\n" % intercalated "\n" shown % "\n" % intercalated "\n" shown) declares globals functions
 
 data Global = Global
   { name :: !Text,
@@ -43,6 +44,12 @@ data Global = Global
 
 instance Show Global where
   show (Global name tpe) = formatToString ("@" % stext %+ "=" %+ "global" %+ shown) name tpe
+
+newtype Declare = Declare 
+  { name :: Text }
+
+instance Show Declare where
+  show (Declare name) = formatToString ("declare void @" % stext % "()") name
 
 data Function = Function
   { name :: !Text,

@@ -447,7 +447,7 @@ Build cfg from ast fragments
 -----------------------------------------}
 
 buildCFGs :: AST.ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
-buildCFGs root@(AST.ASTRoot _ _ methods) context =
+buildCFGs root@(AST.ASTRoot imports globals methods) context =
   runMonads buildAll initialState
   where
     runMonads build state =
@@ -456,26 +456,25 @@ buildCFGs root@(AST.ASTRoot _ _ methods) context =
             Left e -> Left [e]
             Right a -> Right a
     buildAll = do
-      globalBB <- populateGlobals root
+      globals <- populateGlobals globals
+      declares <- handleImportFunctions imports
       cfgs <-
         sequence $
           Map.fromList
             (methods <&> \method -> (method ^. #sig . #name, buildMethod method))
-      return $ SingleFileCFG globalBB cfgs
+      return $ SingleFileCFG declares globals cfgs
 
-populateGlobals :: AST.ASTRoot -> CFGBuild BasicBlock
-populateGlobals root@(AST.ASTRoot _ globals _) = do
-  sid <- use #astScope
-  setASTScope 0
-  allocs <-
+populateGlobals :: [AST.FieldDecl] -> CFGBuild [(Var, AST.Type)]
+populateGlobals globals = 
     mapM
       ( \(AST.FieldDecl name tpe loc) -> do
           ptr <- newGlobal name tpe loc
-          return $ InitGlobal ptr tpe
+          return (ptr, tpe)
       )
       globals
-  setASTScope sid
-  return $ BasicBlock 0 globalScopeID allocs
+
+handleImportFunctions :: [AST.ImportDecl] -> CFGBuild [Name]
+handleImportFunctions imports = return $ imports <&> view #name
 
 buildMethod :: AST.MethodDecl -> CFGBuild CFG
 buildMethod decl@AST.MethodDecl {sig = sig, block = block@(AST.Block _ stmts sid)} = do

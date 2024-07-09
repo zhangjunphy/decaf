@@ -50,6 +50,7 @@ data CFG = CFG
 type CFGBuilder = G.GraphBuilder BBID BasicBlock CFGEdge
 
 data SingleFileCFG = SingleFileCFG
-  { global :: !BasicBlock,
+  { declares :: ![Name],          -- Foreign functions
+    global :: ![(Var, AST.Type)], -- Global variables
     cfgs :: !(Map Name CFG)
   } deriving (Generic)

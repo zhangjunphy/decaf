@@ -27,7 +27,7 @@ import Data.Text qualified as Text
 import Data.Char (ord)
 import SSA (SSA)
 import SSA qualified
-import Types (BBID, CompileError (CompileError))
+import Types (BBID, CompileError (CompileError), Name)
 import Util.Graph qualified as G
 import Data.Maybe (fromMaybe)
 import qualified Data.Map as Map
@@ -59,17 +59,17 @@ convertType (AST.ArrayType tpe len) = ArrayType (convertType tpe) (fromIntegral 
 convertType (AST.Ptr tpe) = PointerType (convertType tpe)
 
 genLLVMIR :: SingleFileCFG -> LLVMGen Module
-genLLVMIR (SingleFileCFG global cfgs) = do
-  globals <- genGlobalBB global
+genLLVMIR (SingleFileCFG declares globals cfgs) = do
+  declares' <- genExternalDeclares declares
+  globals' <- genGlobals globals
   functions <- mapM genFunction cfgs <&> Map.elems
-  return $ Module globals functions
+  return $ Module declares' globals' functions
 
-genGlobalBB :: CFG.BasicBlock -> LLVMGen [Global]
-genGlobalBB (CFG.BasicBlock _ _ insts) = forM insts genGlobalDecl
+genExternalDeclares :: [Name] -> LLVMGen [Declare]
+genExternalDeclares = mapM $ return . Declare
 
-genGlobalDecl :: SSA -> LLVMGen Global
-genGlobalDecl (SSA.InitGlobal dst tpe) = return $ Global (varName dst) (convertType tpe)
-genGlobalDecl _ = throwError $ CompileError Nothing "Global basic block contains instruction other than alloc."
+genGlobals :: [(SSA.Var, AST.Type)] -> LLVMGen [Global]
+genGlobals = mapM $ \(var, tpe) -> return $ Global (varName var) (convertType tpe)
 
 genFunction :: CFG -> LLVMGen Function
 genFunction cfg@(CFG g _ _ args sig) = do

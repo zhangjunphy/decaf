@@ -87,10 +87,9 @@ data SSA
   | Neg {dst :: !Var, negOp :: !NegOp, oprand :: !VarOrImm}
   | Not {dst :: !Var, notOp :: !NotOp, oprand :: !VarOrImm}
   | Phi {dst :: !Var, predecessors :: ![(Var, BBID)]}
+  | AllocaStr {dst :: !Var, content :: !Text, tpe :: !AST.Type}
   | BrUncon {target :: !Label}
   | BrCon {pred :: !VarOrImm, targetT :: !Label, targetF :: !Label}
-  | InitGlobal {dst :: !Var, tpe :: !AST.Type}
-  | AllocaStr {dst :: !Var, content :: !Text, tpe :: !AST.Type}
   deriving (Generic)
 
 ppVarWithType :: Format r (Var -> r)
@@ -120,5 +119,4 @@ instance Show SSA where
   show (Neg dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
   show (Not dst op opd) = formatToString (ppVarWithType %+ "=" %+ shown % shown) dst op opd
   show (Phi dst preds) = formatToString (ppVarWithType %+ "= phi" %+ ppPhiPreds) dst preds
-  show (InitGlobal dst tpe) = formatToString (ppVarWithType %+ "= global" %+ shown) dst tpe
   show (AllocaStr dst content tpe) = formatToString (ppVarWithType %+ "= string \\\"" % stext % "\\\"") dst (escape content)

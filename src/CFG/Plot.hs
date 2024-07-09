@@ -29,6 +29,7 @@ import SSA qualified
 import Semantic qualified as SE
 import Types
 import Util.Graph qualified as G
+import Util.Constants (globalScopeID)
 
 -- Reorder some backward edges introduced by loops so graphviz could find a
 -- clear ordering of the nodes.
@@ -104,8 +105,8 @@ instance Show GVizGraph where
       edges
       subgraphs
 
-basicBlockToNode :: Maybe CFG -> BasicBlock -> GVizNode
-basicBlockToNode (Just (CFG _ entry exit args sig)) BasicBlock {bbid = id, statements = stmts} =
+basicBlockToNode :: CFG -> BasicBlock -> GVizNode
+basicBlockToNode (CFG _ entry exit args sig) BasicBlock {bbid = id, statements = stmts} =
   let idText = [sformat ("<id:" %+ int %+ stext % ">") id entryExit]
       segments = stmts <&> sformat shown
    in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "same")
@@ -117,10 +118,6 @@ basicBlockToNode (Just (CFG _ entry exit args sig)) BasicBlock {bbid = id, state
       | id == entry = sformat ("[entry(" % stext % ")]") methodAndArgs
       | id == exit = "[exit]"
       | otherwise = ""
-basicBlockToNode Nothing BasicBlock {bbid = id, statements = stmts} =
-  let idText = [sformat ("<id:" %+ int %+ stext % ">") id "[global]"]
-      segments = stmts <&> sformat shown
-   in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "source")
 
 prettyPrintEdge :: CFGEdge -> Text
 prettyPrintEdge SeqEdge = ""
@@ -132,7 +129,7 @@ cfgToSubgraph cfg = GVizSubgraph name nodes edges
   where
     name = cfg ^. #sig . #name
     graph = cfg ^. #graph
-    nodes = G.nodeToList graph <&> basicBlockToNode (Just cfg) . snd
+    nodes = G.nodeToList graph <&> basicBlockToNode cfg . snd
     backEdges = findBackEdges cfg
     isBackEdge (from, to, _) = Set.member (from, to) backEdges
     convertEdge edge@(from, to, ed) =
@@ -143,10 +140,22 @@ cfgToSubgraph cfg = GVizSubgraph name nodes edges
        in GVizEdge from' to' (prettyPrintEdge ed) dir
     edges = G.edgeToList graph <&> convertEdge
 
+-- basicBlockToNode Nothing BasicBlock {bbid = id, statements = stmts} =
+--   let idText = [sformat ("<id:" %+ int %+ stext % ">") id "[global]"]
+--       segments = stmts <&> sformat shown
+--    in GVizNode id (Text.intercalate "\\n" $ idText ++ segments) (Just "source")
+
+buildGlobalAndDeclares :: [Name] -> [(SSA.Var, AST.Type)] -> GVizNode
+buildGlobalAndDeclares declares globals = 
+  let idText = [sformat ("<id:" %+ int %+ stext % ">") globalScopeID "[global]"]
+      declares' = declares <&> sformat ("void " % stext % "()")
+      globals' = globals <&> uncurry (sformat (shown %+ "= global " % shown))
+   in GVizNode globalScopeID (Text.intercalate "\\n" $ idText ++ declares' ++ globals') (Just "source")
+
 fileCFGsToGraph :: SingleFileCFG -> GVizGraph
-fileCFGsToGraph (SingleFileCFG global cfgs) = GVizGraph subgraphs [globalNode] []
+fileCFGsToGraph (SingleFileCFG declares globals cfgs) = GVizGraph subgraphs [globalNode] []
   where
-    globalNode = basicBlockToNode Nothing global
+    globalNode = buildGlobalAndDeclares declares globals
     subgraphs = Map.elems cfgs <&> cfgToSubgraph
 
 fileCFGsToDot :: SingleFileCFG -> Text

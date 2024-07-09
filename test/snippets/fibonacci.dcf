@@ -1,0 +1,22 @@
+import printf;
+
+void main() {
+  int i;
+  int fib1;
+  int fib2;
+  int temp;
+  i = 0;
+  fib1 = 1;
+  fib2 = 1;
+  temp = 0;
+  printf("fibonacci:");
+  printf(" %d", fib1);
+  printf(" %d", fib2);
+  for (i = 3; i <= 10; i++) {
+    temp = fib1 + fib2;
+    fib1 = fib2;
+    fib2 = temp;
+    printf(" %d", temp);
+  }
+  printf("\n");
+}

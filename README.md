@@ -16,7 +16,7 @@ This implementation relies on [Alex](https://github.com/haskell/alex) for lexing
 The parser and semantic might not be exactly conformant to the [decaf spec](https://cons.mit.edu/fa18/handout-pdfs/01-decaf-spec.pdf). Rather it should be a superset. All valid decaf programs should be compiled to code with the expected behavior. In addition the implementation should also be able to compile some other intuitively reasonable programs which might be invalid in the spec.
 
 
-Curently the LLVM IR backend is mostly working. The compiler should be able to compile some simple code snippets. For example a "hellow world":
+Curently the LLVM IR backend is mostly working. (Note There are still lots of bugs though). The compiler should be able to compile some simple code snippets. For example a "hellow world":
 ```
 import printf;
 
@@ -34,6 +34,57 @@ Then the generated LLVM IR can be further compiled and linked into an executable
 ```bash
 llc -filetype=obj hello_world.ll -o hello_world.o
 clang hello_world.o -o hello_world
+```
+
+## Some working examples
+Sum from 1 to 50:
+```
+import printf;
+
+void main() {
+  int res;
+  int i;
+  res = 0;
+  for (i = 1; i <= 50; i+=1) {
+    res = res + i;
+  }
+  printf("sum(1..50) = %d\n", res);
+}
+```
+Produces:
+```
+sum(1..50) = 1275
+```
+
+
+Fibonacci series:
+```
+import printf;
+
+void main() {
+  int i;
+  int fib1;
+  int fib2;
+  int temp;
+  i = 0;
+  fib1 = 1;
+  fib2 = 1;
+  temp = 0;
+  printf("fibonacci:");
+  printf(" %d", fib1);
+  printf(" %d", fib2);
+  for (i = 3; i <= 10; i++) {
+    temp = fib1 + fib2;
+    fib1 = fib2;
+    fib2 = temp;
+    printf(" %d", temp);
+  }
+  printf("\n");
+}
+```
+Produces:
+```
+fibonacci: 1 1 2 3 5 8 13 21 34 55
 ```
 
 ## Some random comments

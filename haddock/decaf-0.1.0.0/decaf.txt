@@ -798,13 +798,17 @@ module CodeGen.LLVMIR
 newtype Label
 Label :: Int -> Label
 data Module
-Module :: ![Global] -> ![Function] -> Module
+Module :: ![Declare] -> ![Global] -> ![Function] -> Module
+[$sel:declares:Module] :: Module -> ![Declare]
 [$sel:globals:Module] :: Module -> ![Global]
 [$sel:functions:Module] :: Module -> ![Function]
 data Global
 Global :: !Text -> !Type -> Global
 [$sel:name:Global] :: Global -> !Text
 [$sel:tpe:Global] :: Global -> !Type
+newtype Declare
+Declare :: Text -> Declare
+[$sel:name:Declare] :: Declare -> Text
 data Function
 Function :: !Text -> !Type -> ![Argument] -> ![BasicBlock] -> Function
 [$sel:name:Function] :: Function -> !Text
@@ -853,7 +857,7 @@ Assignment :: !Var -> !Value -> Instruction
 Phi :: !Var -> !Type -> ![(Var, Label)] -> Instruction
 Call :: !Var -> !Type -> !Name -> ![Value] -> Instruction
 data TermInst
-Ret :: !Value -> !Type -> TermInst
+Ret :: !Maybe Value -> !Type -> TermInst
 BrUncon :: !Label -> TermInst
 BrCon :: !Value -> !Label -> !Label -> TermInst
 data BinaryInst
@@ -885,6 +889,7 @@ instance GHC.Show.Show CodeGen.LLVMIR.Var
 instance GHC.Show.Show CodeGen.LLVMIR.Global
 instance GHC.Show.Show CodeGen.LLVMIR.Argument
 instance GHC.Show.Show CodeGen.LLVMIR.Type
+instance GHC.Show.Show CodeGen.LLVMIR.Declare
 instance GHC.Show.Show CodeGen.LLVMIR.Label
 
 module AST
@@ -1169,6 +1174,7 @@ BoolImm :: !Bool -> VarOrImm
 IntImm :: !Int64 -> VarOrImm
 CharImm :: !Char -> VarOrImm
 StringImm :: !Text -> VarOrImm
+PtrImm :: !Int64 -> VarOrImm
 Variable :: !Var -> VarOrImm
 data SSA
 Assignment :: !Var -> !VarOrImm -> SSA
@@ -1178,8 +1184,8 @@ MethodCall :: !Var -> !Name -> ![Var] -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:name:Assignment] :: SSA -> !Name
 [$sel:arguments:Assignment] :: SSA -> ![Var]
-Return :: !Var -> SSA
-[$sel:ret:Assignment] :: SSA -> !Var
+Return :: !Maybe VarOrImm -> SSA
+[$sel:ret:Assignment] :: SSA -> !Maybe VarOrImm
 Alloca :: !Var -> !Type -> !Maybe Int64 -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:tpe:Assignment] :: SSA -> !Type
@@ -1221,19 +1227,16 @@ Not :: !Var -> !NotOp -> !VarOrImm -> SSA
 Phi :: !Var -> ![(Var, BBID)] -> SSA
 [$sel:dst:Assignment] :: SSA -> !Var
 [$sel:predecessors:Assignment] :: SSA -> ![(Var, BBID)]
+AllocaStr :: !Var -> !Text -> !Type -> SSA
+[$sel:dst:Assignment] :: SSA -> !Var
+[$sel:content:Assignment] :: SSA -> !Text
+[$sel:tpe:Assignment] :: SSA -> !Type
 BrUncon :: !Label -> SSA
 [$sel:target:Assignment] :: SSA -> !Label
 BrCon :: !VarOrImm -> !Label -> !Label -> SSA
 [$sel:pred:Assignment] :: SSA -> !VarOrImm
 [$sel:targetT:Assignment] :: SSA -> !Label
 [$sel:targetF:Assignment] :: SSA -> !Label
-InitGlobal :: !Var -> !Type -> SSA
-[$sel:dst:Assignment] :: SSA -> !Var
-[$sel:tpe:Assignment] :: SSA -> !Type
-AllocaStr :: !Var -> !Text -> !Type -> SSA
-[$sel:dst:Assignment] :: SSA -> !Var
-[$sel:content:Assignment] :: SSA -> !Text
-[$sel:tpe:Assignment] :: SSA -> !Type
 instance GHC.Generics.Generic SSA.Var
 instance GHC.Generics.Generic SSA.SSA
 instance GHC.Show.Show SSA.SSA
@@ -1263,8 +1266,9 @@ CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> ![Var] -> !MethodSig 
 [$sel:sig:CFG] :: CFG -> !MethodSig
 type CFGBuilder = GraphBuilder BBID BasicBlock CFGEdge
 data SingleFileCFG
-SingleFileCFG :: !BasicBlock -> !Map Name CFG -> SingleFileCFG
-[$sel:global:SingleFileCFG] :: SingleFileCFG -> !BasicBlock
+SingleFileCFG :: ![Name] -> ![(Var, Type)] -> !Map Name CFG -> SingleFileCFG
+[$sel:declares:SingleFileCFG] :: SingleFileCFG -> ![Name]
+[$sel:global:SingleFileCFG] :: SingleFileCFG -> ![(Var, Type)]
 [$sel:cfgs:SingleFileCFG] :: SingleFileCFG -> !Map Name CFG
 instance GHC.Show.Show CFG.Types.Condition
 instance GHC.Show.Show CFG.Types.BasicBlock
@@ -1356,6 +1360,7 @@ newLocal :: Maybe Name -> Type -> Range -> CFGBuild Var
 allocaOnStack :: Maybe Name -> Type -> Range -> CFGBuild Var
 newGlobal :: Name -> Type -> Range -> CFGBuild Var
 createEmptyBB :: CFGBuild BBID
+createBB :: [SSA] -> CFGBuild BBID
 finishCurrentBB :: CFGBuild BBID
 checkStmts :: CFGBuild ()
 addSSA :: SSA -> CFGBuild ()
@@ -1365,9 +1370,11 @@ addDummyPhiNode :: [(ScopeID, Name)] -> CFGBuild ()
 recordPhiVar :: [(ScopeID, Name)] -> CFGBuild (Map (ScopeID, Name) Var)
 patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 buildCFGs :: ASTRoot -> CFGContext -> Either [CompileError] SingleFileCFG
-populateGlobals :: ASTRoot -> CFGBuild BasicBlock
+populateGlobals :: [FieldDecl] -> CFGBuild [(Var, Type)]
+handleImportFunctions :: [ImportDecl] -> CFGBuild [Name]
 buildMethod :: MethodDecl -> CFGBuild CFG
-replaceExitBlock :: BBID -> CFGBuild ()
+defaultImm :: Type -> VarOrImm
+replaceExitBlock :: BBID -> MethodDecl -> CFGBuild BBID
 buildBlock :: [Argument] -> Block -> CFGBuild (BBID, BBID, [Var])
 buildAssignOp :: Location -> AssignOp -> Maybe Expr -> CFGBuild Var
 buildStatement :: Statement -> CFGBuild BBTransition
@@ -1419,8 +1426,9 @@ CFG :: !Graph BBID BasicBlock CFGEdge -> !BBID -> !BBID -> ![Var] -> !MethodSig 
 [$sel:arguments:CFG] :: CFG -> ![Var]
 [$sel:sig:CFG] :: CFG -> !MethodSig
 data SingleFileCFG
-SingleFileCFG :: !BasicBlock -> !Map Name CFG -> SingleFileCFG
-[$sel:global:SingleFileCFG] :: SingleFileCFG -> !BasicBlock
+SingleFileCFG :: ![Name] -> ![(Var, Type)] -> !Map Name CFG -> SingleFileCFG
+[$sel:declares:SingleFileCFG] :: SingleFileCFG -> ![Name]
+[$sel:global:SingleFileCFG] :: SingleFileCFG -> ![(Var, Type)]
 [$sel:cfgs:SingleFileCFG] :: SingleFileCFG -> !Map Name CFG
 buildAndOptimize :: ASTRoot -> SemanticInfo -> Either [CompileError] SingleFileCFG
 
@@ -1433,8 +1441,8 @@ LLVMGen :: ExceptT CompileError (State LLVMGenState) a -> LLVMGen a
 varName :: Var -> Text
 convertType :: Type -> Type
 genLLVMIR :: SingleFileCFG -> LLVMGen Module
-genGlobalBB :: BasicBlock -> LLVMGen [Global]
-genGlobalDecl :: SSA -> LLVMGen Global
+genExternalDeclares :: [Name] -> LLVMGen [Declare]
+genGlobals :: [(Var, Type)] -> LLVMGen [Global]
 genFunction :: CFG -> LLVMGen Function
 genArgument :: Var -> Argument
 genCFG :: CFG -> LLVMGen [BasicBlock]

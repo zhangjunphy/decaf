@@ -45,6 +45,7 @@ import GHC.Generics (Generic)
 import Parser qualified as P
 import Types
 import Util.SourceLoc qualified as SL
+import Debug.Trace (traceShow)
 
 ---------------------------------------
 -- Semantic informations and errors
@@ -642,7 +643,7 @@ recordSymbolWrite loc = do
     ArrayType _ _ -> return ()
     Ptr _ -> return ()
     _ScalarType -> do
-      let newSet = Set.fromList $ filter (\(s, _) -> s /= 0) [(varScope, name)]
+      let newSet = traceShow loc $ Set.fromList $ filter (\(s, _) -> s /= 0) [(varScope, name)]
       #symbolWrites %= Map.insertWith Set.union sid newSet
 
 irgenAssign :: P.Location -> P.AssignExpr -> Semantic Assignment

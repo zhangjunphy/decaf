@@ -428,6 +428,7 @@ recordPhiVar symList = do
       symList
   return $ Map.fromList varList
 
+-- Patch phi node arguments. Also update symbol map.
 patchPhiNode :: BBID -> BBID -> Map (ScopeID, Name) Var -> BBID -> Map (ScopeID, Name) Var -> CFGBuild ()
 patchPhiNode bb s1 varMap1 s2 varMap2 = do
   g <- getGraph
@@ -448,7 +449,11 @@ patchPhiNode bb s1 varMap1 s2 varMap2 = do
         Just v1' -> do
           case v2 of
             Nothing -> throwError $ CompileError Nothing $ sformat ("Unable to find symbol" %+ stext) name
-            Just v2' -> return $ Phi dst [(v1', s1), (v2', s2)]
+            Just v2' -> do
+              -- Point name to vid of dst. Otherwise later nodes
+              -- might refer to variables in non-dominated blocks.
+              addVarSym name (dst ^. #id)
+              return $ Phi dst [(v1', s1), (v2', s2)]
     patch ssa = return ssa
 
 {----------------------------------------
@@ -548,7 +553,7 @@ buildBlock args block@AST.Block {stmts = stmts} = do
   -- handle method arguments
   arguments <- mapM (\(AST.Argument name tpe loc) -> newLocal (Just name) tpe loc) args
   -- handle variable declarations
-  mapM_ (\(AST.FieldDecl name tpe loc) -> allocaOnStack (Just name) tpe loc) (block ^. #vars)
+  mapM_ (\(AST.FieldDecl name tpe loc) -> newLocal (Just name) tpe loc) (block ^. #vars)
   -- handle statements
   stmtT <- foldM (\_ s -> buildStatement s) (StayIn head) stmts
   -- connect last basic block with dangling statements if necessary
@@ -635,7 +640,11 @@ buildStatement (AST.Statement (AST.IfStmt expr ifBlock maybeElseBlock) loc) = do
   updateCFG $ G.addEdge tail bbid SeqEdge
   return $ StayIn bbid
 buildStatement (AST.Statement (AST.ForStmt init pred update block) loc) = do
-  phiList <- inferPhiList [block ^. #blockID]
+  sid <- use #astScope
+  let initPhi = case init of
+                  Nothing -> []
+                  Just assign -> [(sid, assign ^. #location . #name)]
+  phiList <- inferPhiList [block ^. #blockID] >>= \l -> return $ initPhi ++ l
   -- append init to previous block
   case init of
     Nothing -> return ()
@@ -869,8 +878,6 @@ buildWriteToLocation (AST.Location name idx def tpe loc) src = do
           addSSA $ Store (Variable ptr) src
     AST.Ptr tpe -> do
       addSSA $ Store (Variable var) src
-      dst <- newLocal (Just name) tpe loc
-      addSSA $ Load dst (Variable var)
     _scalarType -> do
       dst <- newLocal (Just name) tpe loc
       addSSA $ Assignment dst src

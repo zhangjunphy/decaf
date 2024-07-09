@@ -52,9 +52,9 @@ varName var = Text.pack (show var)
 convertType :: AST.Type -> Type
 convertType AST.Void = VoidType
 convertType AST.BoolType = IntType 1
-convertType AST.CharType = IntType 4
+convertType AST.CharType = IntType 8
 convertType AST.IntType = IntType 64
-convertType AST.StringType = PointerType (IntType 4)
+convertType AST.StringType = PointerType (IntType 8)
 convertType (AST.ArrayType tpe len) = ArrayType (convertType tpe) (fromIntegral len)
 convertType (AST.Ptr tpe) = PointerType (convertType tpe)
 
@@ -72,37 +72,36 @@ genGlobalDecl (SSA.InitGlobal dst tpe) = return $ Global (varName dst) (convertT
 genGlobalDecl _ = throwError $ CompileError Nothing "Global basic block contains instruction other than alloc."
 
 genFunction :: CFG -> LLVMGen Function
-genFunction (CFG g _ _ args sig) = do
+genFunction cfg@(CFG g _ _ args sig) = do
   let name = sig ^. #name
   let arguments = args <&> genArgument
-  bbs <- genCFG g
+  bbs <- genCFG cfg
   let retTpe = maybe VoidType convertType (sig ^. #tpe)
   return $ Function name retTpe arguments bbs
 
 genArgument :: SSA.Var -> Argument
 genArgument var = Argument (varName var) (convertType $ var ^. #tpe)
 
-genCFG :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> LLVMGen [BasicBlock]
-genCFG g = do
+genCFG :: CFG -> LLVMGen [BasicBlock]
+genCFG cfg@(CFG g _ _ _ _) = do
   let nodes = sortOn fst (G.nodeToList g)
-  mapM (uncurry $ genBasicBlock g) nodes
+  mapM (uncurry $ genBasicBlock cfg) nodes
 
-genBasicBlock :: G.Graph BBID CFG.BasicBlock CFG.CFGEdge -> BBID -> CFG.BasicBlock -> LLVMGen BasicBlock
-genBasicBlock g id b = do
-  let label = Text.pack $ show id
+genBasicBlock :: CFG -> BBID -> CFG.BasicBlock -> LLVMGen BasicBlock
+genBasicBlock (CFG g _ exit _ _) id b = do
   insts <- mapM genInstruction (b ^. #statements) <&> concat
   let outEdges = G.outBound id g
   br <- case outEdges of
     [] -> return []
-    [(_, dst, CFG.SeqEdge)] -> return [BrUncon $ Text.pack $ show dst]
+    [(_, dst, CFG.SeqEdge)] -> return [BrUncon $ Label dst]
     [(_, dst1, CFG.CondEdge (CFG.Pred var)), (_, dst2, CFG.CondEdge (CFG.Complement _))] -> do
       pred <- genImmOrVar var
-      return [BrCon pred (Text.pack $ show dst1) (Text.pack $ show dst2)]
+      return [BrCon pred (Label dst1) (Label dst2)]
     [(_, dst1, CFG.CondEdge (CFG.Complement var)), (_, dst2, CFG.CondEdge (CFG.Pred _))] -> do
       pred <- genImmOrVar var
-      return [BrCon pred (Text.pack $ show dst2) (Text.pack $ show dst1)]
+      return [BrCon pred (Label dst2) (Label dst1)]
     edges -> throwError $ CompileError Nothing (sformat ("Unsupported out bound edge of basicblock: " % shown) edges)
-  return $ BasicBlock label $ insts ++ (br <&> Terminator)
+  return $ BasicBlock (Label id) $ insts ++ (br <&> Terminator)
 
 genImmOrVar :: SSA.VarOrImm -> LLVMGen Value
 genImmOrVar (SSA.BoolImm True) = return $ IntImm (IntType 1) 1
@@ -195,17 +194,16 @@ genInstruction (SSA.Phi dst preds) = do
   let tpe = convertType (dst ^. #tpe)
   let preds' = preds <&> \(var, label) ->
         let var' = genVar var
-            label' = Text.pack (show label)
-        in (var', label')
+        in (var', Label label)
   return [Phi res tpe preds']
 genInstruction (SSA.AllocaStr dst content tpe) = do
   let res = genVar dst
-  let tpe' = convertType tpe
   sz <- case tpe of
     AST.ArrayType _ sz' -> return sz'
     _ -> throwError $ CompileError Nothing "String should have array type."
-  let alloca = MemAccess $ Alloca res tpe' sz
-  let charType = IntType 8
+  let charType = convertType AST.CharType
+  let alloca = MemAccess $ Alloca res charType sz
+  let tpe' = convertType tpe
   let stores = Text.unpack content <&> \c -> (charType, IntImm charType $ fromIntegral $ ord c)
   return [alloca, MemAccess $ StoreVec tpe' stores (Variable res)]
 genInstruction inst =
